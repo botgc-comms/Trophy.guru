@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: trophy-archive-ai
+    runtime: docker
+    region: frankfurt
+    plan: 0.5c-512mb
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    numInstances: 1
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DATA_PATH
+        value: /var/data
+      - key: APP_PASSWORD
+        sync: false
+      - key: LEGACY_ARCHIVE_EMAIL
+        value: archive@botgc.test
+      - key: LEGACY_ARCHIVE_DISPLAY_NAME
+        value: BOTGC archive administrator
+      - key: LEGACY_CLUB_NAME
+        value: Burton-on-Trent Golf Club
+      - key: LEGACY_CLUB_SPORT
+        value: Golf
+      - key: LEGACY_CLUB_COUNTRY
+        value: United Kingdom
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.6-terra
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-2
+      - key: OPENAI_IMAGE_SIZE
+        value: 1024x1024
+      - key: OPENAI_IMAGE_QUALITY
+        value: high
+      - key: ANALYSIS_DEBOUNCE_SECONDS
+        value: 20
+    disk:
+      name: trophy-archive-data
+      mountPath: /var/data
+      sizeGB: 5

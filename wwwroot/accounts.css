@@ -1,0 +1,52 @@
+.club-brand-symbol { position: relative; width: 42px; height: 42px; flex: 0 0 auto; }
+.club-brand-symbol .club-monogram { position: absolute; inset: 0; }
+.club-logo { width: 42px; height: 42px; padding: 3px; border-radius: 50%; background: #fff; object-fit: contain; }
+
+.auth-card { width: min(100%, 510px); padding: 44px; align-content: start; }
+.auth-card h1 { max-width: 430px; font-size: clamp(40px, 7vw, 52px); line-height: 1; }
+.auth-card > p:not(.eyebrow):not(.form-error) { max-width: 410px; font-size: 16px; line-height: 1.6; }
+.auth-tabs { width: 100%; margin-bottom: 20px; padding: 5px; display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; background: #e9ece9; }
+.auth-tabs button { height: 48px; margin: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 15px; font-weight: 700; }
+.auth-tabs button.is-active { background: #fff; color: var(--green-900); box-shadow: 0 3px 12px rgba(18,44,34,.1); }
+.auth-form { width: 100%; display: grid; gap: 16px; }
+.auth-card label span { color: var(--ink); font-size: 14px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.auth-card input { height: 56px; font-size: 17px; }
+.auth-form > button { height: 56px; margin-top: 3px; font-size: 16px; }
+.password-control { position: relative; width: 100%; }
+.password-control input { display: block; padding-right: 78px; }
+.login-card .password-control button { position: absolute; top: 7px; right: 7px; width: auto; min-width: 60px; height: 42px; margin: 0; padding: 0 14px; border: 0; border-radius: 8px; background: #e8eeeb; color: var(--green-900); font-size: 14px; font-weight: 700; cursor: pointer; }
+.password-control button:hover, .password-control button:focus-visible { background: #dce7e1; }
+.field-help { width: 100%; margin: -8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: left; }
+.auth-assurance { max-width: 380px; margin-top: 20px !important; font-family: var(--font-sans) !important; font-size: 13px; font-style: normal !important; line-height: 1.5; }
+.auth-home-link { margin-top: 14px; color: var(--green-800); font-size: 14px; font-weight: 700; }
+
+.club-setup-screen { position: fixed; z-index: 55; inset: 0; min-height: 100dvh; padding: 24px; overflow-y: auto; display: grid; place-items: center; background: radial-gradient(circle at 50% 12%, #255d4b, var(--green-950) 56%); }
+.club-setup-card { width: min(100%, 620px); padding: 34px; display: grid; gap: 14px; border-radius: 24px; background: var(--surface); box-shadow: 0 28px 90px rgba(0,0,0,.35); }
+.club-setup-card h1 { margin: 0; font-family: var(--font-serif); font-size: clamp(36px, 7vw, 50px); line-height: 1; }
+.club-setup-card > p:not(.eyebrow):not(.form-error) { margin: -4px 0 2px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.club-setup-card label:not(.logo-picker) { display: grid; gap: 5px; }
+.club-setup-card label > span { color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.club-setup-card label em { font-style: normal; font-weight: 400; }
+.club-setup-card input:not([type="file"]) { width: 100%; height: 47px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.setup-progress { display: flex; align-items: center; justify-content: center; }
+.setup-progress span { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid #bbc4bf; border-radius: 50%; color: var(--muted); font-size: 10px; font-weight: 700; }
+.setup-progress span.is-complete { border-color: var(--green-800); background: var(--green-800); color: #fff; }
+.setup-progress span.is-active { border-color: var(--brass); color: var(--green-900); }
+.setup-progress i { width: 48px; height: 1px; background: #bbc4bf; }
+.logo-picker { width: 100%; min-height: 112px; display: grid; place-items: center; border: 1px dashed #b8b6ac; border-radius: 15px; background: #f6f3eb; cursor: pointer; overflow: hidden; }
+.logo-preview { width: 100%; min-height: 110px; display: grid; place-items: center; align-content: center; gap: 5px; color: var(--green-800); }
+.logo-preview b { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--green-900); color: #fff; font-size: 20px; }
+.logo-preview small { font-size: 10px; font-weight: 700; }
+.logo-preview img { width: 86px; height: 86px; padding: 5px; border-radius: 14px; background: #fff; object-fit: contain; box-shadow: 0 6px 18px rgba(18,44,34,.12); }
+.setup-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.setup-submit { min-height: 50px; padding: 0 17px; display: flex; justify-content: space-between; align-items: center; border: 0; border-radius: 11px; background: var(--green-900); color: #fff; font-weight: 700; cursor: pointer; }
+.setup-submit:disabled { opacity: .58; }
+.setup-signout { border: 0; background: transparent; color: var(--muted); font-size: 14px; cursor: pointer; }
+
+@media (max-width: 680px) {
+  .club-brand-symbol, .club-logo { width: 38px; height: 38px; }
+  .club-brand-symbol .club-monogram { width: 38px; height: 38px; }
+  .club-setup-screen { padding: 14px; place-items: start center; }
+  .club-setup-card { margin: 12px 0; padding: 28px 20px; border-radius: 20px; }
+  .setup-form-grid { grid-template-columns: 1fr; }
+}

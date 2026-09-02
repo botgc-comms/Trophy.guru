@@ -1,0 +1,12 @@
+{
+  "name": "Trophy Archive",
+  "short_name": "Trophies",
+  "description": "Capture, recover and verify winners engraved on historic trophies.",
+  "start_url": "/archive.html#catalogue",
+  "display": "standalone",
+  "background_color": "#f5f2e9",
+  "theme_color": "#0a2a21",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

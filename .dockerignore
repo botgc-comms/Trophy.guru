@@ -1,0 +1,12 @@
+.git
+.gitignore
+.vs
+.idea
+.vscode
+bin
+obj
+data-store
+wwwroot/preview-*
+README.md
+*.user
+*.suo
