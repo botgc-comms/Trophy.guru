@@ -177,31 +177,35 @@ h2 { font-size: 28px; line-height: 1.05; }
 .timeline-range input { width: 100%; height: 34px; padding: 0 6px; border: 1px solid #d4d1c7; border-radius: 7px; background: #fff; font-size: 11px; }
 .timeline-range button { height: 34px; border: 0; border-radius: 7px; background: var(--green-900); color: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
 .missing-years { margin: 12px 0; padding: 13px 14px; border: 1px solid #ead3a9; border-radius: 13px; background: var(--amber-soft); color: #7b4c13; }
-.missing-years div { display: flex; gap: 8px; align-items: center; font-size: 12px; }
-.missing-years div span { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 10px; font-weight: 700; }
+.missing-years > div:first-child { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.missing-years > div:first-child > span { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 10px; font-weight: 700; }
 .missing-years p { margin: 6px 0 0 27px; font-size: 10px; line-height: 1.5; opacity: .82; }
 .empty-winners { padding: 38px 16px 32px; display: grid; justify-items: center; text-align: center; color: var(--muted); }
 .empty-winners > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--green-100); color: var(--green-800); }
 .empty-winners strong { margin-top: 10px; color: var(--ink); font-family: var(--font-serif); font-size: 18px; }
 .empty-winners p { margin: 5px 0 0; font-size: 11px; }
 .winner-list { display: grid; }
-.winner-row { min-width: 0; padding: 12px 0; display: grid; grid-template-columns: 78px minmax(0, 1fr) 64px 104px; gap: 8px; align-items: end; border-bottom: 1px solid var(--line); }
+.winner-row { min-width: 0; padding: 12px 0; display: grid; grid-template-columns: 78px minmax(0, 1fr) 64px 104px; gap: 8px; align-items: start; border-bottom: 1px solid var(--line); }
 .winner-row label { min-width: 0; display: grid; gap: 4px; }
 .winner-row label > span { overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .07em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .winner-row input { width: 100%; min-width: 0; height: 35px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; background: #f5f3ed; color: var(--ink); font-size: 13px; outline: 0; }
 .winner-row input:focus { border-color: var(--green-800); background: #fff; }
-.winner-evidence-link { width: fit-content; min-height: 25px; margin-top: 4px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #c9d5cf; border-radius: 999px; background: #f1f6f3; color: var(--green-800); font-size: 8px; font-weight: 800; cursor: pointer; }
+.winner-name { grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 7px !important; }
+.winner-name > span:first-child { grid-column: 1 / -1; }
+.winner-name > input { grid-column: 1; grid-row: 2; }
+.winner-evidence-link { grid-column: 2; grid-row: 2; width: fit-content; min-height: 35px; margin: 0; padding: 3px 9px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #c9d5cf; border-radius: 8px; background: #f1f6f3; color: var(--green-800); font-size: 8px; font-weight: 800; white-space: nowrap; cursor: pointer; }
 .winner-evidence-link:hover, .winner-evidence-link:focus-visible { border-color: var(--green-800); background: #e4eee7; }
 .winner-evidence-link > span { color: var(--brass); font-size: 13px; line-height: 1; }
+.winner-name > .member-match { grid-column: 1 / -1; }
 .winner-row.is-uncertain { margin: 0 -10px; padding-inline: 10px; background: #fff9ee; }
 .winner-row.is-new { margin: 6px -10px 0; padding-inline: 10px; border-radius: 10px; background: var(--green-100); }
-.confidence { height: 35px; display: grid; align-content: center; justify-items: end; }
+.confidence { height: 35px; margin-top: 13px; display: grid; align-content: center; justify-items: end; }
 .confidence span { font-size: 11px; font-weight: 700; }
 .confidence small { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; }
 .confidence.confirmed span { color: var(--green-800); }
 .confidence.uncertain span { color: var(--red); }
 .confidence.needs-review span { color: var(--amber); }
-.winner-actions { height: 35px; display: flex; gap: 4px; }
+.winner-actions { height: 35px; margin-top: 13px; display: flex; gap: 4px; }
 .confirm-winner { min-width: 66px; flex: 1; border: 0; border-radius: 7px; background: var(--green-900); color: #fff; font-size: 9px; font-weight: 700; cursor: pointer; }
 .delete-winner, .cancel-winner { width: 32px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--muted); cursor: pointer; }
 .delete-winner:hover { border-color: #d6a49b; background: var(--red-soft); color: var(--red); }
@@ -290,7 +294,7 @@ h2 { font-size: 28px; line-height: 1.05; }
   .timeline-range { grid-template-columns: 1fr 1fr 48px; }
   .timeline-range > div { grid-column: 1 / -1; }
   .winner-row { padding-block: 14px; grid-template-columns: 66px minmax(0, 1fr) 52px; }
-  .winner-actions { grid-column: 1 / -1; height: 36px; }
+  .winner-actions { grid-column: 1 / -1; height: 36px; margin-top: 0; }
   .confirm-winner { font-size: 10px; }
   .confidence span { font-size: 10px; }
   .confidence small { font-size: 7px; }

@@ -49,6 +49,21 @@ public sealed class MemberMatchingCoordinator(
         return match is null ? null : await catalogue.SetMemberMatchAsync(trophyId, winnerId, match, cancellationToken);
     }
 
+    public async Task<TrophyRecord?> AddAndSelectMemberAsync(
+        string trophyId,
+        string winnerId,
+        ManualMemberInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var trophy = await catalogue.GetTrophyAsync(trophyId, cancellationToken);
+        var winner = trophy?.Winners.FirstOrDefault(item => item.Id == winnerId);
+        if (trophy is null || winner is null) return null;
+
+        var member = await directory.AddManualMemberAsync(input, cancellationToken);
+        var match = matcher.CreateSelection(trophy, winner, member);
+        return match is null ? null : await catalogue.SetMemberMatchAsync(trophyId, winnerId, match, cancellationToken);
+    }
+
     public async Task<int> RefreshAllAsync(CancellationToken cancellationToken = default)
     {
         var summaries = await catalogue.GetSummariesAsync(cancellationToken);

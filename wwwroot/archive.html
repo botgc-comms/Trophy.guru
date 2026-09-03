@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260903-evidence-1">
+  <link rel="stylesheet" href="/styles.css?v=20260903-winner-layout-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -221,6 +221,23 @@
       <p class="step-label">Membership record</p>
       <h2 id="member-match-title">Choose the correct member</h2>
       <p id="member-match-copy">Compare the possible records and select the right person.</p>
+      <div class="manual-member-entry">
+        <button id="show-manual-member-form" class="manual-member-toggle" type="button"><span aria-hidden="true">+</span><span><strong>Add member manually</strong><small>Use this when the correct person is not shown below</small></span></button>
+        <form id="manual-member-form" class="manual-member-form" hidden>
+          <div><strong>Add a member record</strong><small>This member will be saved in your club directory and can be matched to other trophies.</small></div>
+          <label><span>Full name</span><input name="fullName" maxlength="200" required autocomplete="name"></label>
+          <div class="commercial-form-grid">
+            <label><span>Date of birth or year <em>optional</em></span><input name="dateOfBirth" maxlength="30" inputmode="numeric" placeholder="e.g. 14/05/1952 or 1952"></label>
+            <label><span>Date joined or year <em>optional</em></span><input name="dateJoined" maxlength="30" inputmode="numeric" placeholder="e.g. 01/04/1978 or 1978"></label>
+          </div>
+          <div class="commercial-form-grid">
+            <label><span>Membership number <em>optional</em></span><input name="membershipNumber" maxlength="80"></label>
+            <label><span>Gender <em>optional</em></span><select name="gender"><option value="unknown">Not supplied</option><option value="female">Female</option><option value="male">Male</option></select></label>
+          </div>
+          <p id="manual-member-error" class="commercial-form-error" role="alert" hidden></p>
+          <div class="manual-member-actions"><button id="cancel-manual-member" type="button">Cancel</button><button type="submit">Save and attach member</button></div>
+        </form>
+      </div>
       <div id="member-candidate-list" class="member-candidate-list" aria-live="polite"></div>
       <button id="remove-current-member-match" class="remove-current-member-match" type="button">Remove this member match</button>
     </section>
@@ -263,7 +280,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the engraving…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260903-evidence-1" defer></script>
-  <script src="/missing-years.js?v=20260903-commercial-1" defer></script>
+  <script src="/app.js?v=20260903-winner-layout-1" defer></script>
+  <script src="/missing-years.js?v=20260903-manual-member-visible-1" defer></script>
 </body>
 </html>

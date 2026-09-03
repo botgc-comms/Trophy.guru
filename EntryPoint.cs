@@ -740,6 +740,32 @@ public static class EntryPoint
                 : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         });
 
+        app.MapPost("/api/trophies/{trophyId}/winners/{winnerId}/member-match/manual", async (
+            string trophyId,
+            string winnerId,
+            ManualMemberInput input,
+            MemberDirectoryStore directory,
+            MemberMatchingCoordinator matching,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var trophy = await matching.AddAndSelectMemberAsync(trophyId, winnerId, input, cancellationToken);
+                return trophy is null
+                    ? Results.NotFound(new { error = "That winner is no longer available." })
+                    : Results.Ok(new
+                    {
+                        trophy,
+                        missingYears = CatalogueStore.MissingYears(trophy),
+                        directory = await directory.GetSummaryAsync(cancellationToken)
+                    });
+            }
+            catch (MemberImportException exception)
+            {
+                return Results.BadRequest(new { error = exception.Message });
+            }
+        });
+
         app.MapDelete("/api/trophies/{trophyId}/winners/{winnerId}/member-match", async (
             string trophyId,
             string winnerId,
@@ -791,7 +817,7 @@ public static class EntryPoint
         app.MapGet("/api/export.csv", async (CatalogueStore store, CancellationToken cancellationToken) =>
         {
             var summaries = await store.GetSummariesAsync(cancellationToken);
-            var csv = new StringBuilder("Trophy code,Trophy name,Year,Winner,Review status,Source,Notes,Matched member,Membership number,Birth year,Match confidence,Match reason\r\n");
+            var csv = new StringBuilder("Trophy code,Trophy name,Year,Winner,Review status,Source,Notes,Matched member,Membership number,Birth year,Joining year,Match confidence,Match reason\r\n");
             foreach (var summary in summaries)
             {
                 var trophy = await store.GetTrophyAsync(summary.Id, cancellationToken);
@@ -804,6 +830,7 @@ public static class EntryPoint
                         Csv(winner.ReviewState), Csv(winner.Source), Csv(winner.Notes ?? string.Empty),
                         Csv(winner.MemberMatch?.MemberName ?? string.Empty), Csv(winner.MemberMatch?.MembershipNumber ?? string.Empty),
                         winner.MemberMatch?.BirthYear?.ToString() ?? string.Empty,
+                        winner.MemberMatch?.JoinYear?.ToString() ?? string.Empty,
                         winner.MemberMatch is null ? string.Empty : Math.Round(winner.MemberMatch.Confidence * 100).ToString(),
                         Csv(winner.MemberMatch?.Explanation ?? string.Empty)
                     }));

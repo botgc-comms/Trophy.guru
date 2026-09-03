@@ -105,6 +105,7 @@ public sealed class MemberMatchRecord
     public required string MemberName { get; set; }
     public string? MembershipNumber { get; set; }
     public int? BirthYear { get; set; }
+    public int? JoinYear { get; set; }
     public string Gender { get; set; } = MemberGenders.Unknown;
     public double Confidence { get; set; }
     public string State { get; set; } = MemberMatchStates.Possible;
@@ -160,8 +161,10 @@ public sealed class MemberRecord
     public string Initial { get; set; } = string.Empty;
     public string Surname { get; set; } = string.Empty;
     public int? BirthYear { get; set; }
+    public int? JoinYear { get; set; }
     public string? MembershipNumber { get; set; }
     public string Gender { get; set; } = MemberGenders.Unknown;
+    public bool ManuallyAdded { get; set; }
 }
 
 public sealed record TrophySummary(
@@ -181,6 +184,7 @@ public sealed record TrophySummary(
 public sealed record MemberDirectorySummary(
     int MemberCount,
     int WithBirthYearCount,
+    int WithJoinYearCount,
     int WithMembershipNumberCount,
     int WithGenderCount,
     string? SourceName,
@@ -196,6 +200,7 @@ public sealed record ClubInput(string Name, string Sport, string Country, string
 public sealed record TrophyCreateInput(string Name, string? SecondaryName, string Category, string? Code, string? Division);
 public sealed record TrophyDivisionInput(string? Division);
 public sealed record MemberMatchSelectionInput(string MemberId);
+public sealed record ManualMemberInput(string FullName, string? DateOfBirth, string? DateJoined, string? MembershipNumber, string? Gender);
 
 public static class TrophyDivisions
 {

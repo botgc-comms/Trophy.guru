@@ -10,7 +10,7 @@ The application now provides a complete customer entry journey:
 - a photo-first new-trophy wizard that creates the record, uploads one or more angles, starts inscription reading in the background and automatically generates the catalogue illustration;
 - repeated photographs, batch uploads and complementary rubbings;
 - editable winners, manual missing-year entry and confirmed human review;
-- CSV, TSV or XLSX member import with full dates of birth reduced to birth year;
+- CSV, TSV, XML or XLSX member import with birth and joining dates reduced to year only;
 - age-aware fuzzy member matching; and
 - CSV archive export.
 
@@ -56,5 +56,5 @@ Render supplies its RENDER_EXTERNAL_URL automatically for canonical links, Open 
 - Passwords are hashed with ASP.NET Core's password hasher; plaintext passwords are never stored.
 - Account cookies are HTTP-only, same-site and secure in production. Their data-protection keys persist on the Render disk so restarts do not invalidate every session.
 - Catalogue, member and image paths are resolved from the authenticated club on the server; a trophy identifier alone cannot cross into another club.
-- Full dates of birth are reduced to birth year during import, and the uploaded member spreadsheet is not retained.
+- Full birth and joining dates are reduced to year only during import, and the uploaded member file is not retained.
 - Keep Render disk snapshots and periodically download archive CSV exports.

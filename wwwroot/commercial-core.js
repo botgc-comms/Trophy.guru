@@ -125,9 +125,9 @@
     control.id = 'member-directory-control';
     control.className = 'member-directory-control';
     control.innerHTML = `
-      <label class="member-upload-button" title="Dates of birth are reduced to birth year and the original file is not retained.">
+      <label class="member-upload-button" title="Birth and joining dates are reduced to year only, and the original file is not retained.">
         <span class="member-upload-icon" aria-hidden="true">CSV</span>
-        <span><strong id="member-upload-title">Upload member information</strong><small id="member-directory-summary">CSV, XML or Excel · include gender</small></span>
+        <span><strong id="member-upload-title">Upload member information</strong><small id="member-directory-summary">CSV, XML or Excel · include birth and joining dates</small></span>
         <input id="member-file-input" type="file" accept=".csv,.tsv,.xml,.xlsx,text/csv,text/xml,application/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </label>
       <button id="clear-member-directory" type="button" title="Remove imported member information" aria-label="Remove imported member information" hidden>×</button>`;
@@ -159,13 +159,14 @@
       if (!summary || !title || !control || !clear) return;
       if (data.directory.memberCount) {
         title.textContent = 'Update member information';
+        const joinedCopy = data.directory.withJoinYearCount ? ` · ${data.directory.withJoinYearCount} with joining year` : '';
         const genderCopy = data.directory.withGenderCount ? ` · ${data.directory.withGenderCount} with gender` : '';
-        summary.textContent = `${data.directory.memberCount} members loaded${genderCopy}`;
+        summary.textContent = `${data.directory.memberCount} members loaded${joinedCopy}${genderCopy}`;
         control.classList.add('has-data');
         clear.hidden = false;
       } else {
         title.textContent = 'Upload member information';
-        summary.textContent = 'CSV, XML or Excel · include gender';
+        summary.textContent = 'CSV, XML or Excel · include birth and joining dates';
         control.classList.remove('has-data');
         clear.hidden = true;
       }
@@ -178,7 +179,7 @@
     if (!file) return;
     const form = new FormData();
     form.append('file', file, file.name);
-    setBusy(true, 'Importing member directory…', 'Normalising names, gender and dates of birth for trophy matching.');
+    setBusy(true, 'Importing member directory…', 'Normalising names, gender, birth dates and joining dates for trophy matching.');
     try {
       const data = await api('/api/members/import', { method: 'POST', body: form });
       commercial.memberDirectory = data.directory;
@@ -365,15 +366,16 @@
       const candidate = event.target.closest('[data-member-id]');
       if (candidate) selectMemberCandidate(candidate.dataset.memberId, candidate);
     });
+    dialog.querySelector('#show-manual-member-form').addEventListener('click', showManualMemberForm);
+    dialog.querySelector('#cancel-manual-member').addEventListener('click', hideManualMemberForm);
+    dialog.querySelector('#manual-member-form').addEventListener('submit', addManualMember);
     dialog.querySelector('#remove-current-member-match').addEventListener('click', removeCurrentMemberMatch);
     enhanceMatches();
   }
 
   function enhanceMatches() {
     const winners = state.current?.winners || [];
-    const hasDirectory = Number(commercial.memberDirectory?.memberCount || 0) > 0;
     for (const winner of winners) {
-      if (!winner.memberMatch && !hasDirectory) continue;
       const row = document.querySelector(`#winner-list [data-winner-id="${cssEscape(winner.id)}"]`);
       const nameLabel = row?.querySelector('.winner-name');
       if (!nameLabel || nameLabel.querySelector('.member-match')) continue;
@@ -384,8 +386,8 @@
 
       if (!match) {
         badge.className = 'member-match is-unmatched';
-        badge.title = 'No member is currently matched. Click to review possible records.';
-        badge.innerHTML = '<b>No member matched</b><span>Review possible membership records</span><em>Choose ›</em>';
+        badge.title = 'No member is currently attached. Click to choose an existing member or add one manually.';
+        badge.innerHTML = '<b>No member attached</b><span>Choose an existing member or add one manually</span><em>Choose ›</em>';
         nameLabel.append(badge);
         continue;
       }
@@ -395,7 +397,7 @@
       badge.className = `member-match is-${match.state}`;
       badge.title = `${memberNumber}${match.explanation} Click to see every possible match.`.trim();
       const label = match.manuallySelected ? 'Selected member' : match.state === 'strong' ? 'Likely member' : 'Possible member';
-      badge.innerHTML = `<b>${label}</b><span>${escapeHtml(match.memberName)}${match.birthYear ? ` · born ${match.birthYear}` : ''}${age !== null ? ` · age ${age} in ${winner.year}` : ''}</span><em>${Math.round(match.confidence * 100)}% ›</em>`;
+      badge.innerHTML = `<b>${label}</b><span>${escapeHtml(match.memberName)}${match.birthYear ? ` · born ${match.birthYear}` : ''}${age !== null ? ` · age ${age} in ${winner.year}` : ''}${match.joinYear ? ` · joined ${match.joinYear}` : ''}</span><em>${Math.round(match.confidence * 100)}% ›</em>`;
       nameLabel.append(badge);
     }
   }
@@ -410,6 +412,7 @@
       ? `Choose the membership record for the ${winner.year} winner. Age is shown at the time of the award.`
       : 'Choose the correct membership record.';
     document.querySelector('#remove-current-member-match').hidden = !winner?.memberMatch;
+    prepareManualMemberForm(winner);
     list.innerHTML = '<p class="candidate-loading">Loading possible matches…</p>';
     dialog.showModal();
     try {
@@ -427,9 +430,71 @@
     list.innerHTML = candidates.length ? candidates.map(candidate => {
       const age = candidate.birthYear ? winner.year - candidate.birthYear : null;
       const gender = candidate.gender && candidate.gender !== 'unknown' ? capitalize(candidate.gender) : 'Gender not supplied';
-      const details = [candidate.membershipNumber ? `Member ${candidate.membershipNumber}` : 'No member number', candidate.birthYear ? `Born ${candidate.birthYear}` : 'Birth year not supplied', age !== null ? `Age ${age} in ${winner.year}` : null, gender].filter(Boolean).join(' · ');
+      const details = [candidate.membershipNumber ? `Member ${candidate.membershipNumber}` : 'No member number', candidate.birthYear ? `Born ${candidate.birthYear}` : 'Birth year not supplied', age !== null ? `Age ${age} in ${winner.year}` : null, candidate.joinYear ? `Joined ${candidate.joinYear}` : 'Joining year not supplied', gender].filter(Boolean).join(' · ');
       return `<button class="member-candidate ${candidate.memberId === currentId ? 'is-current' : ''}" type="button" data-member-id="${escapeHtml(candidate.memberId)}"><span><strong>${escapeHtml(candidate.memberName)}</strong><small>${escapeHtml(details)}</small><em>${escapeHtml(candidate.explanation)}</em></span><b>${candidate.memberId === currentId ? 'Current' : `${Math.round(candidate.confidence * 100)}%`}</b></button>`;
-    }).join('') : '<p class="candidate-empty">No plausible records were found. Check the imported member information or leave this winner unmatched.</p>';
+    }).join('') : '<p class="candidate-empty">No plausible records were found. Add this member manually below, or leave the winner unmatched.</p>';
+  }
+
+  function prepareManualMemberForm(winner) {
+    const form = document.querySelector('#manual-member-form');
+    const toggle = document.querySelector('#show-manual-member-form');
+    form.reset();
+    form.hidden = true;
+    toggle.hidden = false;
+    form.elements.fullName.value = winner?.name || '';
+    form.elements.gender.value = state.current?.division === 'ladies' ? 'female' : state.current?.division === 'gents' ? 'male' : 'unknown';
+    document.querySelector('#manual-member-error').hidden = true;
+  }
+
+  function showManualMemberForm() {
+    const form = document.querySelector('#manual-member-form');
+    document.querySelector('#show-manual-member-form').hidden = true;
+    form.hidden = false;
+    form.elements.fullName.focus();
+    form.elements.fullName.select();
+  }
+
+  function hideManualMemberForm() {
+    const winner = state.current?.winners.find(item => item.id === commercial.activeWinnerId);
+    prepareManualMemberForm(winner);
+  }
+
+  async function addManualMember(event) {
+    event.preventDefault();
+    if (!state.current || !commercial.activeWinnerId) return;
+    const form = event.currentTarget;
+    const submit = form.querySelector('[type="submit"]');
+    const error = document.querySelector('#manual-member-error');
+    const values = new FormData(form);
+    const id = state.current.id;
+    submit.disabled = true;
+    error.hidden = true;
+    try {
+      const data = await api(`/api/trophies/${encodeURIComponent(id)}/winners/${encodeURIComponent(commercial.activeWinnerId)}/member-match/manual`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: values.get('fullName'),
+          dateOfBirth: values.get('dateOfBirth') || null,
+          dateJoined: values.get('dateJoined') || null,
+          membershipNumber: values.get('membershipNumber') || null,
+          gender: values.get('gender') || 'unknown',
+        }),
+      });
+      if (state.current?.id === id) {
+        state.current = data.trophy;
+        state.missingYears = data.missingYears || [];
+        commercial.memberDirectory = data.directory;
+        renderDetail();
+      }
+      await refreshMemberSummary();
+      document.querySelector('#member-match-dialog').close();
+      showToast('Member saved to the club directory and attached to this winner.');
+    } catch (exception) {
+      error.textContent = exception.message;
+      error.hidden = false;
+    } finally {
+      submit.disabled = false;
+    }
   }
 
   async function selectMemberCandidate(memberId, button) {

@@ -100,6 +100,13 @@ public sealed class FuzzyMemberMatcher
             score = score * 0.76 + divisionScore.Value * 0.24;
         }
 
+        double? membershipTimelineScore = null;
+        if (member.JoinYear.HasValue)
+        {
+            membershipTimelineScore = member.JoinYear.Value <= winner.Year ? 1 : 0.05;
+            score = score * 0.82 + membershipTimelineScore.Value * 0.18;
+        }
+
         return new ScoredMember(member, Math.Clamp(score, 0, 1), nameScore, ageScore, divisionScore, ageAtAward);
     }
 
@@ -114,6 +121,7 @@ public sealed class FuzzyMemberMatcher
             MemberName = candidate.Member.FullName,
             MembershipNumber = candidate.Member.MembershipNumber,
             BirthYear = candidate.Member.BirthYear,
+            JoinYear = candidate.Member.JoinYear,
             Gender = MemberGenders.Normalize(candidate.Member.Gender),
             Confidence = Math.Round(candidate.Score, 3),
             State = state,
@@ -164,6 +172,13 @@ public sealed class FuzzyMemberMatcher
             parts.Add(candidate.AgeAtAward.HasValue
                 ? candidate.AgeAtAward.Value <= 18 ? "junior age preference met" : "older than 18 at the time"
                 : "no birth year was available for the junior-age check");
+        }
+
+        if (member.JoinYear.HasValue)
+        {
+            parts.Add(member.JoinYear.Value <= winner.Year
+                ? $"joined by the award year (recorded {member.JoinYear.Value})"
+                : $"recorded joining year {member.JoinYear.Value} is after the {winner.Year} award");
         }
 
         parts.Add($"name score {Math.Round(candidate.NameScore * 100)}%");

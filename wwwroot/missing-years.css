@@ -1,18 +1,17 @@
 .missing-year-actions {
   margin-top: 11px;
   padding-top: 11px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: end;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
   border-top: 1px solid rgba(154, 99, 22, .2);
 }
 
 .missing-year-actions label {
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(82px, 1fr);
-  gap: 8px;
+  display: flex;
+  gap: 10px;
   align-items: center;
 }
 
@@ -30,7 +29,7 @@
 }
 
 .missing-year-actions select {
-  width: 100%;
+  width: 108px;
   padding: 0 30px 0 11px;
   border: 1px solid rgba(154, 99, 22, .3);
   background: #fff;
@@ -54,10 +53,9 @@
 }
 
 @media (max-width: 430px) {
-  .missing-year-actions,
-  .missing-year-actions label {
-    grid-template-columns: 1fr;
-  }
+  .missing-year-actions { align-items: stretch; flex-direction: column; }
+  .missing-year-actions label { align-items: stretch; flex-direction: column; gap: 5px; }
+  .missing-year-actions select { width: 100%; }
 
   .missing-year-actions button {
     width: 100%;

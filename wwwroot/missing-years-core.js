@@ -1,23 +1,23 @@
 (() => {
-  if (!document.querySelector('link[href="/commercial.css"]')) {
+  if (!document.querySelector('link[href^="/commercial.css"]')) {
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/commercial.css';
+    stylesheet.href = '/commercial.css?v=20260903-manual-member-visible-1';
     document.head.append(stylesheet);
   }
-  if (!document.querySelector('script[src="/commercial.js"]')) {
+  if (!document.querySelector('script[src^="/commercial.js"]')) {
     const commercialScript = document.createElement('script');
-    commercialScript.src = '/commercial.js';
+    commercialScript.src = '/commercial.js?v=20260903-join-year-1';
     document.head.append(commercialScript);
   }
 
   const box = document.querySelector('#missing-years');
   if (!box) return;
 
-  if (!document.querySelector('link[href="/missing-years.css"]')) {
+  if (!document.querySelector('link[href^="/missing-years.css"]')) {
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/missing-years.css';
+    stylesheet.href = '/missing-years.css?v=20260903-missing-year-layout-1';
     document.head.append(stylesheet);
   }
 
