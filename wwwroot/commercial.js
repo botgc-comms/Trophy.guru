@@ -1,11 +1,11 @@
 (() => {
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = '/wizard.css';
+  stylesheet.href = '/wizard.css?v=20260903-division-1';
   document.head.append(stylesheet);
 
   const core = document.createElement('script');
-  core.src = '/commercial-core.js';
+  core.src = '/commercial-core.js?v=20260903-workflow-1';
   core.onload = installPhotoFirstWizard;
   document.head.append(core);
 
@@ -32,9 +32,10 @@
         <label><span>Trophy name</span><input name="name" maxlength="160" required placeholder="e.g. Ladies Challenge Cup"></label>
         <div class="commercial-form-grid">
           <label><span>Category</span><input name="category" maxlength="80" required placeholder="e.g. Golf, Rugby, Cricket"></label>
-          <label><span>Reference code <em>optional</em></span><input name="code" maxlength="24" placeholder="Auto-generated"></label>
+          <label><span>Trophy type <em>optional</em></span><select name="division"><option value="mixed">Mixed or open</option><option value="gents">Gents</option><option value="ladies">Ladies</option><option value="junior">Junior</option></select></label>
         </div>
         <label><span>Alternative name <em>optional</em></span><input name="secondaryName" maxlength="160" placeholder="Name engraved on the base"></label>
+        <label><span>Reference code <em>optional</em></span><input name="code" maxlength="24" placeholder="Auto-generated"></label>
         <fieldset class="wizard-photos">
           <legend>Trophy reference photographs <b>required</b></legend>
           <p>Use a clear full-trophy view first. Extra angles help reproduce handles, lids, bases and fine details.</p>
@@ -128,6 +129,7 @@
             secondaryName: values.get('secondaryName') || null,
             category: values.get('category'),
             code: values.get('code') || null,
+            division: values.get('division') || 'mixed',
           }),
         });
         createdId = created.trophy.id;

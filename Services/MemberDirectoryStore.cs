@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using System.Xml;
 using System.Xml.Linq;
 using Trophy.Catalogue.Domain;
 
@@ -27,6 +28,7 @@ public sealed class MemberDirectoryStore(
                 tenant.State.Members.Count,
                 tenant.State.Members.Count(member => member.BirthYear.HasValue),
                 tenant.State.Members.Count(member => !string.IsNullOrWhiteSpace(member.MembershipNumber)),
+                tenant.State.Members.Count(member => MemberGenders.Normalize(member.Gender) != MemberGenders.Unknown),
                 tenant.State.SourceName,
                 tenant.State.ImportedAt);
         }
@@ -47,7 +49,12 @@ public sealed class MemberDirectoryStore(
         CancellationToken cancellationToken = default)
     {
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var rows = extension == ".xlsx" ? ReadXlsx(content) : await ReadDelimitedAsync(content, cancellationToken);
+        var rows = extension switch
+        {
+            ".xlsx" => ReadXlsx(content),
+            ".xml" => ReadXml(content),
+            _ => await ReadDelimitedAsync(content, cancellationToken)
+        };
         if (rows.Count < 2) throw new MemberImportException("The member file does not contain any data rows.");
 
         var headers = rows[0].Select(NormalizeHeader).ToList();
@@ -81,12 +88,13 @@ public sealed class MemberDirectoryStore(
                 Initial = Clean(initial).TrimEnd('.'),
                 Surname = Clean(surname),
                 BirthYear = ParseBirthYear(Cell(row, columns.DateOfBirth)),
-                MembershipNumber = NullIfEmpty(Cell(row, columns.MembershipNumber))
+                MembershipNumber = NullIfEmpty(Cell(row, columns.MembershipNumber)),
+                Gender = MemberGenders.Normalize(Cell(row, columns.Gender))
             });
         }
 
         members = members
-            .GroupBy(member => $"{member.MembershipNumber}|{member.FullName}|{member.BirthYear}", StringComparer.OrdinalIgnoreCase)
+            .GroupBy(member => $"{member.MembershipNumber}|{member.FullName}|{member.BirthYear}|{member.Gender}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .OrderBy(member => member.Surname)
             .ThenBy(member => member.FirstName)
@@ -203,6 +211,42 @@ public sealed class MemberDirectoryStore(
         return rows;
     }
 
+    private static List<List<string>> ReadXml(Stream content)
+    {
+        var settings = new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            MaxCharactersInDocument = 50 * 1024 * 1024
+        };
+        using var reader = XmlReader.Create(content, settings);
+        var document = XDocument.Load(reader, LoadOptions.None);
+        var rowGroups = document
+            .Descendants()
+            .Where(element => element.Elements().Any() && element.Elements().All(child => !child.Elements().Any()))
+            .GroupBy(element => element.Name.LocalName, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenByDescending(group => group.First().Elements().Count())
+            .ToList();
+        var records = rowGroups.FirstOrDefault()?.ToList()
+            ?? throw new MemberImportException("The XML file does not contain recognisable member rows.");
+
+        var headers = records
+            .SelectMany(record => record.Attributes().Select(attribute => attribute.Name.LocalName)
+                .Concat(record.Elements().Select(element => element.Name.LocalName)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (headers.Count == 0) throw new MemberImportException("The XML member rows do not contain any fields.");
+
+        var rows = new List<List<string>> { headers };
+        foreach (var record in records)
+        {
+            var fields = record.Attributes().ToDictionary(attribute => attribute.Name.LocalName, attribute => attribute.Value, StringComparer.OrdinalIgnoreCase);
+            foreach (var element in record.Elements()) fields[element.Name.LocalName] = element.Value;
+            rows.Add(headers.Select(header => fields.GetValueOrDefault(header, string.Empty)).ToList());
+        }
+        return rows;
+    }
     private static List<List<string>> ReadXlsx(Stream content)
     {
         using var archive = new ZipArchive(content, ZipArchiveMode.Read, leaveOpen: true);
@@ -281,7 +325,8 @@ public sealed class MemberDirectoryStore(
         Find(headers, "initial", "initials", "middleinitial"),
         Find(headers, "surname", "lastname", "familyname"),
         Find(headers, "dateofbirth", "dob", "birthdate", "birthyear", "yearofbirth"),
-        Find(headers, "membershipnumber", "membernumber", "membershipno", "memberno", "membershipid", "memberid"));
+        Find(headers, "membershipnumber", "membernumber", "membershipno", "memberno", "membershipid", "memberid"),
+        Find(headers, "gender", "sex", "membergender"));
 
     private static int Find(IReadOnlyList<string> headers, params string[] names)
     {
@@ -325,7 +370,7 @@ public sealed class MemberDirectoryStore(
     }
 
     private T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, jsonOptions), jsonOptions)!;
-    private sealed record MemberColumns(int FullName, int FirstName, int Initial, int Surname, int DateOfBirth, int MembershipNumber);
+    private sealed record MemberColumns(int FullName, int FirstName, int Initial, int Surname, int DateOfBirth, int MembershipNumber, int Gender);
     private sealed class TenantDirectory(string statePath)
     {
         public string StatePath { get; } = statePath;

@@ -12,8 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260902-login-3">
-  <link rel="stylesheet" href="/accounts.css?v=20260902-login-3">
+  <link rel="stylesheet" href="/styles.css?v=20260903-archive-1">
+  <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,6 @@
         <span><strong id="club-name">Your club</strong><small id="club-subtitle">Trophy Archive</small></span>
       </a>
       <div class="header-actions">
-        <a class="home-link" href="/">Home</a>
         <a class="export-link" href="/api/export.csv" download>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
           <span>Export</span>
@@ -38,7 +37,7 @@
           </summary>
           <div>
             <p><strong id="archive-menu-name">Account</strong><small id="archive-menu-email"></small></p>
-            <a href="/">Home page</a>
+            <button id="account-settings-button" type="button">Account &amp; billing</button>
             <button id="logout-button" type="button">Log out</button>
           </div>
         </details>
@@ -87,12 +86,13 @@
       </nav>
 
       <section class="detail-heading">
-        <div class="detail-photo-wrap"><img id="detail-photo" class="detail-photo" src="/catalogue/fallback.svg" alt=""></div>
+        <button id="trophy-photo-button" class="detail-photo-wrap" type="button" aria-label="View or change trophy reference photos"><img id="detail-photo" class="detail-photo" src="/catalogue/fallback.svg" alt=""><span>Photos</span></button>
         <div>
           <p id="detail-code" class="eyebrow"></p>
           <h1 id="detail-title"></h1>
           <p id="detail-secondary" class="secondary-name" hidden></p>
           <p id="detail-summary" class="detail-summary"></p>
+          <label class="trophy-division-setting"><span>Trophy type</span><select id="detail-division" aria-label="Trophy type"><option value="mixed">Mixed or open</option><option value="gents">Gents</option><option value="ladies">Ladies</option><option value="junior">Junior</option></select></label>
         </div>
       </section>
 
@@ -110,9 +110,9 @@
               <input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
             </label>
             <label class="capture-button secondary-action">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
-              Upload rubbing
-              <input id="rubbing-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM7 15l3-3 2 2 2.5-3 3.5 4M8.5 9.5h.01"/></svg>
+              Upload an image
+              <input id="photo-library-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
             </label>
           </div>
           <div id="photo-strip" class="photo-strip" aria-label="Uploaded evidence"></div>
@@ -200,6 +200,56 @@
     </form>
   </section>
 
+  <dialog id="trophy-photos-dialog" class="commercial-dialog reference-photos-dialog">
+    <section>
+      <button class="commercial-dialog-close" type="button" aria-label="Close reference photos">×</button>
+      <p class="step-label">Trophy appearance</p>
+      <h2>Reference photos</h2>
+      <p>These whole-trophy views are kept separate from engraving evidence and are used only to create the catalogue illustration.</p>
+      <div class="reference-photo-actions">
+        <label><span>Take a photo</span><input id="reference-camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden></label>
+        <label><span>Upload images</span><input id="trophy-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label>
+      </div>
+      <div id="trophy-photo-strip" class="trophy-photo-strip" aria-label="Trophy reference photographs"></div>
+      <p id="reference-illustration-status" class="reference-illustration-status"></p>
+    </section>
+  </dialog>
+
+  <dialog id="member-match-dialog" class="commercial-dialog member-match-dialog">
+    <section>
+      <button class="commercial-dialog-close" type="button" aria-label="Close member matches">×</button>
+      <p class="step-label">Membership record</p>
+      <h2 id="member-match-title">Choose the correct member</h2>
+      <p id="member-match-copy">Compare the possible records and select the right person.</p>
+      <div id="member-candidate-list" class="member-candidate-list" aria-live="polite"></div>
+      <button id="remove-current-member-match" class="remove-current-member-match" type="button">Remove this member match</button>
+    </section>
+  </dialog>
+
+  <dialog id="account-settings-dialog" class="commercial-dialog account-settings-dialog">
+    <section>
+      <button class="commercial-dialog-close" type="button" aria-label="Close account settings">×</button>
+      <p class="step-label">Account &amp; billing</p>
+      <h2>Account settings</h2>
+      <div class="account-plan-card">
+        <div><small>Available trophy credits</small><strong id="settings-credit-balance">—</strong></div>
+        <div class="account-plan-actions"><a href="/#pricing">Change plan</a><a href="/#pricing">Buy more credits</a></div>
+      </div>
+      <form id="account-club-form">
+        <h3>Club details</h3>
+        <label class="settings-logo-picker"><span>Club logo</span><span id="settings-logo-preview" class="settings-logo-preview">Choose a logo</span><input id="settings-logo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
+        <label><span>Club or organisation name</span><input id="settings-club-name" maxlength="160" required></label>
+        <div class="commercial-form-grid">
+          <label><span>Sport or activity</span><input id="settings-club-sport" maxlength="80" required></label>
+          <label><span>Country</span><input id="settings-club-country" maxlength="100" required></label>
+        </div>
+        <label><span>Club website <em>optional</em></span><input id="settings-club-website" type="url"></label>
+        <p id="account-settings-error" class="commercial-form-error" role="alert" hidden></p>
+        <button class="commercial-submit" type="submit">Save club details</button>
+      </form>
+    </section>
+  </dialog>
+
   <dialog id="image-dialog" class="image-dialog">
     <button id="close-image-button" class="dialog-close" aria-label="Close image">×</button>
     <img id="dialog-image" src="" alt="Uploaded engraving evidence">
@@ -210,7 +260,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the engraving…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260901-login-2" defer></script>
-  <script src="/missing-years.js?v=20260901-login-2" defer></script>
+  <script src="/app.js?v=20260903-settings-1" defer></script>
+  <script src="/missing-years.js?v=20260903-commercial-1" defer></script>
 </body>
 </html>

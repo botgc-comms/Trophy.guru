@@ -38,7 +38,7 @@ public sealed class ClubRecord
 
 public sealed class CatalogueState
 {
-    public int Version { get; set; } = 3;
+    public int Version { get; set; } = 4;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<TrophyRecord> Trophies { get; set; } = [];
 }
@@ -49,6 +49,7 @@ public sealed class TrophySeed
     public required string Name { get; set; }
     public string? SecondaryName { get; set; }
     public required string Category { get; set; }
+    public string Division { get; set; } = TrophyDivisions.Mixed;
     public string? ReferenceImage { get; set; }
 }
 
@@ -58,6 +59,7 @@ public sealed class TrophyRecord
     public required string Name { get; set; }
     public string? SecondaryName { get; set; }
     public required string Category { get; set; }
+    public string Division { get; set; } = TrophyDivisions.Mixed;
     public string? ReferenceImage { get; set; }
     public string IllustrationState { get; set; } = IllustrationStates.None;
     public string? IllustrationMessage { get; set; }
@@ -93,9 +95,11 @@ public sealed class MemberMatchRecord
     public required string MemberName { get; set; }
     public string? MembershipNumber { get; set; }
     public int? BirthYear { get; set; }
+    public string Gender { get; set; } = MemberGenders.Unknown;
     public double Confidence { get; set; }
     public string State { get; set; } = MemberMatchStates.Possible;
     public required string Explanation { get; set; }
+    public bool ManuallySelected { get; set; }
 }
 
 public sealed class EvidenceImage
@@ -142,6 +146,7 @@ public sealed class MemberRecord
     public string Surname { get; set; } = string.Empty;
     public int? BirthYear { get; set; }
     public string? MembershipNumber { get; set; }
+    public string Gender { get; set; } = MemberGenders.Unknown;
 }
 
 public sealed record TrophySummary(
@@ -149,6 +154,7 @@ public sealed record TrophySummary(
     string Name,
     string? SecondaryName,
     string Category,
+    string Division,
     string? ReferenceImage,
     string Status,
     int WinnerCount,
@@ -161,6 +167,7 @@ public sealed record MemberDirectorySummary(
     int MemberCount,
     int WithBirthYearCount,
     int WithMembershipNumberCount,
+    int WithGenderCount,
     string? SourceName,
     DateTimeOffset? ImportedAt);
 
@@ -171,7 +178,39 @@ public sealed record SignupInput(string DisplayName, string Email, string Passwo
 public sealed record LoginInput(string Email, string Password);
 public sealed record LegacyLoginInput(string? Password);
 public sealed record ClubInput(string Name, string Sport, string Country, string? Website);
-public sealed record TrophyCreateInput(string Name, string? SecondaryName, string Category, string? Code);
+public sealed record TrophyCreateInput(string Name, string? SecondaryName, string Category, string? Code, string? Division);
+public sealed record TrophyDivisionInput(string? Division);
+public sealed record MemberMatchSelectionInput(string MemberId);
+
+public static class TrophyDivisions
+{
+    public const string Mixed = "mixed";
+    public const string Gents = "gents";
+    public const string Ladies = "ladies";
+    public const string Junior = "junior";
+
+    public static string Normalize(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        Gents or "men" or "mens" or "male" => Gents,
+        Ladies or "women" or "womens" or "female" => Ladies,
+        Junior or "juniors" or "youth" => Junior,
+        _ => Mixed
+    };
+}
+
+public static class MemberGenders
+{
+    public const string Unknown = "unknown";
+    public const string Male = "male";
+    public const string Female = "female";
+
+    public static string Normalize(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "m" or "male" or "man" or "men" or "gent" or "gents" => Male,
+        "f" or "female" or "woman" or "women" or "lady" or "ladies" => Female,
+        _ => Unknown
+    };
+}
 
 public static class TrophyStatuses
 {

@@ -474,6 +474,19 @@ public static class EntryPoint
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         });
 
+        app.MapPut("/api/trophies/{id}/division", async (
+            string id,
+            TrophyDivisionInput input,
+            CatalogueStore store,
+            MemberMatchingCoordinator matching,
+            CancellationToken cancellationToken) =>
+        {
+            var trophy = await store.UpdateDivisionAsync(id, input, cancellationToken);
+            if (trophy is null) return Results.NotFound();
+            trophy = await matching.RefreshTrophyAsync(id, cancellationToken) ?? trophy;
+            return Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
+        });
+
         app.MapPost("/api/trophies/{id}/complete", async (string id, CatalogueStore store, CancellationToken cancellationToken) =>
         {
             var trophy = await store.MarkCompleteAsync(id, cancellationToken);
@@ -679,13 +692,13 @@ public static class EntryPoint
 
         app.MapPost("/api/members/import", async (HttpRequest request, MemberDirectoryStore directory, MemberMatchingCoordinator matching, CancellationToken cancellationToken) =>
         {
-            if (!request.HasFormContentType) return Results.BadRequest(new { error = "Choose a CSV or XLSX member export." });
+            if (!request.HasFormContentType) return Results.BadRequest(new { error = "Choose a CSV, XML or XLSX member export." });
             var form = await request.ReadFormAsync(cancellationToken);
             var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
-            if (file is null || file.Length == 0) return Results.BadRequest(new { error = "Choose a CSV or XLSX member export." });
+            if (file is null || file.Length == 0) return Results.BadRequest(new { error = "Choose a CSV, XML or XLSX member export." });
             if (file.Length > 15 * 1024 * 1024) return Results.BadRequest(new { error = "Keep the member export below 15 MB." });
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (extension is not ".csv" and not ".tsv" and not ".xlsx") return Results.BadRequest(new { error = "Use a CSV, TSV or XLSX file." });
+            if (extension is not ".csv" and not ".tsv" and not ".xlsx" and not ".xml") return Results.BadRequest(new { error = "Use a CSV, TSV, XML or XLSX file." });
             try
             {
                 await using var stream = file.OpenReadStream();
@@ -700,6 +713,31 @@ public static class EntryPoint
         {
             var trophy = await matching.RefreshTrophyAsync(trophyId, cancellationToken);
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
+        });
+
+        app.MapGet("/api/trophies/{trophyId}/winners/{winnerId}/member-candidates", async (
+            string trophyId,
+            string winnerId,
+            MemberMatchingCoordinator matching,
+            CancellationToken cancellationToken) =>
+        {
+            var candidates = await matching.GetCandidatesAsync(trophyId, winnerId, cancellationToken);
+            return candidates is null ? Results.NotFound() : Results.Ok(new { candidates });
+        });
+
+        app.MapPut("/api/trophies/{trophyId}/winners/{winnerId}/member-match", async (
+            string trophyId,
+            string winnerId,
+            MemberMatchSelectionInput input,
+            MemberMatchingCoordinator matching,
+            CancellationToken cancellationToken) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.MemberId))
+                return Results.BadRequest(new { error = "Choose a member first." });
+            var trophy = await matching.SelectMemberAsync(trophyId, winnerId, input.MemberId, cancellationToken);
+            return trophy is null
+                ? Results.NotFound(new { error = "That member match is no longer available." })
+                : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         });
 
         app.MapDelete("/api/trophies/{trophyId}/winners/{winnerId}/member-match", async (

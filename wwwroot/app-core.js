@@ -173,6 +173,7 @@ function renderDetail() {
   setText('#evidence-count', plural(trophy.evidence.length, 'image'));
   document.querySelector('#timeline-start').value = trophy.timelineStartYear ?? '';
   document.querySelector('#timeline-end').value = trophy.timelineEndYear ?? '';
+  document.querySelector('#detail-division').value = trophy.division || 'mixed';
   document.querySelector('#analyse-button').disabled = trophy.evidence.length === 0 || !state.aiConfigured;
   document.querySelector('#ai-setup-note').hidden = state.aiConfigured;
   renderEvidence();
@@ -373,7 +374,7 @@ async function uploadFiles(files, kind) {
 }
 
 function clearUploadInputs() {
-  ['#photo-input', '#photo-library-input', '#rubbing-input'].forEach(selector => {
+  ['#photo-input', '#photo-library-input'].forEach(selector => {
     const input = document.querySelector(selector);
     if (input) input.value = '';
   });
@@ -582,9 +583,13 @@ elements.winnerList.addEventListener('click', event => {
   if (action.dataset.action === 'delete') deleteWinner(row.dataset.winnerId);
   if (action.dataset.action === 'cancel') renderWinners();
 });
+document.querySelector('.club-mark').addEventListener('click', event => {
+  event.preventDefault();
+  closeTrophy();
+});
 document.querySelector('#back-button').addEventListener('click', () => closeTrophy());
 document.querySelector('#photo-input').addEventListener('change', event => uploadFiles([...event.target.files], 'photo'));
-document.querySelector('#rubbing-input').addEventListener('change', event => uploadFiles([...event.target.files], 'rubbing'));
+document.querySelector('#photo-library-input').addEventListener('change', event => uploadFiles([...event.target.files], 'photo'));
 document.querySelector('#analyse-button').addEventListener('click', analyseAll);
 document.querySelector('#add-winner-button').addEventListener('click', () => renderWinners(true));
 document.querySelector('#save-range-button').addEventListener('click', saveTimeline);

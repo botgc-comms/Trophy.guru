@@ -26,6 +26,11 @@
     accountSignOut();
   }, true);
   document.querySelector('#setup-signout-button')?.addEventListener('click', accountSignOut);
+  document.querySelector('#account-settings-button')?.addEventListener('click', openAccountSettings);
+  document.querySelector('#account-settings-dialog .commercial-dialog-close')?.addEventListener('click', () => document.querySelector('#account-settings-dialog').close());
+  document.querySelector('#account-settings-dialog')?.addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
+  document.querySelector('#account-club-form')?.addEventListener('submit', saveAccountSettings);
+  document.querySelector('#settings-logo-input')?.addEventListener('change', previewSettingsLogo);
   document.querySelector('#show-login-button')?.addEventListener('click', () => showAuthTab('login'));
   document.querySelector('#show-signup-button')?.addEventListener('click', () => showAuthTab('signup'));
   passwordToggle?.addEventListener('click', () => {
@@ -38,7 +43,7 @@
   document.querySelector('#club-logo-input')?.addEventListener('change', previewClubLogo);
 
   const coreScript = document.createElement('script');
-  coreScript.src = '/app-core.js?v=20260901-login-2';
+  coreScript.src = '/app-core.js?v=20260903-workflow-1';
   coreScript.onload = () => {
     installBatchUploadControl();
     accountInitialise();
@@ -159,6 +164,7 @@
   }
 
   async function enterArchive(auth) {
+    state.auth = auth;
     applyAccountIdentity(auth.user);
     applyClubBranding(auth.club);
     document.querySelector('#login-screen').hidden = true;
@@ -205,6 +211,74 @@
     const objectUrl = URL.createObjectURL(file);
     preview.innerHTML = `<img src="${objectUrl}" alt="Selected club logo"><small>Tap to choose a different logo</small>`;
     preview.querySelector('img').addEventListener('load', () => URL.revokeObjectURL(objectUrl), { once: true });
+  }
+
+  function openAccountSettings() {
+    const auth = state.auth;
+    if (!auth?.club) return;
+    document.querySelector('.archive-account-menu')?.removeAttribute('open');
+    document.querySelector('#settings-club-name').value = auth.club.name || '';
+    document.querySelector('#settings-club-sport').value = auth.club.sport || '';
+    document.querySelector('#settings-club-country').value = auth.club.country || '';
+    document.querySelector('#settings-club-website').value = auth.club.website || '';
+    const credits = Number(auth.balance?.trophyCredits || 0);
+    document.querySelector('#settings-credit-balance').textContent = auth.balance?.unlimited ? 'Unlimited' : `${credits} ${credits === 1 ? 'credit' : 'credits'}`;
+    renderSettingsLogo(auth.club.logoUrl, auth.club.name);
+    document.querySelector('#account-settings-error').hidden = true;
+    document.querySelector('#account-settings-dialog').showModal();
+  }
+
+  function previewSettingsLogo(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    renderSettingsLogo(objectUrl, 'Selected club');
+    document.querySelector('#settings-logo-preview img')?.addEventListener('load', () => URL.revokeObjectURL(objectUrl), { once: true });
+  }
+
+  function renderSettingsLogo(url, name) {
+    const preview = document.querySelector('#settings-logo-preview');
+    preview.innerHTML = url
+      ? `<img src="${url}" alt="${name || 'Club'} logo"><small>Choose a different logo</small>`
+      : '<b>+</b><small>Choose a club logo</small>';
+  }
+
+  async function saveAccountSettings(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('[type="submit"]');
+    const error = document.querySelector('#account-settings-error');
+    const logo = document.querySelector('#settings-logo-input').files?.[0];
+    submit.disabled = true;
+    error.hidden = true;
+    try {
+      await api('/api/club', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: document.querySelector('#settings-club-name').value.trim(),
+          sport: document.querySelector('#settings-club-sport').value.trim(),
+          country: document.querySelector('#settings-club-country').value.trim(),
+          website: document.querySelector('#settings-club-website').value.trim() || null,
+        }),
+      });
+      if (logo) {
+        const logoForm = new FormData();
+        logoForm.append('logo', logo, logo.name);
+        await api('/api/club/logo', { method: 'POST', body: logoForm });
+      }
+      const auth = await api('/api/auth/status');
+      state.auth = auth;
+      state.aiConfigured = auth.aiConfigured;
+      applyClubBranding(auth.club);
+      document.querySelector('#settings-logo-input').value = '';
+      document.querySelector('#account-settings-dialog').close();
+      showToast('Club details saved.');
+    } catch (exception) {
+      error.textContent = exception.message;
+      error.hidden = false;
+    } finally {
+      submit.disabled = false;
+    }
   }
 
   function applyAccountIdentity(user) {

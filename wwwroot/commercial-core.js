@@ -2,26 +2,16 @@
   const commercial = {
     illustrationConfigured: false,
     memberDirectory: null,
+    activeWinnerId: null,
   };
 
-  installHeaderLink();
   installBalanceIndicator();
   installNewTrophyFlow();
   installMemberDirectory();
   installTrophyPhotoManager();
-  installIllustrationControl();
-  installMatchEnhancer();
+  installTrophyDivision();
+  installMatchSelector();
   refreshCapabilities();
-
-  function installHeaderLink() {
-    const actions = document.querySelector('.header-actions');
-    if (!actions || actions.querySelector('.plans-link')) return;
-    const link = document.createElement('a');
-    link.className = 'plans-link';
-    link.href = '/';
-    link.textContent = 'Plans';
-    actions.prepend(link);
-  }
 
   function catalogueActions() {
     const heading = document.querySelector('.catalogue-heading');
@@ -49,16 +39,14 @@
 
   function updateBalanceIndicator(balance) {
     const value = document.querySelector('#credit-balance-value');
+    const settingsValue = document.querySelector('#settings-credit-balance');
     const link = document.querySelector('#credit-balance');
-    if (!value || !link) return;
-    if (balance?.unlimited) {
-      value.textContent = 'Unlimited';
-      link.setAttribute('aria-label', 'Trophy credit balance: unlimited. View plans.');
-      return;
-    }
-    const credits = Number(balance?.trophyCredits || 0);
-    value.textContent = credits + (credits === 1 ? ' credit' : ' credits');
-    link.setAttribute('aria-label', 'Trophy credit balance: ' + credits + '. View plans.');
+    const label = balance?.unlimited
+      ? 'Unlimited'
+      : `${Number(balance?.trophyCredits || 0)} ${Number(balance?.trophyCredits || 0) === 1 ? 'credit' : 'credits'}`;
+    if (value) value.textContent = label;
+    if (settingsValue) settingsValue.textContent = label;
+    if (link) link.setAttribute('aria-label', `Trophy credit balance: ${label}. View plans.`);
   }
 
   function installNewTrophyFlow() {
@@ -79,13 +67,14 @@
         <button class="commercial-dialog-close" type="button" aria-label="Close">×</button>
         <p class="step-label">New archive record</p>
         <h2>Add a trophy</h2>
-        <p>Create the record first, then upload several photographs for inscription reading and a generated catalogue illustration.</p>
+        <p>Create the trophy record, then add whole-trophy photographs for its catalogue illustration.</p>
         <label><span>Trophy name</span><input name="name" maxlength="160" required placeholder="e.g. Ladies Challenge Cup"></label>
         <div class="commercial-form-grid">
           <label><span>Category</span><input name="category" maxlength="80" required placeholder="e.g. Golf, Rugby, Cricket"></label>
-          <label><span>Reference code <em>optional</em></span><input name="code" maxlength="24" placeholder="Auto-generated"></label>
+          <label><span>Trophy type <em>optional</em></span><select name="division"><option value="mixed">Mixed or open</option><option value="gents">Gents</option><option value="ladies">Ladies</option><option value="junior">Junior</option></select></label>
         </div>
         <label><span>Alternative name <em>optional</em></span><input name="secondaryName" maxlength="160" placeholder="Name engraved on the base"></label>
+        <label><span>Reference code <em>optional</em></span><input name="code" maxlength="24" placeholder="Auto-generated"></label>
         <button class="commercial-submit" type="submit">Create trophy record</button>
         <p class="commercial-form-error" role="alert" hidden></p>
       </form>`;
@@ -113,13 +102,14 @@
           secondaryName: values.get('secondaryName') || null,
           category: values.get('category'),
           code: values.get('code') || null,
+          division: values.get('division') || 'mixed',
         }),
       });
       document.querySelector('#new-trophy-dialog').close();
       form.reset();
       await loadCatalogue();
       await openTrophy(data.trophy.id);
-      showToast('Trophy created. Add photographs from several angles next.');
+      showToast('Trophy created. Add its reference photographs next.');
     } catch (exception) {
       error.textContent = exception.message;
       error.hidden = false;
@@ -137,8 +127,8 @@
     control.innerHTML = `
       <label class="member-upload-button" title="Dates of birth are reduced to birth year and the original file is not retained.">
         <span class="member-upload-icon" aria-hidden="true">CSV</span>
-        <span><strong id="member-upload-title">Upload member information</strong><small id="member-directory-summary">CSV or Excel member export</small></span>
-        <input id="member-file-input" type="file" accept=".csv,.tsv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <span><strong id="member-upload-title">Upload member information</strong><small id="member-directory-summary">CSV, XML or Excel · include gender</small></span>
+        <input id="member-file-input" type="file" accept=".csv,.tsv,.xml,.xlsx,text/csv,text/xml,application/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </label>
       <button id="clear-member-directory" type="button" title="Remove imported member information" aria-label="Remove imported member information" hidden>×</button>`;
     const trophyButton = actions.querySelector('#new-trophy-button');
@@ -154,7 +144,7 @@
       commercial.illustrationConfigured = Boolean(auth.illustrationConfigured);
       updateBalanceIndicator(auth.balance);
       if (auth.authenticated) await refreshMemberSummary();
-      updateIllustrationControl();
+      renderTrophyPhotos();
     } catch { }
   }
 
@@ -169,15 +159,17 @@
       if (!summary || !title || !control || !clear) return;
       if (data.directory.memberCount) {
         title.textContent = 'Update member information';
-        summary.textContent = data.directory.memberCount + ' members loaded' + (data.directory.sourceName ? ' · ' + data.directory.sourceName : '');
+        const genderCopy = data.directory.withGenderCount ? ` · ${data.directory.withGenderCount} with gender` : '';
+        summary.textContent = `${data.directory.memberCount} members loaded${genderCopy}`;
         control.classList.add('has-data');
         clear.hidden = false;
       } else {
         title.textContent = 'Upload member information';
-        summary.textContent = 'CSV or Excel member export';
+        summary.textContent = 'CSV, XML or Excel · include gender';
         control.classList.remove('has-data');
         clear.hidden = true;
       }
+      enhanceMatches();
     } catch { }
   }
 
@@ -186,7 +178,7 @@
     if (!file) return;
     const form = new FormData();
     form.append('file', file, file.name);
-    setBusy(true, 'Importing member directory…', 'Normalising names and reducing dates of birth to birth year.');
+    setBusy(true, 'Importing member directory…', 'Normalising names, gender and dates of birth for trophy matching.');
     try {
       const data = await api('/api/members/import', { method: 'POST', body: form });
       commercial.memberDirectory = data.directory;
@@ -214,38 +206,31 @@
   }
 
   function installTrophyPhotoManager() {
-    const heading = document.querySelector('.detail-heading');
-    if (!heading || document.querySelector('#trophy-photo-card')) return;
-    const card = document.createElement('section');
-    card.id = 'trophy-photo-card';
-    card.className = 'trophy-photo-card';
-    card.innerHTML = `
-      <div class="trophy-photo-copy">
-        <span class="trophy-photo-icon" aria-hidden="true">▣</span>
-        <span><strong>Trophy reference photos</strong><small>Whole-trophy angles used only for the catalogue illustration. The engraving reader never sees these images.</small></span>
-      </div>
-      <div class="trophy-photo-actions">
-        <span id="trophy-photo-count">0 reference photos</span>
-        <label>Add reference photos<input id="trophy-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label>
-      </div>
-      <div id="trophy-photo-strip" class="trophy-photo-strip" aria-label="Trophy reference photographs"></div>`;
-    heading.after(card);
-    card.querySelector('#trophy-photo-input').addEventListener('change', uploadTrophyPhotos);
-    card.querySelector('#trophy-photo-strip').addEventListener('click', event => {
+    const dialog = document.querySelector('#trophy-photos-dialog');
+    const button = document.querySelector('#trophy-photo-button');
+    if (!dialog || !button) return;
+    button.addEventListener('click', () => {
+      renderTrophyPhotos();
+      dialog.showModal();
+    });
+    dialog.querySelector('.commercial-dialog-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    dialog.querySelector('#reference-camera-input').addEventListener('change', uploadTrophyPhotos);
+    dialog.querySelector('#trophy-photo-input').addEventListener('change', uploadTrophyPhotos);
+    dialog.querySelector('#trophy-photo-strip').addEventListener('click', event => {
       const remove = event.target.closest('[data-trophy-photo-id]');
       if (remove) deleteTrophyPhoto(remove.dataset.trophyPhotoId);
     });
     const observer = new MutationObserver(renderTrophyPhotos);
     observer.observe(document.querySelector('#detail-title'), { childList: true, subtree: true });
-    renderTrophyPhotos();
   }
 
   function renderTrophyPhotos() {
     const strip = document.querySelector('#trophy-photo-strip');
-    const count = document.querySelector('#trophy-photo-count');
-    if (!strip || !count) return;
-    const photos = state.current?.trophyPhotos || [];
-    count.textContent = plural(photos.length, 'reference photo');
+    const status = document.querySelector('#reference-illustration-status');
+    if (!strip || !status) return;
+    const trophy = state.current;
+    const photos = trophy?.trophyPhotos || [];
     strip.innerHTML = photos.length
       ? photos.map((photo, index) => `
           <span class="trophy-reference-photo">
@@ -253,9 +238,14 @@
             <button type="button" data-trophy-photo-id="${escapeHtml(photo.id)}" aria-label="Remove trophy reference angle ${index + 1}">×</button>
             <small>${index === 0 ? 'Main view' : `Angle ${index + 1}`}</small>
           </span>`).join('')
-      : '<span class="trophy-photo-empty">No reference photos yet. Engraving evidence remains separate below.</span>';
+      : '<span class="trophy-photo-empty">No reference photos yet. Add whole-trophy views here; engraving close-ups remain separate.</span>';
     strip.querySelectorAll('img').forEach(addImageFallback);
-    updateIllustrationControl();
+    if (!trophy) status.textContent = '';
+    else if (trophy.illustrationState === 'processing') status.textContent = '✦ The illustration is generating in the background. You can close this window and keep working.';
+    else if (trophy.illustrationState === 'failed') status.textContent = trophy.illustrationMessage || 'The illustration needs another set of reference photos.';
+    else if (!commercial.illustrationConfigured) status.textContent = 'Reference photos will be saved. Illustration generation is not configured on this service.';
+    else if (photos.length) status.textContent = 'Uploading another reference photo will automatically refresh the illustration.';
+    else status.textContent = 'The illustration will generate automatically after you add a reference photo.';
   }
 
   async function uploadTrophyPhotos(event) {
@@ -263,7 +253,7 @@
     event.target.value = '';
     if (!files.length || !state.current) return;
     const id = state.current.id;
-    setBusy(true, `Preparing ${plural(files.length, 'reference photo')}…`, 'These images will be stored separately and used only for the trophy illustration.');
+    setBusy(true, `Preparing ${plural(files.length, 'reference photo')}…`, 'These images stay separate from engraving evidence.');
     try {
       const prepared = [];
       for (let index = 0; index < files.length; index += 1) {
@@ -275,8 +265,18 @@
       const data = await api(`/api/trophies/${encodeURIComponent(id)}/trophy-photos`, { method: 'POST', body: form });
       if (state.current?.id !== id) return;
       state.current = data.trophy;
+      renderDetail();
       renderTrophyPhotos();
-      showToast(`${plural(prepared.length, 'reference photo')} saved separately from engraving evidence.`);
+      if (commercial.illustrationConfigured) {
+        const queued = await api(`/api/trophies/${encodeURIComponent(id)}/illustration/background`, { method: 'POST', body: '{}' });
+        if (state.current?.id === id) state.current = queued.trophy;
+        renderDetail();
+        renderTrophyPhotos();
+        watchIllustration(id);
+        showToast('Reference photos saved. The illustration is refreshing in the background.');
+      } else {
+        showToast('Reference photos saved separately from engraving evidence.');
+      }
     } catch (exception) {
       showToast(exception.message, true, 6500);
     } finally {
@@ -291,71 +291,11 @@
       const data = await api(`/api/trophies/${encodeURIComponent(id)}/trophy-photos/${encodeURIComponent(photoId)}`, { method: 'DELETE', body: '{}' });
       if (state.current?.id !== id) return;
       state.current = data.trophy;
+      renderDetail();
       renderTrophyPhotos();
       showToast('Trophy reference photo removed.');
     } catch (exception) {
       showToast(exception.message, true);
-    }
-  }
-
-  function installIllustrationControl() {
-    const heading = document.querySelector('.detail-heading');
-    if (!heading || document.querySelector('#generate-illustration-button')) return;
-    const button = document.createElement('button');
-    button.id = 'generate-illustration-button';
-    button.className = 'generate-illustration-button';
-    button.type = 'button';
-    button.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Create illustration</strong><small>Use reference photos only</small></span>';
-    heading.append(button);
-    button.addEventListener('click', generateIllustration);
-
-    const observer = new MutationObserver(updateIllustrationControl);
-    observer.observe(document.querySelector('#detail-title'), { childList: true, subtree: true });
-    updateIllustrationControl();
-  }
-
-  function updateIllustrationControl() {
-    const button = document.querySelector('#generate-illustration-button');
-    if (!button) return;
-    const trophy = state.current;
-    const photoCount = trophy?.trophyPhotos?.length ?? 0;
-    button.disabled = !trophy || photoCount === 0 || !commercial.illustrationConfigured || trophy?.illustrationState === 'processing';
-    const title = button.querySelector('strong');
-    const copy = button.querySelector('small');
-    if (trophy?.illustrationState === 'processing') {
-      title.textContent = 'Illustration generating';
-      copy.textContent = 'You can keep working';
-    } else if (!commercial.illustrationConfigured) {
-      title.textContent = 'Illustration unavailable';
-      copy.textContent = 'Connect the image model';
-    } else if (photoCount === 0) {
-      title.textContent = 'Create illustration';
-      copy.textContent = 'Add reference photos first';
-    } else if (trophy.illustrationGenerationCount > 0) {
-      title.textContent = 'Regenerate illustration';
-      copy.textContent = `Use ${plural(Math.min(photoCount, 4), 'reference angle')}`;
-    } else {
-      title.textContent = 'Create illustration';
-      copy.textContent = `Use ${plural(Math.min(photoCount, 4), 'reference angle')}`;
-    }
-  }
-
-  async function generateIllustration() {
-    if (!state.current) return;
-    const id = state.current.id;
-    const button = document.querySelector('#generate-illustration-button');
-    button.disabled = true;
-    try {
-      const data = await api(`/api/trophies/${encodeURIComponent(id)}/illustration/background`, { method: 'POST', body: '{}' });
-      if (state.current?.id !== id) return;
-      state.current = data.trophy;
-      renderDetail();
-      renderTrophyPhotos();
-      showToast('Illustration queued. You can keep working while it is generated.');
-      watchIllustration(id);
-    } catch (exception) {
-      showToast(exception.message, true, 7000);
-      updateIllustrationControl();
     }
   }
 
@@ -378,70 +318,159 @@
           showToast(data.trophy.illustrationMessage || 'The illustration could not be completed. Your reference photos are safe.', true, 7000);
           return;
         }
-      } catch {
-        return;
-      }
+      } catch { return; }
     }
   }
-  function installMatchEnhancer() {
+
+  function installTrophyDivision() {
+    document.querySelector('#detail-division')?.addEventListener('change', async event => {
+      if (!state.current) return;
+      const id = state.current.id;
+      event.target.disabled = true;
+      try {
+        const data = await api(`/api/trophies/${encodeURIComponent(id)}/division`, {
+          method: 'PUT',
+          body: JSON.stringify({ division: event.target.value }),
+        });
+        if (state.current?.id === id) {
+          state.current = data.trophy;
+          state.missingYears = data.missingYears || [];
+          renderDetail();
+        }
+        showToast('Trophy type saved and member matches recalculated.');
+      } catch (exception) {
+        showToast(exception.message, true);
+      } finally {
+        event.target.disabled = false;
+      }
+    });
+  }
+
+  function installMatchSelector() {
     const list = document.querySelector('#winner-list');
-    if (!list) return;
+    const dialog = document.querySelector('#member-match-dialog');
+    if (!list || !dialog) return;
     const observer = new MutationObserver(enhanceMatches);
     observer.observe(list, { childList: true, subtree: true });
     list.addEventListener('click', event => {
-      const remove = event.target.closest('[data-remove-member-match]');
-      if (remove) removeMemberMatch(remove.dataset.removeMemberMatch, remove);
+      const match = event.target.closest('[data-open-member-match]');
+      if (!match) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openMemberCandidates(match.dataset.openMemberMatch);
     });
+    dialog.querySelector('.commercial-dialog-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    dialog.querySelector('#member-candidate-list').addEventListener('click', event => {
+      const candidate = event.target.closest('[data-member-id]');
+      if (candidate) selectMemberCandidate(candidate.dataset.memberId, candidate);
+    });
+    dialog.querySelector('#remove-current-member-match').addEventListener('click', removeCurrentMemberMatch);
     enhanceMatches();
   }
 
   function enhanceMatches() {
     const winners = state.current?.winners || [];
+    const hasDirectory = Number(commercial.memberDirectory?.memberCount || 0) > 0;
     for (const winner of winners) {
-      if (!winner.memberMatch) continue;
+      if (!winner.memberMatch && !hasDirectory) continue;
       const row = document.querySelector(`#winner-list [data-winner-id="${cssEscape(winner.id)}"]`);
       const nameLabel = row?.querySelector('.winner-name');
       if (!nameLabel || nameLabel.querySelector('.member-match')) continue;
       const match = winner.memberMatch;
+      const badge = document.createElement('button');
+      badge.type = 'button';
+      badge.dataset.openMemberMatch = winner.id;
+
+      if (!match) {
+        badge.className = 'member-match is-unmatched';
+        badge.title = 'No member is currently matched. Click to review possible records.';
+        badge.innerHTML = '<b>No member matched</b><span>Review possible membership records</span><em>Choose ›</em>';
+        nameLabel.append(badge);
+        continue;
+      }
+
       const age = match.birthYear ? winner.year - match.birthYear : null;
       const memberNumber = match.membershipNumber ? `Membership number ${match.membershipNumber}. ` : '';
-      const badge = document.createElement('span');
       badge.className = `member-match is-${match.state}`;
-      badge.title = `${memberNumber}${match.explanation}`.trim();
-      badge.innerHTML = `<b>${match.state === 'strong' ? 'Likely member' : 'Possible member'}</b><span>${escapeHtml(match.memberName)}${match.birthYear ? ` · born ${match.birthYear}` : ''}${age !== null ? ` · age ${age} in ${winner.year}` : ''}</span><em>${Math.round(match.confidence * 100)}%</em>`;
+      badge.title = `${memberNumber}${match.explanation} Click to see every possible match.`.trim();
+      const label = match.manuallySelected ? 'Selected member' : match.state === 'strong' ? 'Likely member' : 'Possible member';
+      badge.innerHTML = `<b>${label}</b><span>${escapeHtml(match.memberName)}${match.birthYear ? ` · born ${match.birthYear}` : ''}${age !== null ? ` · age ${age} in ${winner.year}` : ''}</span><em>${Math.round(match.confidence * 100)}% ›</em>`;
       nameLabel.append(badge);
-
-      const actions = row.querySelector('.winner-actions');
-      if (actions && !actions.querySelector('[data-remove-member-match]')) {
-        const remove = document.createElement('button');
-        remove.className = 'remove-member-match';
-        remove.type = 'button';
-        remove.dataset.removeMemberMatch = winner.id;
-        remove.textContent = 'Remove match';
-        remove.title = match.membershipNumber
-          ? `Remove membership match ${match.memberName} (${match.membershipNumber})`
-          : `Remove membership match ${match.memberName}`;
-        actions.prepend(remove);
-      }
+    }
+  }
+  async function openMemberCandidates(winnerId) {
+    if (!state.current) return;
+    commercial.activeWinnerId = winnerId;
+    const winner = state.current.winners.find(item => item.id === winnerId);
+    const dialog = document.querySelector('#member-match-dialog');
+    const list = dialog.querySelector('#member-candidate-list');
+    document.querySelector('#member-match-title').textContent = `Match ${winner?.name || 'winner'}`;
+    document.querySelector('#member-match-copy').textContent = winner
+      ? `Choose the membership record for the ${winner.year} winner. Age is shown at the time of the award.`
+      : 'Choose the correct membership record.';
+    document.querySelector('#remove-current-member-match').hidden = !winner?.memberMatch;
+    list.innerHTML = '<p class="candidate-loading">Loading possible matches…</p>';
+    dialog.showModal();
+    try {
+      const data = await api(`/api/trophies/${encodeURIComponent(state.current.id)}/winners/${encodeURIComponent(winnerId)}/member-candidates`);
+      if (commercial.activeWinnerId !== winnerId) return;
+      renderMemberCandidates(data.candidates || [], winner);
+    } catch (exception) {
+      list.innerHTML = `<p class="candidate-empty">${escapeHtml(exception.message)}</p>`;
     }
   }
 
-  async function removeMemberMatch(winnerId, button) {
-    if (!state.current) return;
+  function renderMemberCandidates(candidates, winner) {
+    const list = document.querySelector('#member-candidate-list');
+    const currentId = winner?.memberMatch?.memberId;
+    list.innerHTML = candidates.length ? candidates.map(candidate => {
+      const age = candidate.birthYear ? winner.year - candidate.birthYear : null;
+      const gender = candidate.gender && candidate.gender !== 'unknown' ? capitalize(candidate.gender) : 'Gender not supplied';
+      const details = [candidate.membershipNumber ? `Member ${candidate.membershipNumber}` : 'No member number', candidate.birthYear ? `Born ${candidate.birthYear}` : 'Birth year not supplied', age !== null ? `Age ${age} in ${winner.year}` : null, gender].filter(Boolean).join(' · ');
+      return `<button class="member-candidate ${candidate.memberId === currentId ? 'is-current' : ''}" type="button" data-member-id="${escapeHtml(candidate.memberId)}"><span><strong>${escapeHtml(candidate.memberName)}</strong><small>${escapeHtml(details)}</small><em>${escapeHtml(candidate.explanation)}</em></span><b>${candidate.memberId === currentId ? 'Current' : `${Math.round(candidate.confidence * 100)}%`}</b></button>`;
+    }).join('') : '<p class="candidate-empty">No plausible records were found. Check the imported member information or leave this winner unmatched.</p>';
+  }
+
+  async function selectMemberCandidate(memberId, button) {
+    if (!state.current || !commercial.activeWinnerId) return;
     const id = state.current.id;
     button.disabled = true;
     try {
-      const data = await api(`/api/trophies/${encodeURIComponent(id)}/winners/${encodeURIComponent(winnerId)}/member-match`, { method: 'DELETE', body: '{}' });
-      if (state.current?.id !== id) return;
-      state.current = data.trophy;
-      state.missingYears = data.missingYears || [];
-      renderDetail();
-      showToast('Member match removed. That member will not be suggested again for this winner.');
+      const data = await api(`/api/trophies/${encodeURIComponent(id)}/winners/${encodeURIComponent(commercial.activeWinnerId)}/member-match`, {
+        method: 'PUT',
+        body: JSON.stringify({ memberId }),
+      });
+      if (state.current?.id === id) {
+        state.current = data.trophy;
+        state.missingYears = data.missingYears || [];
+        renderDetail();
+      }
+      document.querySelector('#member-match-dialog').close();
+      showToast('Member match updated. Your selection will be kept during later rematches.');
     } catch (exception) {
       button.disabled = false;
       showToast(exception.message, true);
     }
   }
+
+  async function removeCurrentMemberMatch() {
+    if (!state.current || !commercial.activeWinnerId) return;
+    const id = state.current.id;
+    try {
+      const data = await api(`/api/trophies/${encodeURIComponent(id)}/winners/${encodeURIComponent(commercial.activeWinnerId)}/member-match`, { method: 'DELETE', body: '{}' });
+      if (state.current?.id === id) {
+        state.current = data.trophy;
+        state.missingYears = data.missingYears || [];
+        renderDetail();
+      }
+      document.querySelector('#member-match-dialog').close();
+      showToast('Member match removed.');
+    } catch (exception) {
+      showToast(exception.message, true);
+    }
+  }
+
   function cssEscape(value) {
     return window.CSS?.escape ? window.CSS.escape(value) : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   }

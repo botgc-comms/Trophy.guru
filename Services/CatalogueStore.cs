@@ -57,6 +57,7 @@ public sealed class CatalogueStore(
                 Name = input.Name.Trim(),
                 SecondaryName = NullIfEmpty(input.SecondaryName),
                 Category = string.IsNullOrWhiteSpace(input.Category) ? "Other" : input.Category.Trim(),
+                Division = TrophyDivisions.Normalize(input.Division),
                 ReferenceImage = "/catalogue/fallback.svg"
             };
             tenant.State.Trophies.Add(trophy);
@@ -403,6 +404,21 @@ public sealed class CatalogueStore(
         finally { tenant.Gate.Release(); }
     }
 
+    public async Task<TrophyRecord?> UpdateDivisionAsync(string trophyId, TrophyDivisionInput input, CancellationToken cancellationToken = default)
+    {
+        var tenant = await GetTenantAsync(cancellationToken);
+        await tenant.Gate.WaitAsync(cancellationToken);
+        try
+        {
+            var trophy = Find(tenant, trophyId);
+            if (trophy is null) return null;
+            trophy.Division = TrophyDivisions.Normalize(input.Division);
+            await SaveUnsafeAsync(tenant, cancellationToken);
+            return Clone(trophy);
+        }
+        finally { tenant.Gate.Release(); }
+    }
+
     public async Task<TrophyRecord?> MarkCompleteAsync(string trophyId, CancellationToken cancellationToken = default)
     {
         var tenant = await GetTenantAsync(cancellationToken);
@@ -493,6 +509,28 @@ public sealed class CatalogueStore(
         }
         finally { tenant.Gate.Release(); }
     }
+    public async Task<TrophyRecord?> SetMemberMatchAsync(
+        string trophyId,
+        string winnerId,
+        MemberMatchRecord match,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await GetTenantAsync(cancellationToken);
+        await tenant.Gate.WaitAsync(cancellationToken);
+        try
+        {
+            var trophy = Find(tenant, trophyId);
+            var winner = trophy?.Winners.FirstOrDefault(item => item.Id == winnerId);
+            if (trophy is null || winner is null) return null;
+            winner.RejectedMemberIds.RemoveAll(id => id.Equals(match.MemberId, StringComparison.OrdinalIgnoreCase));
+            winner.MemberMatch = match;
+            winner.UpdatedAt = DateTimeOffset.UtcNow;
+            await SaveUnsafeAsync(tenant, cancellationToken);
+            return Clone(trophy);
+        }
+        finally { tenant.Gate.Release(); }
+    }
+
     public async Task<TrophyRecord?> ApplyMemberMatchesAsync(
         string trophyId,
         IReadOnlyDictionary<string, MemberMatchRecord?> matches,
@@ -565,12 +603,18 @@ public sealed class CatalogueStore(
                     trophy.Category = seed.Category;
                     if (trophy.IllustrationState != IllustrationStates.Complete) trophy.ReferenceImage = seed.ReferenceImage;
                 }
+                trophy.Division = TrophyDivisions.Normalize(trophy.Division);
+                foreach (var winner in trophy.Winners)
+                {
+                    if (winner.MemberMatch is not null)
+                        winner.MemberMatch.Gender = MemberGenders.Normalize(winner.MemberMatch.Gender);
+                }
                 NormalizeEvidenceUrls(trophy);
                 NormalizeTrophyPhotoUrls(trophy);
                 if (trophy.IllustrationState == IllustrationStates.Complete)
                     trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
             }
-            tenant.State.Version = 3;
+            tenant.State.Version = 4;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
             await SaveUnsafeAsync(tenant, cancellationToken);
             tenant.Initialized = true;
@@ -627,6 +671,7 @@ public sealed class CatalogueStore(
         trophy.Name,
         trophy.SecondaryName,
         trophy.Category,
+        trophy.Division,
         trophy.ReferenceImage,
         trophy.Status,
         trophy.Winners.Count,

@@ -6,59 +6,120 @@ namespace Trophy.Catalogue.Services;
 
 public sealed class FuzzyMemberMatcher
 {
-    public MemberMatchRecord? FindBest(WinnerRecord winner, IReadOnlyList<MemberRecord> members)
+    public MemberMatchRecord? FindBest(TrophyRecord trophy, WinnerRecord winner, IReadOnlyList<MemberRecord> members)
     {
-        var inscription = NameParts.From(winner.Name);
-        if (inscription.Surname.Length == 0) return null;
-
-        var candidates = members
-            .Where(member => !winner.RejectedMemberIds.Contains(member.Id, StringComparer.OrdinalIgnoreCase))
-            .Select(member => Score(winner, inscription, member))
-            .Where(candidate => candidate is not null)
-            .Cast<ScoredMember>()
-            .OrderByDescending(candidate => candidate.Score)
-            .ThenBy(candidate => candidate.Member.FullName)
-            .Take(3)
-            .ToList();
+        var candidates = ScoreCandidates(trophy, winner, members, 3);
         var best = candidates.FirstOrDefault();
         if (best is null || best.Score < 0.68) return null;
 
         var margin = candidates.Count > 1 ? best.Score - candidates[1].Score : best.Score;
-        var status = best.Score >= 0.9 && margin >= 0.08 ? MemberMatchStates.Strong : MemberMatchStates.Possible;
-        return new MemberMatchRecord
-        {
-            MemberId = best.Member.Id,
-            MemberName = best.Member.FullName,
-            MembershipNumber = best.Member.MembershipNumber,
-            BirthYear = best.Member.BirthYear,
-            Confidence = Math.Round(best.Score, 3),
-            State = status,
-            Explanation = Explain(winner, best.Member, best.NameScore, best.AgeScore, status)
-        };
+        var state = best.Score >= 0.9 && margin >= 0.08 ? MemberMatchStates.Strong : MemberMatchStates.Possible;
+        return ToMatch(trophy, winner, best, state, manuallySelected: false);
     }
 
-    private static ScoredMember? Score(WinnerRecord winner, NameParts inscription, MemberRecord member)
+    public IReadOnlyList<MemberMatchRecord> FindCandidates(
+        TrophyRecord trophy,
+        WinnerRecord winner,
+        IReadOnlyList<MemberRecord> members,
+        int limit = 20) =>
+        ScoreCandidates(trophy, winner, members, Math.Clamp(limit, 1, 50))
+            .Where(candidate => candidate.Score >= 0.45)
+            .Select(candidate => ToMatch(
+                trophy,
+                winner,
+                candidate,
+                candidate.Score >= 0.9 ? MemberMatchStates.Strong : MemberMatchStates.Possible,
+                manuallySelected: false))
+            .ToList();
+
+    public MemberMatchRecord? CreateSelection(
+        TrophyRecord trophy,
+        WinnerRecord winner,
+        MemberRecord member)
+    {
+        var inscription = NameParts.From(winner.Name);
+        var scored = inscription.Surname.Length == 0 ? null : Score(trophy, winner, inscription, member);
+        if (scored is null) return null;
+        return ToMatch(trophy, winner, scored, MemberMatchStates.Strong, manuallySelected: true);
+    }
+
+    private static List<ScoredMember> ScoreCandidates(
+        TrophyRecord trophy,
+        WinnerRecord winner,
+        IReadOnlyList<MemberRecord> members,
+        int limit)
+    {
+        var inscription = NameParts.From(winner.Name);
+        if (inscription.Surname.Length == 0) return [];
+
+        return members
+            .Where(member => !winner.RejectedMemberIds.Contains(member.Id, StringComparer.OrdinalIgnoreCase))
+            .Select(member => Score(trophy, winner, inscription, member))
+            .Where(candidate => candidate is not null)
+            .Cast<ScoredMember>()
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Member.FullName)
+            .Take(limit)
+            .ToList();
+    }
+
+    private static ScoredMember? Score(TrophyRecord trophy, WinnerRecord winner, NameParts inscription, MemberRecord member)
     {
         var candidate = NameParts.From(member.FullName, member.FirstName, member.Initial, member.Surname);
         var surnameScore = JaroWinkler(inscription.Surname, candidate.Surname);
-        if (surnameScore < 0.72) return null;
+        if (surnameScore < 0.58) return null;
 
         var givenScore = GivenScore(inscription, candidate);
         var fullScore = JaroWinkler(inscription.Full, candidate.Full);
         var nameScore = Math.Clamp(surnameScore * 0.55 + givenScore * 0.3 + fullScore * 0.15, 0, 1);
         if (inscription.Full == candidate.Full) nameScore = 1;
 
+        int? ageAtAward = null;
         double? ageScore = null;
         if (member.BirthYear.HasValue)
         {
-            var ageAtWin = winner.Year - member.BirthYear.Value;
-            if (ageAtWin < 8 || ageAtWin > 100) return null;
-            ageScore = ageAtWin is >= 12 and <= 85 ? 1 : 0.55;
+            ageAtAward = winner.Year - member.BirthYear.Value;
+            if (ageAtAward < 5 || ageAtAward > 110) return null;
+            ageScore = ageAtAward is >= 8 and <= 100 ? 1 : 0.45;
         }
 
-        var score = ageScore.HasValue ? nameScore * 0.84 + ageScore.Value * 0.16 : nameScore * 0.94;
-        return new ScoredMember(member, Math.Clamp(score, 0, 1), nameScore, ageScore);
+        var score = ageScore.HasValue ? nameScore * 0.88 + ageScore.Value * 0.12 : nameScore * 0.95;
+        var division = TrophyDivisions.Normalize(trophy.Division);
+        double? divisionScore = null;
+
+        if (division is TrophyDivisions.Gents or TrophyDivisions.Ladies)
+        {
+            var expectedGender = division == TrophyDivisions.Gents ? MemberGenders.Male : MemberGenders.Female;
+            var gender = MemberGenders.Normalize(member.Gender);
+            divisionScore = gender == MemberGenders.Unknown ? 0.55 : gender == expectedGender ? 1 : 0;
+            score = score * 0.88 + divisionScore.Value * 0.12;
+        }
+        else if (division == TrophyDivisions.Junior)
+        {
+            divisionScore = ageAtAward.HasValue ? ageAtAward.Value <= 18 ? 1 : 0.08 : 0.55;
+            score = score * 0.76 + divisionScore.Value * 0.24;
+        }
+
+        return new ScoredMember(member, Math.Clamp(score, 0, 1), nameScore, ageScore, divisionScore, ageAtAward);
     }
+
+    private static MemberMatchRecord ToMatch(
+        TrophyRecord trophy,
+        WinnerRecord winner,
+        ScoredMember candidate,
+        string state,
+        bool manuallySelected) => new()
+        {
+            MemberId = candidate.Member.Id,
+            MemberName = candidate.Member.FullName,
+            MembershipNumber = candidate.Member.MembershipNumber,
+            BirthYear = candidate.Member.BirthYear,
+            Gender = MemberGenders.Normalize(candidate.Member.Gender),
+            Confidence = Math.Round(candidate.Score, 3),
+            State = state,
+            Explanation = Explain(trophy, winner, candidate, state, manuallySelected),
+            ManuallySelected = manuallySelected
+        };
 
     private static double GivenScore(NameParts inscription, NameParts candidate)
     {
@@ -70,17 +131,42 @@ public sealed class FuzzyMemberMatcher
         return JaroWinkler(inscription.Given, candidate.Given);
     }
 
-    private static string Explain(WinnerRecord winner, MemberRecord member, double nameScore, double? ageScore, string state)
+    private static string Explain(
+        TrophyRecord trophy,
+        WinnerRecord winner,
+        ScoredMember candidate,
+        string state,
+        bool manuallySelected)
     {
+        var member = candidate.Member;
         var parts = new List<string>
         {
-            state == MemberMatchStates.Strong ? "Strong name agreement" : "Possible name agreement"
+            manuallySelected ? "Selected by the archive user" : state == MemberMatchStates.Strong ? "Strong name agreement" : "Possible name agreement"
         };
-        if (member.BirthYear.HasValue)
-            parts.Add($"age {winner.Year - member.BirthYear.Value} in {winner.Year} is plausible");
+        if (candidate.AgeAtAward.HasValue)
+            parts.Add($"age {candidate.AgeAtAward.Value} in {winner.Year}");
         else
             parts.Add("no birth year was available to test the date");
-        parts.Add($"name score {Math.Round(nameScore * 100)}%{(ageScore.HasValue ? $", age check {Math.Round(ageScore.Value * 100)}%" : string.Empty)}");
+
+        var division = TrophyDivisions.Normalize(trophy.Division);
+        var gender = MemberGenders.Normalize(member.Gender);
+        if (division is TrophyDivisions.Gents or TrophyDivisions.Ladies)
+        {
+            var expected = division == TrophyDivisions.Gents ? MemberGenders.Male : MemberGenders.Female;
+            parts.Add(gender == MemberGenders.Unknown
+                ? $"no gender was available for this {division} trophy"
+                : gender == expected
+                    ? $"gender agrees with this {division} trophy"
+                    : $"gender differs from this {division} trophy");
+        }
+        else if (division == TrophyDivisions.Junior)
+        {
+            parts.Add(candidate.AgeAtAward.HasValue
+                ? candidate.AgeAtAward.Value <= 18 ? "junior age preference met" : "older than 18 at the time"
+                : "no birth year was available for the junior-age check");
+        }
+
+        parts.Add($"name score {Math.Round(candidate.NameScore * 100)}%");
         return string.Join("; ", parts) + ".";
     }
 
@@ -88,7 +174,7 @@ public sealed class FuzzyMemberMatcher
     {
         if (left == right) return 1;
         if (left.Length == 0 || right.Length == 0) return 0;
-        var range = Math.Max(left.Length, right.Length) / 2 - 1;
+        var range = Math.Max(0, Math.Max(left.Length, right.Length) / 2 - 1);
         var leftMatches = new bool[left.Length];
         var rightMatches = new bool[right.Length];
         var matches = 0;
@@ -134,7 +220,13 @@ public sealed class FuzzyMemberMatcher
         return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
-    private sealed record ScoredMember(MemberRecord Member, double Score, double NameScore, double? AgeScore);
+    private sealed record ScoredMember(
+        MemberRecord Member,
+        double Score,
+        double NameScore,
+        double? AgeScore,
+        double? DivisionScore,
+        int? AgeAtAward);
 
     private sealed record NameParts(string Full, string Given, string Surname)
     {
