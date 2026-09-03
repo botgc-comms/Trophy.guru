@@ -461,9 +461,14 @@ public static class EntryPoint
             catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }
         });
 
-        app.MapGet("/api/trophies/{id}", async (string id, CatalogueStore store, CancellationToken cancellationToken) =>
+        app.MapGet("/api/trophies/{id}", async (
+            string id,
+            CatalogueStore store,
+            MemberMatchingCoordinator matching,
+            CancellationToken cancellationToken) =>
         {
-            var trophy = await store.GetTrophyAsync(id, cancellationToken);
+            var trophy = await matching.RefreshTrophyAsync(id, cancellationToken)
+                ?? await store.GetTrophyAsync(id, cancellationToken);
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         });
 

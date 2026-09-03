@@ -38,7 +38,7 @@ public sealed class FuzzyMemberMatcher
         MemberRecord member)
     {
         var inscription = NameParts.From(winner.Name);
-        var scored = inscription.Surname.Length == 0 ? null : Score(trophy, winner, inscription, member);
+        var scored = inscription.Surname.Length == 0 ? null : Score(trophy, winner, inscription, member, enforcePlausibility: false);
         if (scored is null) return null;
         return ToMatch(trophy, winner, scored, MemberMatchStates.Strong, manuallySelected: true);
     }
@@ -63,11 +63,17 @@ public sealed class FuzzyMemberMatcher
             .ToList();
     }
 
-    private static ScoredMember? Score(TrophyRecord trophy, WinnerRecord winner, NameParts inscription, MemberRecord member)
+    private static ScoredMember? Score(
+        TrophyRecord trophy,
+        WinnerRecord winner,
+        NameParts inscription,
+        MemberRecord member,
+        bool enforcePlausibility = true)
     {
         var candidate = NameParts.From(member.FullName, member.FirstName, member.Initial, member.Surname);
-        var surnameScore = JaroWinkler(inscription.Surname, candidate.Surname);
-        if (surnameScore < 0.58) return null;
+        var surnameAgreement = CompareSurnames(inscription.Surname, candidate.Surname);
+        if (enforcePlausibility && !surnameAgreement.IsPlausible) return null;
+        var surnameScore = surnameAgreement.Score;
 
         var givenScore = GivenScore(inscription, candidate);
         var fullScore = JaroWinkler(inscription.Full, candidate.Full);
@@ -79,8 +85,12 @@ public sealed class FuzzyMemberMatcher
         if (member.BirthYear.HasValue)
         {
             ageAtAward = winner.Year - member.BirthYear.Value;
-            if (ageAtAward < 5 || ageAtAward > 110) return null;
-            ageScore = ageAtAward is >= 8 and <= 100 ? 1 : 0.45;
+            if (ageAtAward < 5 || ageAtAward > 110)
+            {
+                if (enforcePlausibility) return null;
+                ageScore = 0;
+            }
+            else ageScore = ageAtAward is >= 8 and <= 100 ? 1 : 0.45;
         }
 
         var score = ageScore.HasValue ? nameScore * 0.88 + ageScore.Value * 0.12 : nameScore * 0.95;
@@ -152,7 +162,9 @@ public sealed class FuzzyMemberMatcher
             manuallySelected ? "Selected by the archive user" : state == MemberMatchStates.Strong ? "Strong name agreement" : "Possible name agreement"
         };
         if (candidate.AgeAtAward.HasValue)
-            parts.Add($"age {candidate.AgeAtAward.Value} in {winner.Year}");
+            parts.Add(candidate.AgeAtAward.Value is < 5 or > 110
+                ? $"birth year conflicts with the {winner.Year} award"
+                : $"age {candidate.AgeAtAward.Value} in {winner.Year}");
         else
             parts.Add("no birth year was available to test the date");
 
@@ -183,6 +195,42 @@ public sealed class FuzzyMemberMatcher
 
         parts.Add($"name score {Math.Round(candidate.NameScore * 100)}%");
         return string.Join("; ", parts) + ".";
+    }
+
+    private static SurnameAgreement CompareSurnames(string left, string right)
+    {
+        if (left.Length == 0 || right.Length == 0) return new SurnameAgreement(0, false);
+        if (left == right) return new SurnameAgreement(1, true);
+
+        var distance = LevenshteinDistance(left, right);
+        var longest = Math.Max(left.Length, right.Length);
+        var editScore = Math.Clamp(1 - distance / (double)longest, 0, 1);
+        var jaroScore = JaroWinkler(left, right);
+        var score = jaroScore * 0.6 + editScore * 0.4;
+        var plausible = distance <= 1
+            || (longest >= 7 && distance <= 2)
+            || (jaroScore >= 0.9 && editScore >= 0.6);
+        return new SurnameAgreement(score, plausible);
+    }
+
+    private static int LevenshteinDistance(string left, string right)
+    {
+        var previous = Enumerable.Range(0, right.Length + 1).ToArray();
+        var current = new int[right.Length + 1];
+        for (var leftIndex = 1; leftIndex <= left.Length; leftIndex++)
+        {
+            current[0] = leftIndex;
+            for (var rightIndex = 1; rightIndex <= right.Length; rightIndex++)
+            {
+                var substitution = previous[rightIndex - 1]
+                    + (left[leftIndex - 1] == right[rightIndex - 1] ? 0 : 1);
+                current[rightIndex] = Math.Min(
+                    Math.Min(previous[rightIndex] + 1, current[rightIndex - 1] + 1),
+                    substitution);
+            }
+            (previous, current) = (current, previous);
+        }
+        return previous[right.Length];
     }
 
     private static double JaroWinkler(string left, string right)
@@ -242,6 +290,8 @@ public sealed class FuzzyMemberMatcher
         double? AgeScore,
         double? DivisionScore,
         int? AgeAtAward);
+
+    private sealed record SurnameAgreement(double Score, bool IsPlausible);
 
     private sealed record NameParts(string Full, string Given, string Surname)
     {
