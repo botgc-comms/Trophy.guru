@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260903-archive-1">
+  <link rel="stylesheet" href="/styles.css?v=20260903-evidence-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -252,7 +252,10 @@
 
   <dialog id="image-dialog" class="image-dialog">
     <button id="close-image-button" class="dialog-close" aria-label="Close image">×</button>
-    <img id="dialog-image" src="" alt="Uploaded engraving evidence">
+    <div class="image-dialog-stage">
+      <img id="dialog-image" src="" alt="Uploaded engraving evidence">
+      <span id="dialog-evidence-region" class="dialog-evidence-region" aria-label="Approximate area read by AI" hidden></span>
+    </div>
     <footer><span id="dialog-image-label"></span><button id="delete-image-button" type="button">Delete image</button></footer>
   </dialog>
 
@@ -260,7 +263,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the engraving…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260903-settings-1" defer></script>
+  <script src="/app.js?v=20260903-evidence-1" defer></script>
   <script src="/missing-years.js?v=20260903-commercial-1" defer></script>
 </body>
 </html>

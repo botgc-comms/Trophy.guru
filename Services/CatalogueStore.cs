@@ -154,7 +154,12 @@ public sealed class CatalogueStore(
             var evidence = trophy?.Evidence.FirstOrDefault(item => item.Id == evidenceId);
             if (trophy is null || evidence is null) return false;
             trophy.Evidence.Remove(evidence);
-            foreach (var winner in trophy.Winners) winner.EvidenceImageIds.Remove(evidenceId);
+            foreach (var winner in trophy.Winners)
+            {
+                winner.EvidenceImageIds.Remove(evidenceId);
+                if (winner.EvidenceReference?.ImageId.Equals(evidenceId, StringComparison.OrdinalIgnoreCase) == true)
+                    winner.EvidenceReference = null;
+            }
             var directory = Path.Combine(UploadRoot(tenant), AppDataPath.SafeSegment(trophy.Id));
             if (Directory.Exists(directory))
                 foreach (var path in Directory.EnumerateFiles(directory, $"{evidence.Id}.*")) File.Delete(path);
@@ -282,7 +287,7 @@ public sealed class CatalogueStore(
     public async Task<TrophyRecord?> MergeAiExtractionAsync(
         string trophyId,
         AiExtraction extraction,
-        IReadOnlyCollection<string> evidenceIds,
+        IReadOnlyList<string> evidenceIds,
         CancellationToken cancellationToken = default)
     {
         var tenant = await GetTenantAsync(cancellationToken);
@@ -307,7 +312,8 @@ public sealed class CatalogueStore(
                     ReviewState = ReviewStates.NeedsReview,
                     Source = WinnerSources.Ai,
                     Notes = NullIfEmpty(entry.Notes),
-                    EvidenceImageIds = evidenceIds.ToList()
+                    EvidenceImageIds = evidenceIds.ToList(),
+                    EvidenceReference = CreateEvidenceReference(entry, evidenceIds)
                 });
             }
             trophy.Winners = trophy.Winners.OrderBy(winner => winner.Year).ThenBy(winner => winner.Name).ToList();
@@ -608,13 +614,14 @@ public sealed class CatalogueStore(
                 {
                     if (winner.MemberMatch is not null)
                         winner.MemberMatch.Gender = MemberGenders.Normalize(winner.MemberMatch.Gender);
+                    NormalizeEvidenceReference(winner, trophy.Evidence);
                 }
                 NormalizeEvidenceUrls(trophy);
                 NormalizeTrophyPhotoUrls(trophy);
                 if (trophy.IllustrationState == IllustrationStates.Complete)
                     trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
             }
-            tenant.State.Version = 4;
+            tenant.State.Version = 5;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
             await SaveUnsafeAsync(tenant, cancellationToken);
             tenant.Initialized = true;
@@ -689,6 +696,38 @@ public sealed class CatalogueStore(
     };
     private static string NormalizeReviewState(string value) => value == ReviewStates.Confirmed ? ReviewStates.Confirmed : ReviewStates.NeedsReview;
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static WinnerEvidenceReference? CreateEvidenceReference(AiWinner entry, IReadOnlyList<string> evidenceIds)
+    {
+        if (entry.EvidenceImageNumber < 1 || entry.EvidenceImageNumber > evidenceIds.Count) return null;
+        var x = Math.Clamp(entry.RegionX, 0, 999);
+        var y = Math.Clamp(entry.RegionY, 0, 999);
+        return new WinnerEvidenceReference
+        {
+            ImageId = evidenceIds[entry.EvidenceImageNumber - 1],
+            X = x,
+            Y = y,
+            Width = Math.Clamp(entry.RegionWidth, 1, 1000 - x),
+            Height = Math.Clamp(entry.RegionHeight, 1, 1000 - y)
+        };
+    }
+
+    private static void NormalizeEvidenceReference(WinnerRecord winner, IReadOnlyCollection<EvidenceImage> evidence)
+    {
+        var reference = winner.EvidenceReference;
+        if (reference is null) return;
+        if (!evidence.Any(image => image.Id.Equals(reference.ImageId, StringComparison.OrdinalIgnoreCase)))
+        {
+            winner.EvidenceReference = null;
+            return;
+        }
+        reference.X = Math.Clamp(reference.X, 0, 999);
+        reference.Y = Math.Clamp(reference.Y, 0, 999);
+        reference.Width = Math.Clamp(reference.Width, 1, 1000 - reference.X);
+        reference.Height = Math.Clamp(reference.Height, 1, 1000 - reference.Y);
+        if (!winner.EvidenceImageIds.Contains(reference.ImageId, StringComparer.OrdinalIgnoreCase))
+            winner.EvidenceImageIds.Add(reference.ImageId);
+    }
+
     private static void NormalizeTrophyPhotoUrls(TrophyRecord trophy)
     {
         foreach (var photo in trophy.TrophyPhotos)

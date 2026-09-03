@@ -36,15 +36,23 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
             {{JsonSerializer.Serialize(currentWinners, jsonOptions)}}
 
             Return one consolidated entry per visible year in ascending order. Include existing entries when the images support them, correct an existing unconfirmed reading when a clearer image supports the correction, and preserve uncertainty in the notes. Confidence is from 0 to 1. Use below 0.75 when any meaningful character or digit is uncertain. Observations should briefly describe unreadable areas, conflicts between views, and likely missing bands; do not put winner entries in observations.
+
+            For every entry, identify the single clearest attached evidence image that visibly supports the year and winner. Images are numbered in the text immediately before each image. Return that 1-based image number and a tight rectangle containing the relevant engraved year and name. Rectangle coordinates are integers from 0 to 1000 relative to the full source image: x and y are the top-left corner, followed by width and height. Do not return the whole image unless the inscription genuinely fills it. This location is only for helping a human reviewer find the evidence.
             """;
 
         var content = new List<object>
         {
             new Dictionary<string, object?> { ["type"] = "input_text", ["text"] = prompt }
         };
-        foreach (var (evidence, path) in evidenceFiles)
+        for (var index = 0; index < evidenceFiles.Count; index++)
         {
+            var (evidence, path) = evidenceFiles[index];
             var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
+            content.Add(new Dictionary<string, object?>
+            {
+                ["type"] = "input_text",
+                ["text"] = $"Evidence image {index + 1} of {evidenceFiles.Count}; uploaded file: {evidence.OriginalName}."
+            });
             content.Add(new Dictionary<string, object?>
             {
                 ["type"] = "input_image",
@@ -62,9 +70,14 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
                 ["year"] = new Dictionary<string, object?> { ["type"] = "integer", ["minimum"] = 1800, ["maximum"] = 2200 },
                 ["winner"] = new Dictionary<string, object?> { ["type"] = "string" },
                 ["confidence"] = new Dictionary<string, object?> { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
-                ["notes"] = new Dictionary<string, object?> { ["type"] = "string" }
+                ["notes"] = new Dictionary<string, object?> { ["type"] = "string" },
+                ["evidenceImageNumber"] = new Dictionary<string, object?> { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = evidenceFiles.Count },
+                ["regionX"] = CoordinateSchema(),
+                ["regionY"] = CoordinateSchema(),
+                ["regionWidth"] = SizeSchema(),
+                ["regionHeight"] = SizeSchema()
             },
-            ["required"] = new[] { "year", "winner", "confidence", "notes" }
+            ["required"] = new[] { "year", "winner", "confidence", "notes", "evidenceImageNumber", "regionX", "regionY", "regionWidth", "regionHeight" }
         };
         var outputSchema = new Dictionary<string, object?>
         {
@@ -155,6 +168,20 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
         if (pieces.Count == 0) throw new OpenAiUnavailableException("The AI reader returned no text result.");
         return string.Concat(pieces);
     }
+
+    private static Dictionary<string, object?> CoordinateSchema() => new()
+    {
+        ["type"] = "integer",
+        ["minimum"] = 0,
+        ["maximum"] = 999
+    };
+
+    private static Dictionary<string, object?> SizeSchema() => new()
+    {
+        ["type"] = "integer",
+        ["minimum"] = 1,
+        ["maximum"] = 1000
+    };
 }
 
 public sealed class OpenAiUnavailableException(string message) : Exception(message);

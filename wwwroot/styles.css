@@ -131,6 +131,9 @@ h2 { font-size: 28px; line-height: 1.05; }
 .workspace-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 18px; align-items: start; }
 .panel { border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); }
 .capture-panel, .winners-panel { padding: 26px; }
+@media (min-width: 1051px) {
+  .capture-panel { position: sticky; top: 18px; max-height: calc(100dvh - 36px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #bdc9c2 transparent; }
+}
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .step-label { margin-bottom: 6px; }
 .count-badge { padding: 7px 9px; border-radius: 999px; background: var(--green-100); color: var(--green-800); font-size: 10px; font-weight: 700; }
@@ -143,7 +146,8 @@ h2 { font-size: 28px; line-height: 1.05; }
 .secondary-action { border: 1px solid #cfcabf; background: #fff; color: var(--green-900); }
 .photo-strip { min-height: 107px; margin-top: 18px; padding-top: 18px; display: flex; gap: 9px; overflow-x: auto; border-top: 1px solid var(--line); }
 .evidence-thumb, .add-more { position: relative; width: 76px; height: 88px; flex: 0 0 auto; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 11px; background: var(--paper-deep); cursor: pointer; }
-.evidence-thumb:hover { border-color: var(--green-800); }
+.evidence-thumb:hover, .evidence-thumb.is-source { border-color: var(--green-800); }
+.evidence-thumb.is-source { box-shadow: 0 0 0 3px rgba(27,81,64,.14); }
 .evidence-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .evidence-thumb > span { position: absolute; z-index: 1; top: 5px; left: 5px; padding: 3px 5px; border-radius: 4px; background: rgba(10,42,33,.82); color: #fff; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .evidence-thumb.rubbing img { filter: grayscale(1) contrast(1.25); }
@@ -186,6 +190,9 @@ h2 { font-size: 28px; line-height: 1.05; }
 .winner-row label > span { overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .07em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .winner-row input { width: 100%; min-width: 0; height: 35px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; background: #f5f3ed; color: var(--ink); font-size: 13px; outline: 0; }
 .winner-row input:focus { border-color: var(--green-800); background: #fff; }
+.winner-evidence-link { width: fit-content; min-height: 25px; margin-top: 4px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #c9d5cf; border-radius: 999px; background: #f1f6f3; color: var(--green-800); font-size: 8px; font-weight: 800; cursor: pointer; }
+.winner-evidence-link:hover, .winner-evidence-link:focus-visible { border-color: var(--green-800); background: #e4eee7; }
+.winner-evidence-link > span { color: var(--brass); font-size: 13px; line-height: 1; }
 .winner-row.is-uncertain { margin: 0 -10px; padding-inline: 10px; background: #fff9ee; }
 .winner-row.is-new { margin: 6px -10px 0; padding-inline: 10px; border-radius: 10px; background: var(--green-100); }
 .confidence { height: 35px; display: grid; align-content: center; justify-items: end; }
@@ -219,7 +226,10 @@ h2 { font-size: 28px; line-height: 1.05; }
 
 .image-dialog { max-width: min(920px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; border: 0; border-radius: 18px; background: #111; color: #fff; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
 .image-dialog::backdrop { background: rgba(5,16,12,.82); backdrop-filter: blur(5px); }
-.image-dialog img { width: 100%; max-height: calc(100dvh - 100px); object-fit: contain; }
+.image-dialog-stage { position: relative; width: max-content; max-width: 100%; margin: 0 auto; }
+.image-dialog img { width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 100px); object-fit: contain; }
+.dialog-evidence-region { position: absolute; z-index: 1; min-width: 12px; min-height: 12px; pointer-events: none; border: 3px solid #efc667; border-radius: 5px; background: rgba(239,198,103,.12); box-shadow: 0 0 0 9999px rgba(0,0,0,.18), 0 0 18px rgba(239,198,103,.72); animation: evidence-focus 1.2s ease-out; }
+.dialog-evidence-region::after { position: absolute; left: -3px; bottom: calc(100% + 5px); padding: 4px 7px; border-radius: 5px; background: #efc667; color: #17221d; content: "AI source"; font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .image-dialog footer { min-height: 54px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #111; font-size: 11px; }
 .image-dialog footer button { border: 0; background: transparent; color: #f2a99d; cursor: pointer; }
 .dialog-close { position: absolute; z-index: 1; top: 10px; right: 10px; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.3); border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 25px; cursor: pointer; }
@@ -234,6 +244,7 @@ h2 { font-size: 28px; line-height: 1.05; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { transform: scale(1.12); opacity: .72; } }
+@keyframes evidence-focus { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
 
 @media (max-width: 1050px) {
   .trophy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

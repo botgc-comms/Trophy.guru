@@ -280,7 +280,7 @@ function winnerRow(winner) {
   return `
     <article class="winner-row ${uncertain ? 'is-uncertain' : ''} ${isNew ? 'is-new' : ''}" data-winner-id="${winner?.id || 'new'}">
       <label><span>Year</span><input name="year" type="number" min="1800" max="2200" inputmode="numeric" value="${winner?.year || ''}" aria-label="Winning year"></label>
-      <label class="winner-name"><span>Winner${winner?.notes ? ` · ${escapeHtml(winner.notes)}` : ''}</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name on trophy"></label>
+      <label class="winner-name"><span>Winner${winner?.notes ? ` · ${escapeHtml(winner.notes)}` : ''}</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name on trophy">${winnerEvidenceButton(winner)}</label>
       <div class="confidence ${reviewState} ${uncertain ? 'uncertain' : ''}">
         ${isNew ? '<span>Manual</span><small>New</small>' : `<span>${Math.round(confidence * 100)}%</span><small>${reviewState === 'confirmed' ? 'Confirmed' : uncertain ? 'Uncertain' : 'Check'}</small>`}
       </div>
@@ -289,6 +289,21 @@ function winnerRow(winner) {
         ${isNew ? '<button class="cancel-winner" data-action="cancel" type="button" aria-label="Cancel new winner">×</button>' : '<button class="delete-winner" data-action="delete" type="button" aria-label="Delete winner">×</button>'}
       </div>
     </article>`;
+}
+
+function winnerEvidenceButton(winner) {
+  if (!winner) return '';
+  const reference = winner.evidenceReference;
+  const availableIds = new Set((state.current?.evidence || []).map(image => image.id));
+  const evidenceId = reference?.imageId && availableIds.has(reference.imageId)
+    ? reference.imageId
+    : (winner.evidenceImageIds || []).find(id => availableIds.has(id));
+  if (!evidenceId) return '';
+  const region = reference?.imageId === evidenceId
+    ? ` data-region-x="${Number(reference.x)}" data-region-y="${Number(reference.y)}" data-region-width="${Number(reference.width)}" data-region-height="${Number(reference.height)}"`
+    : '';
+  const label = reference?.imageId === evidenceId ? 'Show engraving on photo' : 'View source photo';
+  return `<button class="winner-evidence-link" data-action="evidence" data-evidence-id="${escapeHtml(evidenceId)}"${region} type="button" title="${label}"><span aria-hidden="true">⌖</span>${label}</button>`;
 }
 
 async function saveWinner(row) {
@@ -486,13 +501,23 @@ async function refreshCurrent() {
   renderDetail();
 }
 
-function openEvidence(id) {
+function openEvidence(id, region = null, contextLabel = '') {
   const evidence = state.current?.evidence.find(item => item.id === id);
   if (!evidence) return;
   state.activeEvidenceId = id;
   const image = document.querySelector('#dialog-image');
+  const marker = document.querySelector('#dialog-evidence-region');
   image.src = evidence.url;
-  setText('#dialog-image-label', `${capitalize(evidence.kind)} · ${formatDate(evidence.uploadedAt)}`);
+  const hasRegion = region && [region.x, region.y, region.width, region.height].every(Number.isFinite);
+  marker.hidden = !hasRegion;
+  if (hasRegion) {
+    marker.style.left = `${Math.max(0, Math.min(99.9, region.x / 10))}%`;
+    marker.style.top = `${Math.max(0, Math.min(99.9, region.y / 10))}%`;
+    marker.style.width = `${Math.max(.1, Math.min(100 - region.x / 10, region.width / 10))}%`;
+    marker.style.height = `${Math.max(.1, Math.min(100 - region.y / 10, region.height / 10))}%`;
+  }
+  elements.photoStrip.querySelectorAll('.evidence-thumb').forEach(button => button.classList.toggle('is-source', button.dataset.evidenceId === id));
+  setText('#dialog-image-label', contextLabel || `${capitalize(evidence.kind)} · ${formatDate(evidence.uploadedAt)}`);
   document.querySelector('#image-dialog').showModal();
 }
 
@@ -579,6 +604,16 @@ elements.winnerList.addEventListener('click', event => {
   const action = event.target.closest('[data-action]');
   if (!action) return;
   const row = action.closest('.winner-row');
+  if (action.dataset.action === 'evidence') {
+    event.preventDefault();
+    event.stopPropagation();
+    const values = ['regionX', 'regionY', 'regionWidth', 'regionHeight'].map(key => Number(action.dataset[key]));
+    const hasRegion = values.every(Number.isFinite) && values.every(value => value >= 0);
+    const name = row.querySelector('[name="name"]')?.value.trim();
+    const year = row.querySelector('[name="year"]')?.value;
+    openEvidence(action.dataset.evidenceId, hasRegion ? { x: values[0], y: values[1], width: values[2], height: values[3] } : null, hasRegion ? `Highlighted source for ${year} · ${name}` : `Source photo for ${year} · ${name}`);
+    return;
+  }
   if (action.dataset.action === 'confirm') saveWinner(row);
   if (action.dataset.action === 'delete') deleteWinner(row.dataset.winnerId);
   if (action.dataset.action === 'cancel') renderWinners();

@@ -38,7 +38,7 @@ public sealed class ClubRecord
 
 public sealed class CatalogueState
 {
-    public int Version { get; set; } = 4;
+    public int Version { get; set; } = 5;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<TrophyRecord> Trophies { get; set; } = [];
 }
@@ -86,7 +86,17 @@ public sealed class WinnerRecord
     public MemberMatchRecord? MemberMatch { get; set; }
     public List<string> RejectedMemberIds { get; set; } = [];
     public List<string> EvidenceImageIds { get; set; } = [];
+    public WinnerEvidenceReference? EvidenceReference { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class WinnerEvidenceReference
+{
+    public required string ImageId { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Width { get; set; } = 1000;
+    public int Height { get; set; } = 1000;
 }
 
 public sealed class MemberMatchRecord
@@ -128,6 +138,11 @@ public sealed class AiWinner
     public required string Winner { get; set; }
     public double Confidence { get; set; }
     public string Notes { get; set; } = string.Empty;
+    public int EvidenceImageNumber { get; set; }
+    public int RegionX { get; set; }
+    public int RegionY { get; set; }
+    public int RegionWidth { get; set; } = 1000;
+    public int RegionHeight { get; set; } = 1000;
 }
 
 public sealed class MemberDirectoryState
