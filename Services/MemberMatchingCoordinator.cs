@@ -12,13 +12,15 @@ public sealed class MemberMatchingCoordinator(
         var trophy = await catalogue.GetTrophyAsync(trophyId, cancellationToken);
         if (trophy is null) return null;
         var members = await directory.GetMembersAsync(cancellationToken);
-        var memberIds = members.Select(member => member.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var membersById = members
+            .GroupBy(member => member.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var matches = trophy.Winners.ToDictionary(
             winner => winner.Id,
             winner => winner.KeepMemberUnmatched
                 ? null
-                : winner.MemberMatch?.ManuallySelected == true && memberIds.Contains(winner.MemberMatch.MemberId)
-                ? winner.MemberMatch
+                : winner.MemberMatch?.ManuallySelected == true && membersById.TryGetValue(winner.MemberMatch.MemberId, out var selectedMember)
+                ? matcher.CreateSelection(trophy, winner, selectedMember)
                 : members.Count == 0 ? null : matcher.FindBest(trophy, winner, members));
         return await catalogue.ApplyMemberMatchesAsync(trophyId, matches, cancellationToken);
     }

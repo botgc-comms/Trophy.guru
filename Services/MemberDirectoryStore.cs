@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
@@ -17,6 +18,7 @@ public sealed class MemberDirectoryStore(
     private readonly ConcurrentDictionary<string, TenantDirectory> tenants = new(StringComparer.OrdinalIgnoreCase);
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly string dataRoot = AppDataPath.Resolve(environment, configuration);
+    private readonly byte[] birthDateIdentityKey = LoadOrCreateBirthDateIdentityKey(AppDataPath.Resolve(environment, configuration));
 
     public async Task<MemberDirectorySummary> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
@@ -53,7 +55,8 @@ public sealed class MemberDirectoryStore(
         if (fullName.Length > 200) throw new MemberImportException("Keep the member's name under 200 characters.");
 
         var dateOfBirth = input.DateOfBirth?.Trim() ?? string.Empty;
-        var birthYear = ParseYearOrDate(dateOfBirth);
+        var parsedBirthDate = ParseDateOrYear(dateOfBirth);
+        var birthYear = parsedBirthDate.Year;
         if (dateOfBirth.Length > 0 && !birthYear.HasValue)
             throw new MemberImportException("Enter a valid date of birth or four-digit birth year.");
         if (birthYear > DateTime.UtcNow.Year)
@@ -79,6 +82,7 @@ public sealed class MemberDirectoryStore(
             FirstName = firstName,
             Initial = firstName.Length > 0 ? firstName[..1] : string.Empty,
             Surname = GuessSurname(fullName),
+            BirthDateFingerprint = FingerprintBirthDate(parsedBirthDate.Date),
             BirthYear = birthYear,
             JoinYear = joinYear,
             MembershipNumber = membershipNumber,
@@ -144,7 +148,8 @@ public sealed class MemberDirectoryStore(
             if (string.IsNullOrWhiteSpace(surname)) surname = GuessSurname(fullName);
             if (string.IsNullOrWhiteSpace(firstName)) firstName = GuessFirstName(fullName);
             if (string.IsNullOrWhiteSpace(initial)) initial = firstName.Length > 0 ? firstName[..1] : string.Empty;
-            var birthYear = ParseYearOrDate(Cell(row, columns.DateOfBirth));
+            var parsedBirthDate = ParseDateOrYear(Cell(row, columns.DateOfBirth));
+            var birthYear = parsedBirthDate.Year;
             var joinYear = ParseYearOrDate(Cell(row, columns.DateJoined));
             if (birthYear.HasValue && joinYear.HasValue && joinYear.Value < birthYear.Value) joinYear = null;
             members.Add(new MemberRecord
@@ -153,6 +158,7 @@ public sealed class MemberDirectoryStore(
                 FirstName = Clean(firstName),
                 Initial = Clean(initial).TrimEnd('.'),
                 Surname = Clean(surname),
+                BirthDateFingerprint = FingerprintBirthDate(parsedBirthDate.Date),
                 BirthYear = birthYear,
                 JoinYear = joinYear,
                 MembershipNumber = NullIfEmpty(Cell(row, columns.MembershipNumber)),
@@ -162,8 +168,8 @@ public sealed class MemberDirectoryStore(
 
         members = members
             .GroupBy(member => !string.IsNullOrWhiteSpace(member.MembershipNumber)
-                ? $"member-number:{member.MembershipNumber}"
-                : $"name:{member.FullName}|{member.BirthYear}|{member.JoinYear}|{member.Gender}", StringComparer.OrdinalIgnoreCase)
+                ? $"member-number:{NormalizeIdentity(member.MembershipNumber)}"
+                : $"name:{NormalizeIdentity(member.FullName)}|{DateIdentity(member)}|{member.JoinYear}|{member.Gender}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .OrderBy(member => member.Surname)
             .ThenBy(member => member.FirstName)
@@ -175,10 +181,19 @@ public sealed class MemberDirectoryStore(
         try
         {
             var previousMembers = tenant.State.Members;
+            var updatedCount = 0;
+            var membershipNumbersAdded = 0;
+            var matchedPreviousIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var member in members)
             {
-                var previous = previousMembers.FirstOrDefault(item => SameMember(item, member));
-                if (previous is not null) member.Id = previous.Id;
+                var previous = FindPreviousMember(previousMembers, members, member, matchedPreviousIds);
+                if (previous is null) continue;
+                member.Id = previous.Id;
+                matchedPreviousIds.Add(previous.Id);
+                if (string.IsNullOrWhiteSpace(previous.MembershipNumber) && !string.IsNullOrWhiteSpace(member.MembershipNumber))
+                    membershipNumbersAdded++;
+                MergeMissingDetails(member, previous);
+                updatedCount++;
             }
             members.AddRange(previousMembers.Where(member => member.ManuallyAdded && !members.Any(imported => SameMember(imported, member))));
             members = members
@@ -192,7 +207,7 @@ public sealed class MemberDirectoryStore(
                 ImportedAt = DateTimeOffset.UtcNow
             };
             await SaveUnsafeAsync(tenant, cancellationToken);
-            return new MemberImportResult(members.Count, skipped, tenant.State.SourceName!, tenant.State.ImportedAt!.Value);
+            return new MemberImportResult(members.Count, updatedCount, membershipNumbersAdded, skipped, tenant.State.SourceName!, tenant.State.ImportedAt!.Value);
         }
         finally { tenant.Gate.Release(); }
     }
@@ -422,28 +437,146 @@ public sealed class MemberDirectoryStore(
     private static string GuessSurname(string fullName) => Clean(fullName).Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
     private static string GuessFirstName(string fullName) => Clean(fullName).Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
     private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : Clean(value);
+    private static MemberRecord? FindPreviousMember(
+        IReadOnlyList<MemberRecord> previousMembers,
+        IReadOnlyList<MemberRecord> importedMembers,
+        MemberRecord imported,
+        IReadOnlySet<string> matchedPreviousIds)
+    {
+        var membershipNumber = NormalizeIdentity(imported.MembershipNumber);
+        if (membershipNumber.Length > 0)
+        {
+            var numberMatches = previousMembers
+                .Where(previous => !matchedPreviousIds.Contains(previous.Id)
+                    && NormalizeIdentity(previous.MembershipNumber) == membershipNumber)
+                .ToList();
+            if (numberMatches.Count == 1) return numberMatches[0];
+            if (numberMatches.Count > 1) return null;
+        }
+
+        var identityMatches = previousMembers
+            .Where(previous => !matchedPreviousIds.Contains(previous.Id) && SameNameAndDateOfBirth(previous, imported))
+            .ToList();
+        if (identityMatches.Count != 1) return null;
+
+        // A name and DOB match is only safe when this specific old record also
+        // identifies exactly one row in the new directory. This protects legacy
+        // year-only data when two people share a name and birth year.
+        var previousMatch = identityMatches[0];
+        return importedMembers.Count(candidate => SameNameAndDateOfBirth(previousMatch, candidate)) == 1
+            ? previousMatch
+            : null;
+    }
+
+    private static bool SameNameAndDateOfBirth(MemberRecord left, MemberRecord right)
+    {
+        if (!left.BirthYear.HasValue || !right.BirthYear.HasValue || left.BirthYear != right.BirthYear) return false;
+        if (!string.IsNullOrWhiteSpace(left.BirthDateFingerprint)
+            && !string.IsNullOrWhiteSpace(right.BirthDateFingerprint)
+            && !left.BirthDateFingerprint.Equals(right.BirthDateFingerprint, StringComparison.Ordinal)) return false;
+        if (!string.IsNullOrWhiteSpace(left.MembershipNumber) && !string.IsNullOrWhiteSpace(right.MembershipNumber)
+            && !NormalizeIdentity(left.MembershipNumber).Equals(NormalizeIdentity(right.MembershipNumber), StringComparison.Ordinal)) return false;
+
+        if (NormalizeIdentity(left.FullName) == NormalizeIdentity(right.FullName)) return true;
+        if (NormalizeIdentity(left.Surname) != NormalizeIdentity(right.Surname)) return false;
+
+        var leftFirstName = NormalizeIdentity(left.FirstName);
+        var rightFirstName = NormalizeIdentity(right.FirstName);
+        if (leftFirstName.Length > 0 && leftFirstName == rightFirstName) return true;
+
+        var leftInitial = NormalizeIdentity(left.Initial).FirstOrDefault();
+        var rightInitial = NormalizeIdentity(right.Initial).FirstOrDefault();
+        return leftInitial != default && leftInitial == rightInitial && (leftFirstName.Length <= 1 || rightFirstName.Length <= 1);
+    }
+
+    private static void MergeMissingDetails(MemberRecord imported, MemberRecord previous)
+    {
+        imported.MembershipNumber ??= previous.MembershipNumber;
+        if (string.IsNullOrWhiteSpace(imported.BirthDateFingerprint)
+            && (!imported.BirthYear.HasValue || previous.BirthYear == imported.BirthYear))
+            imported.BirthDateFingerprint = previous.BirthDateFingerprint;
+        imported.BirthYear ??= previous.BirthYear;
+        imported.JoinYear ??= previous.JoinYear;
+        if (MemberGenders.Normalize(imported.Gender) == MemberGenders.Unknown)
+            imported.Gender = MemberGenders.Normalize(previous.Gender);
+    }
+
+    private static string NormalizeIdentity(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
+        return new string(decomposed
+            .Where(character => CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+            .Where(char.IsLetterOrDigit)
+            .Select(char.ToUpperInvariant)
+            .ToArray());
+    }
+
+    private static string DateIdentity(MemberRecord member) =>
+        !string.IsNullOrWhiteSpace(member.BirthDateFingerprint)
+            ? member.BirthDateFingerprint
+            : member.BirthYear?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private string? FingerprintBirthDate(DateOnly? date)
+    {
+        if (!date.HasValue) return null;
+        var value = Encoding.UTF8.GetBytes(date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        return Convert.ToHexString(HMACSHA256.HashData(birthDateIdentityKey, value));
+    }
+
+    private static byte[] LoadOrCreateBirthDateIdentityKey(string root)
+    {
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "member-identity.key");
+        if (File.Exists(path)) return ValidateBirthDateIdentityKey(File.ReadAllBytes(path));
+
+        var key = RandomNumberGenerator.GetBytes(32);
+        try
+        {
+            using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            stream.Write(key);
+            return key;
+        }
+        catch (IOException) when (File.Exists(path))
+        {
+            return ValidateBirthDateIdentityKey(File.ReadAllBytes(path));
+        }
+    }
+
+    private static byte[] ValidateBirthDateIdentityKey(byte[] key)
+    {
+        if (key.Length < 32) throw new InvalidOperationException("The member identity key is invalid.");
+        return key;
+    }
+
     private static bool SameMember(MemberRecord left, MemberRecord right)
     {
         if (!string.IsNullOrWhiteSpace(left.MembershipNumber) && !string.IsNullOrWhiteSpace(right.MembershipNumber))
-            return left.MembershipNumber.Equals(right.MembershipNumber, StringComparison.OrdinalIgnoreCase);
-        return left.FullName.Equals(right.FullName, StringComparison.OrdinalIgnoreCase)
-            && left.BirthYear == right.BirthYear
-            && (!left.JoinYear.HasValue || !right.JoinYear.HasValue || left.JoinYear == right.JoinYear)
-            && (MemberGenders.Normalize(left.Gender) == MemberGenders.Unknown
-                || MemberGenders.Normalize(right.Gender) == MemberGenders.Unknown
-                || MemberGenders.Normalize(left.Gender) == MemberGenders.Normalize(right.Gender));
+            return NormalizeIdentity(left.MembershipNumber) == NormalizeIdentity(right.MembershipNumber);
+        return SameNameAndDateOfBirth(left, right)
+            || (NormalizeIdentity(left.FullName) == NormalizeIdentity(right.FullName)
+                && left.BirthYear == right.BirthYear
+                && (!left.JoinYear.HasValue || !right.JoinYear.HasValue || left.JoinYear == right.JoinYear)
+                && (MemberGenders.Normalize(left.Gender) == MemberGenders.Unknown
+                    || MemberGenders.Normalize(right.Gender) == MemberGenders.Unknown
+                    || MemberGenders.Normalize(left.Gender) == MemberGenders.Normalize(right.Gender)));
     }
 
     private static int? ParseYearOrDate(string value)
+        => ParseDateOrYear(value).Year;
+
+    private static ParsedDateValue ParseDateOrYear(string value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) && year is >= 1850 and <= 2200) return year;
+        if (string.IsNullOrWhiteSpace(value)) return new(null, null);
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var year) && year is >= 1850 and <= 2200)
+            return new(year, null);
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var serial) && serial is > 1 and < 200000)
         {
             try
             {
                 var excelDate = DateTime.FromOADate(serial);
-                if (excelDate.Year is >= 1850 and <= 2200) return excelDate.Year;
+                if (excelDate.Year is >= 1850 and <= 2200)
+                    return new(excelDate.Year, DateOnly.FromDateTime(excelDate));
             }
             catch (ArgumentException) { }
         }
@@ -455,13 +588,16 @@ public sealed class MemberDirectoryStore(
             "M/d/yyyy", "MM/dd/yyyy", "d MMM yyyy", "dd MMM yyyy"
         ];
         if (DateTime.TryParseExact(value.Trim(), formats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var exactDate)
-            && exactDate.Year is >= 1850 and <= 2200) return exactDate.Year;
+            && exactDate.Year is >= 1850 and <= 2200)
+            return new(exactDate.Year, DateOnly.FromDateTime(exactDate));
         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var invariantDate)
-            && invariantDate.Year is >= 1850 and <= 2200) return invariantDate.Year;
-        return null;
+            && invariantDate.Year is >= 1850 and <= 2200)
+            return new(invariantDate.Year, DateOnly.FromDateTime(invariantDate));
+        return new(null, null);
     }
 
     private T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, jsonOptions), jsonOptions)!;
+    private sealed record ParsedDateValue(int? Year, DateOnly? Date);
     private sealed record MemberColumns(int FullName, int FirstName, int Initial, int Surname, int DateOfBirth, int DateJoined, int MembershipNumber, int Gender);
     private sealed class TenantDirectory(string statePath)
     {

@@ -47,7 +47,7 @@ Every repository query and object lookup needs an automated cross-tenant isolati
 
 ## Data protection defaults
 
-- Keep the current privacy-minimised import behaviour: derive birth year in memory and never persist the member spreadsheet or full date of birth.
+- Keep the privacy-minimised import behaviour: retain birth year plus a keyed, one-way exact-DOB comparison fingerprint, and never persist the member spreadsheet or readable full date of birth.
 - Let the organisation omit date of birth entirely. Matching still works with lower confidence and explains that limitation.
 - Treat winner/member links as suggestions until a human confirms them; store the probability and rationale.
 - Give owners configurable evidence-image retention, immediate member-directory removal, whole-account export and whole-account deletion.

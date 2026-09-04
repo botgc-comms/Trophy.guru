@@ -7,7 +7,7 @@
   }
   if (!document.querySelector('script[src^="/commercial.js"]')) {
     const commercialScript = document.createElement('script');
-    commercialScript.src = '/commercial.js?v=20260904-plan-header-1';
+    commercialScript.src = '/commercial.js?v=20260904-member-enrichment-1';
     document.head.append(commercialScript);
   }
 

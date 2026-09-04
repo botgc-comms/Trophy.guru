@@ -2,7 +2,7 @@
   window.addEventListener('trophy-app-ready', () => {
     installEmptyCatalogueState();
     const script = document.createElement('script');
-    script.src = '/missing-years-core.js?v=20260904-plan-header-1';
+    script.src = '/missing-years-core.js?v=20260904-member-enrichment-1';
     document.head.append(script);
   }, { once: true });
 

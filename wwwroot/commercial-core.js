@@ -136,7 +136,8 @@
         title.textContent = 'Update member information';
         const joinedCopy = data.directory.withJoinYearCount ? ` · ${data.directory.withJoinYearCount} with joining year` : '';
         const genderCopy = data.directory.withGenderCount ? ` · ${data.directory.withGenderCount} with gender` : '';
-        summary.textContent = `${data.directory.memberCount} members loaded${joinedCopy}${genderCopy}`;
+        const memberNumberCopy = data.directory.withMembershipNumberCount ? ` · ${data.directory.withMembershipNumberCount} with member number` : '';
+        summary.textContent = `${data.directory.memberCount} members loaded${memberNumberCopy}${joinedCopy}${genderCopy}`;
         control.classList.add('has-data');
         clear.hidden = false;
       } else {
@@ -154,13 +155,17 @@
     if (!file) return;
     const form = new FormData();
     form.append('file', file, file.name);
-    setBusy(true, 'Importing member directory…', 'Normalising names, gender, birth dates and joining dates for trophy matching.');
+    setBusy(true, 'Updating member directory…', 'Matching existing members by name and date of birth, then adding membership numbers and other new details.');
     try {
       const data = await api('/api/members/import', { method: 'POST', body: form });
       commercial.memberDirectory = data.directory;
       await refreshMemberSummary();
       if (state.current) await refreshCurrent();
-      showToast(`${data.result.importedCount} members imported and compared with the winners archive.`);
+      const numbersAdded = Number(data.result.membershipNumbersAdded || 0);
+      const numberCopy = numbersAdded
+        ? ` ${numbersAdded} ${numbersAdded === 1 ? 'membership number was' : 'membership numbers were'} added to existing members.`
+        : '';
+      showToast(`${data.result.importedCount} members imported.${numberCopy} Every existing winner link was refreshed.`);
     } catch (exception) {
       showToast(exception.message, true, 6500);
     } finally {

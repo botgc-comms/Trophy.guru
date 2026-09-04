@@ -168,6 +168,7 @@ public sealed class MemberRecord
     public string FirstName { get; set; } = string.Empty;
     public string Initial { get; set; } = string.Empty;
     public string Surname { get; set; } = string.Empty;
+    public string? BirthDateFingerprint { get; set; }
     public int? BirthYear { get; set; }
     public int? JoinYear { get; set; }
     public string? MembershipNumber { get; set; }
@@ -198,7 +199,7 @@ public sealed record MemberDirectorySummary(
     string? SourceName,
     DateTimeOffset? ImportedAt);
 
-public sealed record MemberImportResult(int ImportedCount, int SkippedCount, string SourceName, DateTimeOffset ImportedAt);
+public sealed record MemberImportResult(int ImportedCount, int UpdatedCount, int MembershipNumbersAdded, int SkippedCount, string SourceName, DateTimeOffset ImportedAt);
 public sealed record WinnerInput(int Year, string Name, string ReviewState, string? Notes);
 public sealed record TimelineInput(int? StartYear, int? EndYear);
 public sealed record SignupInput(string DisplayName, string Email, string Password);
