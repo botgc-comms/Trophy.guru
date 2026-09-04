@@ -22,6 +22,7 @@ const elements = {
   busy: document.querySelector('#busy-overlay'),
   login: document.querySelector('#login-screen'),
 };
+let engravingInstructionsSavePromise = null;
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -174,6 +175,7 @@ function renderDetail() {
   document.querySelector('#timeline-start').value = trophy.timelineStartYear ?? '';
   document.querySelector('#timeline-end').value = trophy.timelineEndYear ?? '';
   document.querySelector('#detail-division').value = trophy.division || 'mixed';
+  renderEngravingInstructions();
   document.querySelector('#analyse-button').disabled = trophy.evidence.length === 0 || !state.aiConfigured;
   document.querySelector('#ai-setup-note').hidden = state.aiConfigured;
   renderEvidence();
@@ -271,6 +273,61 @@ function renderWinners(addBlank = false) {
   if (addBlank) elements.winnerList.querySelector('[data-winner-id="new"] input[name="year"]')?.focus();
 }
 
+function renderEngravingInstructions() {
+  const input = document.querySelector('#engraving-instructions');
+  const status = document.querySelector('#engraving-instructions-status');
+  const button = document.querySelector('#save-engraving-instructions');
+  const instructions = state.current?.engravingInstructions || '';
+  if (document.activeElement !== input) input.value = instructions;
+  status.textContent = instructions ? 'Saved with this trophy' : 'Optional';
+  status.className = instructions ? 'is-saved' : '';
+  button.disabled = input.value.trim() === instructions;
+}
+
+async function saveEngravingInstructions(showSuccess = false) {
+  if (!state.current) return false;
+  if (engravingInstructionsSavePromise) await engravingInstructionsSavePromise;
+
+  const input = document.querySelector('#engraving-instructions');
+  const status = document.querySelector('#engraving-instructions-status');
+  const button = document.querySelector('#save-engraving-instructions');
+  const trophyId = state.current.id;
+  const instructions = input.value.trim();
+  if (instructions === (state.current.engravingInstructions || '')) {
+    renderEngravingInstructions();
+    if (showSuccess) showToast(instructions ? 'Special engraving instructions saved.' : 'No special engraving instructions are set.');
+    return true;
+  }
+
+  status.textContent = 'Saving…';
+  status.className = 'is-saving';
+  button.disabled = true;
+  engravingInstructionsSavePromise = (async () => {
+    try {
+      const data = await api(`/api/trophies/${encodeURIComponent(trophyId)}/engraving-instructions`, {
+        method: 'PUT',
+        body: JSON.stringify({ instructions: instructions || null }),
+      });
+      if (state.current?.id === trophyId) {
+        state.current = data.trophy;
+        state.missingYears = data.missingYears || [];
+        renderEngravingInstructions();
+      }
+      if (showSuccess) showToast(instructions ? 'Special engraving instructions saved.' : 'Special engraving instructions removed.');
+      return true;
+    } catch (error) {
+      status.textContent = 'Could not save';
+      status.className = 'is-error';
+      button.disabled = false;
+      showToast(error.message, true, 6500);
+      return false;
+    } finally {
+      engravingInstructionsSavePromise = null;
+    }
+  })();
+  return engravingInstructionsSavePromise;
+}
+
 function renderEmptyWinners(winnerCount = state.current?.winners?.length || 0) {
   const empty = document.querySelector('#empty-winners');
   if (!empty) return;
@@ -314,7 +371,10 @@ function winnerRow(winner) {
   return `
     <article class="winner-row ${uncertain ? 'is-uncertain' : ''} ${isNew ? 'is-new' : ''}" data-winner-id="${winner?.id || 'new'}">
       <label><span>Year</span><input name="year" type="number" min="1800" max="2200" inputmode="numeric" value="${winner?.year || ''}" aria-label="Winning year"></label>
-      <label class="winner-name"><span>Winner${winner?.notes ? ` · ${escapeHtml(winner.notes)}` : ''}</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name on trophy">${winnerEvidenceButton(winner)}</label>
+      <div class="winner-fields">
+        <label class="winner-name"><span>Winner</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name on trophy">${winnerEvidenceButton(winner)}</label>
+        <label class="winner-notes"><span>Notes / description</span><input name="notes" maxlength="500" value="${escapeHtml(winner?.notes || '')}" aria-label="Winner notes or result description" placeholder="Team, award or other engraving details"></label>
+      </div>
       <div class="confidence ${reviewState} ${uncertain ? 'uncertain' : ''}">
         ${isNew ? '<span>Manual</span><small>New</small>' : `<span>${Math.round(confidence * 100)}%</span><small>${reviewState === 'confirmed' ? 'Confirmed' : uncertain ? 'Uncertain' : 'Check'}</small>`}
       </div>
@@ -344,11 +404,12 @@ async function saveWinner(row) {
   const id = row.dataset.winnerId;
   const year = Number(row.querySelector('[name="year"]').value);
   const name = row.querySelector('[name="name"]').value.trim();
+  const notes = row.querySelector('[name="notes"]').value.trim();
   if (!year || !name) {
     showToast('Enter both the year and winner’s name.', true);
     return;
   }
-  const payload = JSON.stringify({ year, name, reviewState: 'confirmed', notes: null });
+  const payload = JSON.stringify({ year, name, reviewState: 'confirmed', notes: notes || null });
   try {
     if (id === 'new') {
       await api(`/api/trophies/${encodeURIComponent(state.current.id)}/winners`, { method: 'POST', body: payload });
@@ -392,6 +453,10 @@ async function saveTimeline() {
 
 async function uploadFiles(files, kind) {
   if (!files.length || !state.current) return;
+  if (!await saveEngravingInstructions()) {
+    clearUploadInputs();
+    return;
+  }
   const trophyId = state.current.id;
   setBusy(true, `Preparing ${plural(files.length, 'image')}…`, 'Optimising the batch for a clear, quick mobile upload.');
   try {
@@ -455,6 +520,7 @@ async function optimiseImage(file) {
 
 async function analyseAll() {
   if (!state.current) return;
+  if (!await saveEngravingInstructions()) return;
   try {
     const data = await api(`/api/trophies/${encodeURIComponent(state.current.id)}/analyse`, { method: 'POST', body: '{}' });
     state.analysisStatus = data.analysis;
@@ -661,6 +727,16 @@ document.querySelector('.club-mark').addEventListener('click', event => {
 document.querySelector('#back-button').addEventListener('click', () => closeTrophy());
 document.querySelector('#photo-input').addEventListener('change', event => uploadFiles([...event.target.files], 'photo'));
 document.querySelector('#photo-library-input').addEventListener('change', event => uploadFiles([...event.target.files], 'photo'));
+document.querySelector('#engraving-instructions').addEventListener('input', event => {
+  const saved = state.current?.engravingInstructions || '';
+  const changed = event.currentTarget.value.trim() !== saved;
+  const status = document.querySelector('#engraving-instructions-status');
+  status.textContent = changed ? 'Not saved' : saved ? 'Saved with this trophy' : 'Optional';
+  status.className = changed ? 'is-unsaved' : saved ? 'is-saved' : '';
+  document.querySelector('#save-engraving-instructions').disabled = !changed;
+});
+document.querySelector('#engraving-instructions').addEventListener('blur', () => saveEngravingInstructions());
+document.querySelector('#save-engraving-instructions').addEventListener('click', () => saveEngravingInstructions(true));
 document.querySelector('#analyse-button').addEventListener('click', analyseAll);
 document.querySelector('#add-winner-button').addEventListener('click', () => renderWinners(true));
 document.querySelector('#save-range-button').addEventListener('click', saveTimeline);

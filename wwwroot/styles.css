@@ -144,6 +144,17 @@ h2 { font-size: 28px; line-height: 1.05; }
 .primary-action { background: var(--green-900); color: #fff; }
 .primary-action:hover { background: var(--green-800); }
 .secondary-action { border: 1px solid #cfcabf; background: #fff; color: var(--green-900); }
+.engraving-instructions { margin-top: 18px; padding: 14px; display: grid; gap: 8px; border: 1px solid #d6d8d0; border-radius: 13px; background: #f7f6f1; }
+.engraving-instructions-heading, .engraving-instructions-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.engraving-instructions-heading label { color: var(--ink); font-size: 12px; font-weight: 700; }
+.engraving-instructions-heading span { flex: 0 0 auto; color: var(--muted); font-size: 9px; font-weight: 700; }
+.engraving-instructions-heading span.is-saved { color: var(--green-800); }
+.engraving-instructions-heading span.is-unsaved, .engraving-instructions-heading span.is-error { color: #8a5c12; }
+.engraving-instructions textarea { width: 100%; min-height: 92px; padding: 10px 11px; resize: vertical; border: 1px solid #cbc9c0; border-radius: 9px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; line-height: 1.5; outline: 0; }
+.engraving-instructions textarea:focus { border-color: var(--green-800); box-shadow: 0 0 0 3px rgba(27,81,64,.1); }
+.engraving-instructions-footer p { max-width: 310px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.engraving-instructions-footer button { min-height: 34px; flex: 0 0 auto; padding: 0 11px; border: 1px solid var(--green-900); border-radius: 8px; background: var(--green-900); color: #fff; font-size: 9px; font-weight: 700; cursor: pointer; }
+.engraving-instructions-footer button:disabled { opacity: .45; cursor: default; }
 .photo-strip { min-height: 107px; margin-top: 18px; padding-top: 18px; display: flex; gap: 9px; overflow-x: auto; border-top: 1px solid var(--line); }
 .evidence-thumb, .add-more { position: relative; width: 76px; height: 88px; flex: 0 0 auto; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 11px; background: var(--paper-deep); cursor: pointer; }
 .evidence-thumb:hover, .evidence-thumb.is-source { border-color: var(--green-800); }
@@ -190,6 +201,7 @@ h2 { font-size: 28px; line-height: 1.05; }
 .empty-winners.is-warning > span { background: #f7e5bd; color: #815714; }
 .winner-list { display: grid; }
 .winner-row { min-width: 0; padding: 12px 0; display: grid; grid-template-columns: 78px minmax(0, 1fr) 64px 104px; gap: 8px; align-items: start; border-bottom: 1px solid var(--line); }
+.winner-fields { min-width: 0; display: grid; gap: 7px; }
 .winner-row label { min-width: 0; display: grid; gap: 4px; }
 .winner-row label > span { overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .07em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .winner-row input { width: 100%; min-width: 0; height: 35px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; background: #f5f3ed; color: var(--ink); font-size: 13px; outline: 0; }
@@ -201,6 +213,7 @@ h2 { font-size: 28px; line-height: 1.05; }
 .winner-evidence-link:hover, .winner-evidence-link:focus-visible { border-color: var(--green-800); background: #e4eee7; }
 .winner-evidence-link > span { color: var(--brass); font-size: 13px; line-height: 1; }
 .winner-name > .member-match { grid-column: 1 / -1; }
+.winner-notes input { color: #4e5a54; font-size: 11px; }
 .winner-row.is-uncertain { margin: 0 -10px; padding-inline: 10px; background: #fff9ee; }
 .winner-row.is-new { margin: 6px -10px 0; padding-inline: 10px; border-radius: 10px; background: var(--green-100); }
 .confidence { height: 35px; margin-top: 13px; display: grid; align-content: center; justify-items: end; }
@@ -295,6 +308,10 @@ h2 { font-size: 28px; line-height: 1.05; }
   .capture-panel, .winners-panel { padding: 20px 16px; }
   .capture-actions { grid-template-columns: 1fr; }
   .capture-button { min-height: 55px; }
+  .engraving-instructions-heading, .engraving-instructions-footer { align-items: flex-start; }
+  .engraving-instructions-footer { display: grid; }
+  .engraving-instructions-footer p { max-width: none; }
+  .engraving-instructions-footer button { width: 100%; min-height: 40px; }
   .timeline-range { grid-template-columns: 1fr 1fr 48px; }
   .timeline-range > div { grid-column: 1 / -1; }
   .winner-row { padding-block: 14px; grid-template-columns: 66px minmax(0, 1fr) 52px; }

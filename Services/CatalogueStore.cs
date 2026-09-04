@@ -430,6 +430,27 @@ public sealed class CatalogueStore(
         finally { tenant.Gate.Release(); }
     }
 
+    public async Task<TrophyRecord?> UpdateEngravingInstructionsAsync(
+        string trophyId,
+        TrophyEngravingInstructionsInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await GetTenantAsync(cancellationToken);
+        await tenant.Gate.WaitAsync(cancellationToken);
+        try
+        {
+            var trophy = Find(tenant, trophyId);
+            if (trophy is null) return null;
+            var instructions = NullIfEmpty(input.Instructions);
+            if (string.Equals(trophy.EngravingInstructions, instructions, StringComparison.Ordinal)) return Clone(trophy);
+            trophy.EngravingInstructions = instructions;
+            if (trophy.Evidence.Count > 0) trophy.Status = TrophyStatuses.InProgress;
+            await SaveUnsafeAsync(tenant, cancellationToken);
+            return Clone(trophy);
+        }
+        finally { tenant.Gate.Release(); }
+    }
+
     public async Task<TrophyRecord?> MarkCompleteAsync(string trophyId, CancellationToken cancellationToken = default)
     {
         var tenant = await GetTenantAsync(cancellationToken);
@@ -638,7 +659,7 @@ public sealed class CatalogueStore(
                 if (trophy.IllustrationState == IllustrationStates.Complete)
                     trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
             }
-            tenant.State.Version = 6;
+            tenant.State.Version = 7;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
             await SaveUnsafeAsync(tenant, cancellationToken);
             tenant.Initialized = true;

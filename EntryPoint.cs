@@ -492,6 +492,20 @@ public static class EntryPoint
             return Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         });
 
+        app.MapPut("/api/trophies/{id}/engraving-instructions", async (
+            string id,
+            TrophyEngravingInstructionsInput input,
+            CatalogueStore store,
+            CancellationToken cancellationToken) =>
+        {
+            if ((input.Instructions?.Trim().Length ?? 0) > 2000)
+                return Results.BadRequest(new { error = "Keep the special engraving instructions under 2,000 characters." });
+            var trophy = await store.UpdateEngravingInstructionsAsync(id, input, cancellationToken);
+            return trophy is null
+                ? Results.NotFound()
+                : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
+        });
+
         app.MapPost("/api/trophies/{id}/complete", async (string id, CatalogueStore store, CancellationToken cancellationToken) =>
         {
             var trophy = await store.MarkCompleteAsync(id, cancellationToken);
@@ -913,6 +927,7 @@ public static class EntryPoint
         if (input.Year is < 1800 or > 2200) return "Enter a year from 1800 to 2200.";
         if (string.IsNullOrWhiteSpace(input.Name)) return "Enter the winner's name.";
         if (input.Name.Trim().Length > 200) return "Keep the winner's name under 200 characters.";
+        if ((input.Notes?.Trim().Length ?? 0) > 500) return "Keep the winner notes under 500 characters.";
         return null;
     }
 

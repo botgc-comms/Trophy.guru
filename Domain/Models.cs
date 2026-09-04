@@ -38,7 +38,7 @@ public sealed class ClubRecord
 
 public sealed class CatalogueState
 {
-    public int Version { get; set; } = 6;
+    public int Version { get; set; } = 7;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<TrophyRecord> Trophies { get; set; } = [];
 }
@@ -60,6 +60,7 @@ public sealed class TrophyRecord
     public string? SecondaryName { get; set; }
     public required string Category { get; set; }
     public string Division { get; set; } = TrophyDivisions.Mixed;
+    public string? EngravingInstructions { get; set; }
     public string? ReferenceImage { get; set; }
     public string IllustrationState { get; set; } = IllustrationStates.None;
     public string? IllustrationMessage { get; set; }
@@ -200,6 +201,7 @@ public sealed record LegacyLoginInput(string? Password);
 public sealed record ClubInput(string Name, string Sport, string Country, string? Website);
 public sealed record TrophyCreateInput(string Name, string? SecondaryName, string Category, string? Code, string? Division);
 public sealed record TrophyDivisionInput(string? Division);
+public sealed record TrophyEngravingInstructionsInput(string? Instructions);
 public sealed record MemberMatchSelectionInput(string MemberId);
 public sealed record ManualMemberInput(string FullName, string? DateOfBirth, string? DateJoined, string? MembershipNumber, string? Gender);
 
