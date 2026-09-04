@@ -239,7 +239,7 @@
             <button type="button" data-trophy-photo-id="${escapeHtml(photo.id)}" aria-label="Remove trophy reference angle ${index + 1}">×</button>
             <small>${index === 0 ? 'Main view' : `Angle ${index + 1}`}</small>
           </span>`).join('')
-      : '<span class="trophy-photo-empty">No reference photos yet. Add whole-trophy views here; engraving close-ups remain separate.</span>';
+      : '<span class="trophy-photo-empty">No reference photos yet. Add whole-trophy views here; winner-record evidence remains separate.</span>';
     strip.querySelectorAll('img').forEach(addImageFallback);
     if (!trophy) status.textContent = '';
     else if (trophy.illustrationState === 'processing') status.textContent = '✦ The illustration is generating in the background. You can close this window and keep working.';
@@ -254,7 +254,7 @@
     event.target.value = '';
     if (!files.length || !state.current) return;
     const id = state.current.id;
-    setBusy(true, `Preparing ${plural(files.length, 'reference photo')}…`, 'These images stay separate from engraving evidence.');
+    setBusy(true, `Preparing ${plural(files.length, 'reference photo')}…`, 'These images stay separate from winner-record evidence.');
     try {
       const prepared = [];
       for (let index = 0; index < files.length; index += 1) {
@@ -276,7 +276,7 @@
         watchIllustration(id);
         showToast('Reference photos saved. The illustration is refreshing in the background.');
       } else {
-        showToast('Reference photos saved separately from engraving evidence.');
+        showToast('Reference photos saved separately from winner-record evidence.');
       }
     } catch (exception) {
       showToast(exception.message, true, 6500);
@@ -286,7 +286,7 @@
   }
 
   async function deleteTrophyPhoto(photoId) {
-    if (!state.current || !confirm('Remove this trophy reference photo? Engraving evidence will not be affected.')) return;
+    if (!state.current || !confirm('Remove this trophy reference photo? Winner-record evidence will not be affected.')) return;
     const id = state.current.id;
     try {
       const data = await api(`/api/trophies/${encodeURIComponent(id)}/trophy-photos/${encodeURIComponent(photoId)}`, { method: 'DELETE', body: '{}' });

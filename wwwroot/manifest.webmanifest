@@ -1,7 +1,7 @@
 {
   "name": "Trophy Archive",
   "short_name": "Trophies",
-  "description": "Capture, recover and verify winners engraved on historic trophies.",
+  "description": "Capture, recover and verify trophy winners from engravings, honours boards and historic club records.",
   "start_url": "/archive.html#catalogue",
   "display": "standalone",
   "background_color": "#f5f2e9",

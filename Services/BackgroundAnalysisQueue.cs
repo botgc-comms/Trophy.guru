@@ -118,14 +118,14 @@ public sealed class BackgroundAnalysisQueue(
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is OpenAiUnavailableException or HttpRequestException or TaskCanceledException)
         {
-            logger.LogWarning(exception, "Background engraving analysis failed for club {ClubId}, trophy {TrophyId}", request.ClubId, request.TrophyId);
+            logger.LogWarning(exception, "Background winner-record analysis failed for club {ClubId}, trophy {TrophyId}", request.ClubId, request.TrophyId);
             foreach (var evidenceId in pendingEvidenceIds)
                 await store.SetEvidenceProcessingAsync(request.TrophyId, evidenceId, ProcessingStates.Failed, exception.Message, cancellationToken);
             if (!HasNewerRequest(request)) jobs[key] = new AnalysisJobSnapshot("failed", exception.Message, DateTimeOffset.UtcNow, evidenceFiles.Count);
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Unexpected background engraving analysis failure for club {ClubId}, trophy {TrophyId}", request.ClubId, request.TrophyId);
+            logger.LogError(exception, "Unexpected background winner-record analysis failure for club {ClubId}, trophy {TrophyId}", request.ClubId, request.TrophyId);
             const string message = "The background reader failed unexpectedly. Try again.";
             foreach (var evidenceId in pendingEvidenceIds)
                 await store.SetEvidenceProcessingAsync(request.TrophyId, evidenceId, ProcessingStates.Failed, message, cancellationToken);

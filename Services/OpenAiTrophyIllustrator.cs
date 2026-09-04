@@ -29,7 +29,7 @@ public sealed class OpenAiTrophyIllustrator(
             .Take(4)
             .ToList();
         if (photographs.Count == 0)
-            throw new OpenAiUnavailableException("Add at least one trophy reference photograph before generating an illustration. Engraving evidence is stored and processed separately.");
+            throw new OpenAiUnavailableException("Add at least one trophy reference photograph before generating an illustration. Winner-record evidence is stored and processed separately.");
 
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent(model), "model");

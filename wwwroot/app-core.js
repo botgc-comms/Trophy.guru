@@ -255,7 +255,7 @@ function renderReaderNote() {
 
   if (!evidence.length) {
     note.className = 'reader-note is-neutral';
-    note.innerHTML = '<span class="reader-spark" aria-hidden="true">✦</span><span><strong>Add the first engraving photo</strong><small>Take several angles if needed; they will be read together after you pause.</small></span>';
+    note.innerHTML = '<span class="reader-spark" aria-hidden="true">✦</span><span><strong>Add the first winner-record photo</strong><small>Use a trophy inscription, honours board, plaque or another club record. Multiple images will be read together.</small></span>';
     return;
   }
   if (analysis?.status === 'queued') {
@@ -343,7 +343,7 @@ async function saveEngravingInstructions(showSuccess = false) {
   const instructions = input.value.trim();
   if (instructions === (state.current.engravingInstructions || '')) {
     renderEngravingInstructions();
-    if (showSuccess) showToast(instructions ? 'Special engraving instructions saved.' : 'No special engraving instructions are set.');
+    if (showSuccess) showToast(instructions ? 'Source-reading instructions saved.' : 'No source-reading instructions are set.');
     return true;
   }
 
@@ -361,7 +361,7 @@ async function saveEngravingInstructions(showSuccess = false) {
         state.missingYears = data.missingYears || [];
         renderEngravingInstructions();
       }
-      if (showSuccess) showToast(instructions ? 'Special engraving instructions saved.' : 'Special engraving instructions removed.');
+      if (showSuccess) showToast(instructions ? 'Source-reading instructions saved.' : 'Source-reading instructions removed.');
       return true;
     } catch (error) {
       status.textContent = 'Could not save';
@@ -420,8 +420,8 @@ function winnerRow(winner) {
     <article class="winner-row ${uncertain ? 'is-uncertain' : ''} ${isNew ? 'is-new' : ''}" data-winner-id="${winner?.id || 'new'}">
       <label><span>Year</span><input name="year" type="number" min="1800" max="2200" inputmode="numeric" value="${winner?.year || ''}" aria-label="Winning year"></label>
       <div class="winner-fields">
-        <label class="winner-name"><span>Winner</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name on trophy">${winnerEvidenceButton(winner)}</label>
-        <label class="winner-notes"><span>Notes / description</span><input name="notes" maxlength="500" value="${escapeHtml(winner?.notes || '')}" aria-label="Winner notes or result description" placeholder="Team, award or other engraving details"></label>
+        <label class="winner-name"><span>Winner</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name shown in the source">${winnerEvidenceButton(winner)}</label>
+        <label class="winner-notes"><span>Notes / description</span><input name="notes" maxlength="500" value="${escapeHtml(winner?.notes || '')}" aria-label="Winner notes or result description" placeholder="Team, award or other source details"></label>
       </div>
       <div class="confidence ${reviewState} ${uncertain ? 'uncertain' : ''}">
         ${isNew ? '<span>Manual</span><small>New</small>' : `<span>${Math.round(confidence * 100)}%</span><small>${reviewState === 'confirmed' ? 'Confirmed' : uncertain ? 'Uncertain' : 'Check'}</small>`}
@@ -444,7 +444,7 @@ function winnerEvidenceButton(winner) {
   const region = reference?.imageId === evidenceId
     ? ` data-region-x="${Number(reference.x)}" data-region-y="${Number(reference.y)}" data-region-width="${Number(reference.width)}" data-region-height="${Number(reference.height)}"`
     : '';
-  const label = reference?.imageId === evidenceId ? 'Show engraving on photo' : 'View source photo';
+  const label = reference?.imageId === evidenceId ? 'Show source text on photo' : 'View source photo';
   return `<button class="winner-evidence-link" data-action="evidence" data-evidence-id="${escapeHtml(evidenceId)}"${region} type="button" title="${label}"><span aria-hidden="true">⌖</span>${label}</button>`;
 }
 
@@ -558,7 +558,7 @@ async function optimiseImage(file) {
     bitmap.close();
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
     if (!blob) return file;
-    const baseName = file.name.replace(/\.[^.]+$/, '') || 'engraving';
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'winner-record';
     return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
   } catch {
     if (file.size > 12 * 1024 * 1024) throw new Error('This image cannot be resized on the phone and is larger than 12 MB.');

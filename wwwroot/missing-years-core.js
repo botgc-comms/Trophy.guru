@@ -7,7 +7,7 @@
   }
   if (!document.querySelector('script[src^="/commercial.js"]')) {
     const commercialScript = document.createElement('script');
-    commercialScript.src = '/commercial.js?v=20260904-unmatched-override-1';
+    commercialScript.src = '/commercial.js?v=20260904-winner-sources-1';
     document.head.append(commercialScript);
   }
 

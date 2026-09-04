@@ -513,7 +513,7 @@ public static class EntryPoint
             CancellationToken cancellationToken) =>
         {
             if ((input.Instructions?.Trim().Length ?? 0) > 2000)
-                return Results.BadRequest(new { error = "Keep the special engraving instructions under 2,000 characters." });
+                return Results.BadRequest(new { error = "Keep the source-reading instructions under 2,000 characters." });
             var trophy = await store.UpdateEngravingInstructionsAsync(id, input, cancellationToken);
             return trophy is null
                 ? Results.NotFound()
@@ -543,7 +543,7 @@ public static class EntryPoint
             var form = await request.ReadFormAsync(cancellationToken);
             var files = form.Files.ToList();
             var kind = form["kind"].ToString() == EvidenceKinds.Rubbing ? EvidenceKinds.Rubbing : EvidenceKinds.Photo;
-            if (files.Count == 0) return Results.BadRequest(new { error = "Choose one or more photos or rubbings first." });
+            if (files.Count == 0) return Results.BadRequest(new { error = "Choose one or more winner-record images first." });
             if (files.Count > 30) return Results.BadRequest(new { error = "Upload no more than 30 images at once." });
             if (files.Any(file => file.Length == 0)) return Results.BadRequest(new { error = "One of those images is empty. Remove it and try again." });
             if (files.Any(file => file.Length > 12 * 1024 * 1024)) return Results.BadRequest(new { error = "Each image must be no larger than 12 MB." });
@@ -565,7 +565,7 @@ public static class EntryPoint
             if (reader.IsAvailable) analysis = analysisQueue.Enqueue(id, trophy.Evidence.Count);
             else
             {
-                const string message = "Add OPENAI_API_KEY to enable the engraving reader.";
+                const string message = "Add OPENAI_API_KEY to enable the winner-record reader.";
                 foreach (var evidence in addedEvidence)
                     await store.SetEvidenceProcessingAsync(id, evidence.Id, ProcessingStates.Failed, message, cancellationToken);
                 trophy = await store.GetTrophyAsync(id, cancellationToken) ?? trophy;
@@ -586,7 +586,7 @@ public static class EntryPoint
             var trophy = await store.GetTrophyAsync(id, cancellationToken);
             if (trophy is null) return Results.NotFound();
             if (trophy.Evidence.Count == 0) return Results.BadRequest(new { error = "Add at least one image first." });
-            if (!reader.IsAvailable) return Results.Json(new { error = "analysis_failed", message = "Add OPENAI_API_KEY to enable the engraving reader." }, statusCode: 503);
+            if (!reader.IsAvailable) return Results.Json(new { error = "analysis_failed", message = "Add OPENAI_API_KEY to enable the winner-record reader." }, statusCode: 503);
             return Results.Accepted($"/api/trophies/{id}/analysis-status", new { analysis = queue.EnqueueNow(id, trophy.Evidence.Count) });
         });
 

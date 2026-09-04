@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a2a21">
-  <meta name="description" content="Build and verify a searchable archive of the names and years engraved on your club's historic trophies.">
+  <meta name="description" content="Build and verify a searchable trophy archive from engravings, honours boards and other historic winner records.">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <title>Your Trophy Archive</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,7 +49,7 @@
         <div>
           <p class="eyebrow">Club collection</p>
           <h1>Choose a trophy</h1>
-          <p class="intro">Photograph its engraving and build a verified list of winners.</p>
+          <p class="intro">Photograph or upload its winner records and build a verified list.</p>
         </div>
         <div class="collection-progress" aria-label="Archive progress">
           <strong id="complete-count">—</strong><span>of <b id="total-count">—</b><br>catalogued</span>
@@ -102,10 +102,10 @@
       <div class="workspace-grid">
         <section class="capture-panel panel">
           <div class="section-heading">
-            <div><p class="step-label">Step 1</p><h2>Add engraving photos</h2></div>
+            <div><p class="step-label">Step 1</p><h2>Add photos of winner records</h2></div>
             <span id="evidence-count" class="count-badge">0 images</span>
           </div>
-          <p class="section-copy">Take overlapping photos from different angles. The reader combines every image to handle reflections and faint lettering.</p>
+          <p class="section-copy">Use trophy inscriptions, honours boards, plaques or other records. Add overlapping views where reflections, distance or faint lettering make the text difficult to read.</p>
           <div class="capture-actions">
             <label class="capture-button primary-action">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5 13 3h-2L9.5 5H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4.5Z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -120,19 +120,19 @@
           </div>
           <div class="engraving-instructions">
             <div class="engraving-instructions-heading">
-              <label for="engraving-instructions">How should these engravings be interpreted?</label>
+              <label for="engraving-instructions">How should these records be interpreted?</label>
               <span id="engraving-instructions-status" role="status">Optional</span>
             </div>
-            <textarea id="engraving-instructions" maxlength="2000" rows="4" placeholder="Example: Each engraving includes a date, England or Celts, and the winning captain’s name. Use the captain as the winner and describe which team won in Notes."></textarea>
+            <textarea id="engraving-instructions" maxlength="2000" rows="4" placeholder="Example: Each record includes a date, England or Celts, and the winning captain’s name. Use the captain as the winner and describe which team won in Notes."></textarea>
             <div class="engraving-instructions-footer">
-              <p>This reusable rule is applied whenever the AI reads this trophy’s photos. Other result details are saved in each winner’s Notes.</p>
+              <p>This reusable rule is applied whenever the AI reads this trophy’s source photos. Other result details are saved in each winner’s Notes.</p>
               <button id="save-engraving-instructions" type="button" disabled>Save instructions</button>
             </div>
           </div>
-          <div id="photo-strip" class="photo-strip" aria-label="Uploaded engraving photos"></div>
+          <div id="photo-strip" class="photo-strip" aria-label="Uploaded winner-record photos"></div>
           <div id="reader-note" class="reader-note is-neutral">
             <span class="reader-spark" aria-hidden="true">✦</span>
-            <span><strong>Add the first engraving photo</strong><small>Names and years will appear in the list for you to check.</small></span>
+            <span><strong>Add the first winner-record photo</strong><small>It can show the trophy, an honours board, a plaque or another club record.</small></span>
           </div>
           <div id="ai-setup-note" class="ai-setup-note" hidden>
             <strong>AI reader not connected</strong>
@@ -140,7 +140,7 @@
           </div>
           <button id="analyse-button" class="outline-button" type="button" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3ZM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></svg>
-            Read all engraving photos again
+            Read all source photos again
           </button>
         </section>
 
@@ -227,7 +227,7 @@
       <button class="commercial-dialog-close" type="button" aria-label="Close reference photos">×</button>
       <p class="step-label">Trophy appearance</p>
       <h2>Reference photos</h2>
-      <p>These whole-trophy views are kept separate from engraving photos and are used only to create the catalogue illustration.</p>
+      <p>These whole-trophy views are kept separate from winner-record photos and are used only to create the catalogue illustration.</p>
       <div class="reference-photo-actions">
         <label><span>Take a photo</span><input id="reference-camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden></label>
         <label><span>Upload images</span><input id="trophy-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label>
@@ -292,17 +292,17 @@
   <dialog id="image-dialog" class="image-dialog">
     <button id="close-image-button" class="dialog-close" aria-label="Close image">×</button>
     <div class="image-dialog-stage">
-      <img id="dialog-image" src="" alt="Uploaded engraving photo">
+      <img id="dialog-image" src="" alt="Uploaded winner-record photo">
       <span id="dialog-evidence-region" class="dialog-evidence-region" aria-label="Approximate area read by AI" hidden></span>
     </div>
     <footer><span id="dialog-image-label"></span><button id="delete-image-button" type="button">Delete image</button></footer>
   </dialog>
 
   <div id="busy-overlay" class="busy-overlay" hidden aria-live="polite">
-    <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the engraving…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
+    <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260904-team-awards-1" defer></script>
-  <script src="/missing-years.js?v=20260904-unmatched-override-1" defer></script>
+  <script src="/app.js?v=20260904-winner-sources-1" defer></script>
+  <script src="/missing-years.js?v=20260904-winner-sources-1" defer></script>
 </body>
 </html>

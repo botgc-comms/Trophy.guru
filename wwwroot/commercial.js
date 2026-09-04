@@ -5,7 +5,7 @@
   document.head.append(stylesheet);
 
   const core = document.createElement('script');
-  core.src = '/commercial-core.js?v=20260904-unmatched-override-1';
+  core.src = '/commercial-core.js?v=20260904-winner-sources-1';
   core.onload = installPhotoFirstWizard;
   document.head.append(core);
 
@@ -28,7 +28,7 @@
         <div class="wizard-step"><span>1</span><i></i><span>2</span><i></i><span>3</span></div>
         <p class="step-label">New trophy · details, photographs, illustration</p>
         <h2>Add a trophy</h2>
-        <p>Give it a name, then take or choose one or more photographs. These reference photographs are stored separately from engraving evidence and are used only to create the catalogue illustration.</p>
+        <p>Give it a name, then take or choose one or more photographs. These whole-trophy reference photographs are stored separately from winner-record evidence and are used only to create the catalogue illustration.</p>
         <label><span>Trophy name</span><input name="name" maxlength="160" required placeholder="e.g. Ladies Challenge Cup"></label>
         <div class="commercial-form-grid">
           <label><span>Category</span><input name="category" maxlength="80" required placeholder="e.g. Golf, Rugby, Cricket"></label>
@@ -45,7 +45,7 @@
           </div>
           <div id="wizard-photo-list" class="wizard-photo-list"><span class="wizard-photo-empty">No photographs added yet</span></div>
         </fieldset>
-        <div class="wizard-outcome"><span>✦</span><p><strong>What happens next</strong><small>We create the trophy, save these reference angles separately and generate its transparent catalogue illustration. Add close-up engraving evidence afterwards.</small></p></div>
+        <div class="wizard-outcome"><span>✦</span><p><strong>What happens next</strong><small>We create the trophy, save these reference angles separately and generate its transparent catalogue illustration. Add photos of trophy text, honours boards or other winner records afterwards.</small></p></div>
         <button class="commercial-submit" type="submit" disabled>Create trophy</button>
         <p class="commercial-form-error" role="alert" hidden></p>
       </form>`;
