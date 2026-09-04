@@ -144,16 +144,26 @@ h2 { font-size: 28px; line-height: 1.05; }
 .primary-action { background: var(--green-900); color: #fff; }
 .primary-action:hover { background: var(--green-800); }
 .secondary-action { border: 1px solid #cfcabf; background: #fff; color: var(--green-900); }
-.engraving-instructions { margin-top: 18px; padding: 14px; display: grid; gap: 8px; border: 1px solid #d6d8d0; border-radius: 13px; background: #f7f6f1; }
-.engraving-instructions-heading, .engraving-instructions-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.engraving-instructions-heading label { color: var(--ink); font-size: 12px; font-weight: 700; }
-.engraving-instructions-heading span { flex: 0 0 auto; color: var(--muted); font-size: 9px; font-weight: 700; }
-.engraving-instructions-heading span.is-saved { color: var(--green-800); }
-.engraving-instructions-heading span.is-unsaved, .engraving-instructions-heading span.is-error { color: #8a5c12; }
-.engraving-instructions textarea { width: 100%; min-height: 92px; padding: 10px 11px; resize: vertical; border: 1px solid #cbc9c0; border-radius: 9px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; line-height: 1.5; outline: 0; }
+.engraving-instructions { margin-top: 18px; border: 1px solid #d6d8d0; border-radius: 13px; background: #f7f6f1; overflow: hidden; }
+.engraving-instructions summary { min-height: 60px; padding: 11px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto 24px; align-items: center; gap: 12px; color: var(--ink); cursor: pointer; list-style: none; }
+.engraving-instructions summary::-webkit-details-marker { display: none; }
+.engraving-instructions summary::after { content: '+'; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid #c9cdc5; border-radius: 50%; color: var(--green-900); font-size: 18px; font-weight: 500; line-height: 1; }
+.engraving-instructions[open] summary::after { content: '−'; }
+.engraving-instructions summary:focus-visible { outline: 3px solid rgba(27,81,64,.2); outline-offset: -3px; }
+.engraving-instructions summary > span:first-child { min-width: 0; display: grid; gap: 2px; }
+.engraving-instructions summary strong { font-size: 14px; line-height: 1.25; }
+.engraving-instructions summary small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+#engraving-instructions-status { flex: 0 0 auto; color: var(--muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+#engraving-instructions-status.is-saved { color: var(--green-800); }
+#engraving-instructions-status.is-unsaved, #engraving-instructions-status.is-error { color: #8a5c12; }
+.engraving-instructions-body { padding: 13px 14px 14px; display: grid; gap: 10px; border-top: 1px solid #d6d8d0; }
+.engraving-instructions-help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.engraving-instructions-help strong { color: var(--ink); }
+.engraving-instructions textarea { width: 100%; min-height: 96px; padding: 10px 11px; resize: vertical; border: 1px solid #cbc9c0; border-radius: 9px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.5; outline: 0; }
 .engraving-instructions textarea:focus { border-color: var(--green-800); box-shadow: 0 0 0 3px rgba(27,81,64,.1); }
-.engraving-instructions-footer p { max-width: 310px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
-.engraving-instructions-footer button { min-height: 34px; flex: 0 0 auto; padding: 0 11px; border: 1px solid var(--green-900); border-radius: 8px; background: var(--green-900); color: #fff; font-size: 9px; font-weight: 700; cursor: pointer; }
+.engraving-instructions-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.engraving-instructions-footer p { max-width: 310px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.engraving-instructions-footer button { min-height: 38px; flex: 0 0 auto; padding: 0 13px; border: 1px solid var(--green-900); border-radius: 8px; background: var(--green-900); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
 .engraving-instructions-footer button:disabled { opacity: .45; cursor: default; }
 .photo-strip { min-height: 107px; margin-top: 18px; padding-top: 18px; display: flex; gap: 9px; overflow-x: auto; border-top: 1px solid var(--line); }
 .evidence-thumb, .add-more { position: relative; width: 76px; height: 88px; flex: 0 0 auto; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 11px; background: var(--paper-deep); cursor: pointer; }
@@ -318,7 +328,10 @@ h2 { font-size: 28px; line-height: 1.05; }
   .capture-panel, .winners-panel { padding: 20px 16px; }
   .capture-actions { grid-template-columns: 1fr; }
   .capture-button { min-height: 55px; }
-  .engraving-instructions-heading, .engraving-instructions-footer { align-items: flex-start; }
+  .engraving-instructions summary { grid-template-columns: minmax(0, 1fr) 24px; }
+  #engraving-instructions-status { grid-column: 1; grid-row: 2; justify-self: start; }
+  .engraving-instructions summary::after { grid-column: 2; grid-row: 1 / span 2; }
+  .engraving-instructions-footer { align-items: flex-start; }
   .engraving-instructions-footer { display: grid; }
   .engraving-instructions-footer p { max-width: none; }
   .engraving-instructions-footer button { width: 100%; min-height: 40px; }

@@ -322,12 +322,17 @@ function renderWinners(addBlank = false) {
 }
 
 function renderEngravingInstructions() {
+  const panel = document.querySelector('#engraving-instructions-panel');
   const input = document.querySelector('#engraving-instructions');
   const status = document.querySelector('#engraving-instructions-status');
   const button = document.querySelector('#save-engraving-instructions');
   const instructions = state.current?.engravingInstructions || '';
-  if (document.activeElement !== input) input.value = instructions;
-  status.textContent = instructions ? 'Saved with this trophy' : 'Optional';
+  const editing = panel.contains(document.activeElement);
+  if (!editing) {
+    input.value = instructions;
+    panel.open = Boolean(instructions);
+  }
+  status.textContent = instructions ? 'Saved with this trophy' : 'Not required';
   status.className = instructions ? 'is-saved' : '';
   button.disabled = input.value.trim() === instructions;
 }
@@ -783,7 +788,7 @@ document.querySelector('#engraving-instructions').addEventListener('input', even
   const saved = state.current?.engravingInstructions || '';
   const changed = event.currentTarget.value.trim() !== saved;
   const status = document.querySelector('#engraving-instructions-status');
-  status.textContent = changed ? 'Not saved' : saved ? 'Saved with this trophy' : 'Optional';
+  status.textContent = changed ? 'Not saved' : saved ? 'Saved with this trophy' : 'Not required';
   status.className = changed ? 'is-unsaved' : saved ? 'is-saved' : '';
   document.querySelector('#save-engraving-instructions').disabled = !changed;
 });

@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260904-team-awards-1">
+  <link rel="stylesheet" href="/styles.css?v=20260904-optional-instructions-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -118,17 +118,24 @@
               <input id="photo-library-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
             </label>
           </div>
-          <div class="engraving-instructions">
-            <div class="engraving-instructions-heading">
-              <label for="engraving-instructions">How should these records be interpreted?</label>
-              <span id="engraving-instructions-status" role="status">Optional</span>
+          <details id="engraving-instructions-panel" class="engraving-instructions">
+            <summary>
+              <span>
+                <strong>Special reading instructions</strong>
+                <small>Optional — most trophies need nothing here</small>
+              </span>
+              <span id="engraving-instructions-status" role="status">Not required</span>
+            </summary>
+            <div class="engraving-instructions-body">
+              <p class="engraving-instructions-help"><strong>You can leave this blank.</strong> Use it only when this trophy’s source has an unusual layout or wording that changes how a winner should be recorded.</p>
+              <label class="sr-only" for="engraving-instructions">Special reading instructions</label>
+              <textarea id="engraving-instructions" maxlength="2000" rows="4" placeholder="Describe the unusual format or how the visible details should be recorded."></textarea>
+              <div class="engraving-instructions-footer">
+                <p>Applied only to this trophy whenever its source photos are read.</p>
+                <button id="save-engraving-instructions" type="button" disabled>Save instructions</button>
+              </div>
             </div>
-            <textarea id="engraving-instructions" maxlength="2000" rows="4" placeholder="Example: Each record includes a date, England or Celts, and the winning captain’s name. Use the captain as the winner and describe which team won in Notes."></textarea>
-            <div class="engraving-instructions-footer">
-              <p>This reusable rule is applied whenever the AI reads this trophy’s source photos. Other result details are saved in each winner’s Notes.</p>
-              <button id="save-engraving-instructions" type="button" disabled>Save instructions</button>
-            </div>
-          </div>
+          </details>
           <div id="photo-strip" class="photo-strip" aria-label="Uploaded winner-record photos"></div>
           <div id="reader-note" class="reader-note is-neutral">
             <span class="reader-spark" aria-hidden="true">✦</span>
@@ -302,7 +309,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260904-winner-sources-2" defer></script>
+  <script src="/app.js?v=20260904-optional-instructions-1" defer></script>
   <script src="/missing-years.js?v=20260904-winner-sources-1" defer></script>
 </body>
 </html>
