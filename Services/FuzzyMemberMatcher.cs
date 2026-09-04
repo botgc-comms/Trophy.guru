@@ -300,6 +300,16 @@ public sealed class FuzzyMemberMatcher
             var full = Normalize(fullName);
             var tokens = full.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var resolvedSurname = Normalize(surname ?? string.Empty);
+            if (resolvedSurname.Length == 0)
+            {
+                // Keep punctuation-delimited surnames together until after the surname
+                // has been selected. Normalising first turns "Bambrick-Sattar" into
+                // separate tokens and would incorrectly compare only "Sattar".
+                var originalTokens = fullName.Split(
+                    (char[]?)null,
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                resolvedSurname = Normalize(originalTokens.LastOrDefault() ?? string.Empty);
+            }
             if (resolvedSurname.Length == 0) resolvedSurname = tokens.LastOrDefault() ?? string.Empty;
             var resolvedGiven = Normalize(firstName ?? string.Empty);
             if (resolvedGiven.Length == 0) resolvedGiven = Normalize(initial ?? string.Empty);
