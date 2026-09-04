@@ -386,9 +386,10 @@ public sealed class CatalogueStore(
             winner.Notes = NullIfEmpty(input.Notes);
             winner.ReviewState = NormalizeReviewState(input.ReviewState);
             winner.Source = WinnerSources.Manual;
-            if (identityChanged && !winner.KeepMemberUnmatched)
+            if (identityChanged)
             {
                 winner.MemberMatch = null;
+                winner.KeepMemberUnmatched = false;
                 winner.RejectedMemberIds.Clear();
             }
             if (winner.ReviewState == ReviewStates.Confirmed) winner.Confidence = 1;
