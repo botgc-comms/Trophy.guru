@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260904-description-notes-1">
+  <link rel="stylesheet" href="/styles.css?v=20260904-photo-navigation-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -323,13 +323,17 @@
 
   <dialog id="image-dialog" class="image-dialog">
     <button id="close-image-button" class="dialog-close" aria-label="Close image">×</button>
-    <div id="image-dialog-viewport" class="image-dialog-viewport" tabindex="0" aria-label="Source image. Scroll or drag to inspect the image when zoomed.">
-      <div id="image-dialog-canvas" class="image-dialog-canvas">
-        <div id="image-dialog-stage" class="image-dialog-stage">
-          <img id="dialog-image" src="" alt="Uploaded winner-record photo" draggable="false">
-          <span id="dialog-evidence-region" class="dialog-evidence-region" aria-label="Approximate area read by AI" hidden></span>
+    <div class="image-dialog-media">
+      <div id="image-dialog-viewport" class="image-dialog-viewport" tabindex="0" aria-label="Source image. Scroll or drag to inspect the image when zoomed.">
+        <div id="image-dialog-canvas" class="image-dialog-canvas">
+          <div id="image-dialog-stage" class="image-dialog-stage">
+            <img id="dialog-image" src="" alt="Uploaded winner-record photo" draggable="false">
+            <span id="dialog-evidence-region" class="dialog-evidence-region" aria-label="Approximate area read by AI" hidden></span>
+          </div>
         </div>
       </div>
+      <button id="previous-image-button" class="image-dialog-nav image-dialog-previous" type="button" aria-label="Previous photo" title="Previous photo"><span aria-hidden="true">←</span></button>
+      <button id="next-image-button" class="image-dialog-nav image-dialog-next" type="button" aria-label="Next photo" title="Next photo"><span aria-hidden="true">→</span></button>
     </div>
     <div class="image-dialog-controls" aria-label="Image view controls">
       <button id="focus-source-button" type="button">Focus on AI source</button>
@@ -340,14 +344,14 @@
         <button id="zoom-image-in-button" type="button" aria-label="Zoom in">+</button>
       </div>
     </div>
-    <footer><span id="dialog-image-label"></span><button id="delete-image-button" type="button">Delete image</button></footer>
+    <footer><span class="image-dialog-caption"><output id="dialog-image-position"></output><span id="dialog-image-label"></span></span><button id="delete-image-button" type="button">Delete image</button></footer>
   </dialog>
 
   <div id="busy-overlay" class="busy-overlay" hidden aria-live="polite">
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260904-description-notes-1" defer></script>
+  <script src="/app.js?v=20260904-photo-navigation-1" defer></script>
   <script src="/missing-years.js?v=20260904-member-enrichment-1" defer></script>
 </body>
 </html>

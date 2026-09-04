@@ -280,6 +280,13 @@ h2 { font-size: 28px; line-height: 1.05; }
 .image-dialog { width: min(1040px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 24px); padding: 0; overflow: hidden; border: 0; border-radius: 18px; background: #111; color: #fff; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
 .image-dialog[open] { display: flex; flex-direction: column; }
 .image-dialog::backdrop { background: rgba(5,16,12,.82); backdrop-filter: blur(5px); }
+.image-dialog-media { position: relative; }
+.image-dialog-nav { position: absolute; z-index: 2; top: 50%; width: 46px; height: 58px; padding: 0; border: 1px solid rgba(255,255,255,.38); border-radius: 11px; background: rgba(0,0,0,.66); color: #fff; box-shadow: 0 6px 22px rgba(0,0,0,.3); transform: translateY(-50%); font-size: 22px; cursor: pointer; }
+.image-dialog-nav:hover, .image-dialog-nav:focus-visible { border-color: #efc667; background: rgba(24,34,29,.92); outline: 0; }
+.image-dialog-nav:disabled { opacity: .28; cursor: default; }
+.image-dialog-nav[hidden] { display: none; }
+.image-dialog-previous { left: 12px; }
+.image-dialog-next { right: 12px; }
 .image-dialog-viewport { width: 100%; height: min(72dvh, 720px); overflow: auto; overscroll-behavior: contain; background: #090b0a; scrollbar-color: #5d6c66 #171b19; touch-action: pan-x pan-y; }
 .image-dialog-viewport:focus-visible { outline: 3px solid #efc667; outline-offset: -3px; }
 .image-dialog-canvas { position: relative; min-width: 100%; min-height: 100%; }
@@ -298,6 +305,9 @@ h2 { font-size: 28px; line-height: 1.05; }
 .image-zoom-controls output { min-height: 38px; display: grid; place-items: center; border-block: 1px solid rgba(255,255,255,.22); background: #111; color: #dce4df; font-size: 11px; font-weight: 700; }
 .image-dialog footer { min-height: 54px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #111; font-size: 11px; }
 .image-dialog footer button { border: 0; background: transparent; color: #f2a99d; cursor: pointer; }
+.image-dialog-caption { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.image-dialog-caption output { flex: 0 0 auto; color: #efc667; font-weight: 700; }
+.image-dialog-caption span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dialog-close { position: absolute; z-index: 1; top: 10px; right: 10px; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.3); border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 25px; cursor: pointer; }
 .busy-overlay { position: fixed; z-index: 60; inset: 0; padding: 24px; display: grid; place-items: center; background: rgba(10,42,33,.72); backdrop-filter: blur(8px); }
 .busy-card { width: min(100%, 390px); padding: 30px; display: grid; justify-items: center; border-radius: 20px; background: var(--surface); box-shadow: 0 24px 70px rgba(0,0,0,.3); text-align: center; }
@@ -377,6 +387,9 @@ h2 { font-size: 28px; line-height: 1.05; }
   .confidence small { font-size: 7px; }
   .save-button { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 2; box-shadow: 0 10px 26px rgba(10,42,33,.25); }
   .image-dialog { width: calc(100% - 12px); max-height: calc(100dvh - 12px); border-radius: 12px; }
+  .image-dialog-nav { width: 44px; height: 52px; }
+  .image-dialog-previous { left: 6px; }
+  .image-dialog-next { right: 6px; }
   .image-dialog-viewport { height: calc(100dvh - 172px); min-height: 280px; }
   .image-dialog-controls { flex-wrap: wrap; padding: 8px; }
   .image-dialog-controls > button { flex: 1 1 auto; }

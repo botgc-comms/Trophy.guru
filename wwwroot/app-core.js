@@ -754,10 +754,37 @@ function initializeEvidenceViewer(focusSource = false) {
   else applyEvidenceZoom(1, { x: .5, y: .5 });
 }
 
+function updateEvidenceNavigation() {
+  const images = state.current?.evidence || [];
+  const index = images.findIndex(item => item.id === state.activeEvidenceId);
+  const total = images.length;
+  const previous = document.querySelector('#previous-image-button');
+  const next = document.querySelector('#next-image-button');
+  const position = document.querySelector('#dialog-image-position');
+  const hasMultiple = total > 1;
+
+  previous.hidden = !hasMultiple;
+  next.hidden = !hasMultiple;
+  previous.disabled = index <= 0;
+  next.disabled = index < 0 || index >= total - 1;
+  position.value = index >= 0 ? `Photo ${index + 1} of ${total}` : '';
+  position.textContent = position.value;
+  const image = document.querySelector('#dialog-image');
+  if (image) image.alt = index >= 0 ? `Uploaded winner-record photo ${index + 1} of ${total}` : 'Uploaded winner-record photo';
+}
+
+function navigateEvidence(direction) {
+  const images = state.current?.evidence || [];
+  const index = images.findIndex(item => item.id === state.activeEvidenceId);
+  const target = images[index + direction];
+  if (target) openEvidence(target.id);
+}
+
 function openEvidence(id, region = null, contextLabel = '') {
   const evidence = state.current?.evidence.find(item => item.id === id);
   if (!evidence) return;
   state.activeEvidenceId = id;
+  updateEvidenceNavigation();
   const image = document.querySelector('#dialog-image');
   const marker = document.querySelector('#dialog-evidence-region');
   const dialog = document.querySelector('#image-dialog');
@@ -784,7 +811,7 @@ function openEvidence(id, region = null, contextLabel = '') {
   };
   image.onload = initialize;
   image.src = evidence.url;
-  dialog.showModal();
+  if (!dialog.open) dialog.showModal();
   updateEvidenceZoomControls();
   if (image.complete && image.naturalWidth) initialize();
 }
@@ -913,6 +940,8 @@ document.querySelector('#add-winner-button').addEventListener('click', () => ren
 document.querySelector('#save-range-button').addEventListener('click', saveTimeline);
 document.querySelector('#complete-button').addEventListener('click', markComplete);
 document.querySelector('#close-image-button').addEventListener('click', () => document.querySelector('#image-dialog').close());
+document.querySelector('#previous-image-button').addEventListener('click', () => navigateEvidence(-1));
+document.querySelector('#next-image-button').addEventListener('click', () => navigateEvidence(1));
 document.querySelector('#delete-image-button').addEventListener('click', deleteEvidence);
 document.querySelector('#focus-source-button').addEventListener('click', focusEvidenceSource);
 document.querySelector('#show-whole-image-button').addEventListener('click', () => applyEvidenceZoom(1, { x: .5, y: .5 }));
@@ -920,6 +949,13 @@ document.querySelector('#zoom-image-out-button').addEventListener('click', () =>
 document.querySelector('#zoom-image-in-button').addEventListener('click', () => applyEvidenceZoom(evidenceViewer.zoom * 1.5));
 document.querySelector('#image-dialog').addEventListener('click', event => {
   if (event.target === event.currentTarget) event.currentTarget.close();
+});
+document.querySelector('#image-dialog').addEventListener('keydown', event => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  const viewport = document.querySelector('#image-dialog-viewport');
+  if (event.target === viewport && evidenceViewer.zoom > 1.01) return;
+  event.preventDefault();
+  navigateEvidence(event.key === 'ArrowLeft' ? -1 : 1);
 });
 window.addEventListener('resize', () => {
   if (document.querySelector('#image-dialog').open) initializeEvidenceViewer(Boolean(evidenceViewer.region));

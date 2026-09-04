@@ -80,7 +80,7 @@
   document.querySelector('#club-logo-input')?.addEventListener('change', previewClubLogo);
 
   const coreScript = document.createElement('script');
-  coreScript.src = '/app-core.js?v=20260904-description-notes-1';
+  coreScript.src = '/app-core.js?v=20260904-photo-navigation-1';
   coreScript.onload = () => {
     installBatchUploadControl();
     accountInitialise();
