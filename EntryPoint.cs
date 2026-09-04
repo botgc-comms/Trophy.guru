@@ -903,7 +903,10 @@ public static class EntryPoint
         balance = account is null ? null : new
         {
             trophyCredits = account.TrophyCreditBalance,
-            unlimited = account.HasUnlimitedTrophyCredits
+            unlimited = account.HasUnlimitedTrophyCredits,
+            planCode = account.HasUnlimitedTrophyCredits
+                ? "unlimited"
+                : string.IsNullOrWhiteSpace(account.PlanCode) ? "free" : account.PlanCode
         },
         club = ClubPayload(club, accounts),
         aiConfigured = reader.IsAvailable,

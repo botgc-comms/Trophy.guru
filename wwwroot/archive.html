@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260904-optional-instructions-1">
+  <link rel="stylesheet" href="/styles.css?v=20260904-plan-header-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -26,6 +26,10 @@
         <span><strong id="club-name">Your club</strong><small id="club-subtitle">Trophy Archive</small></span>
       </a>
       <div class="header-actions">
+        <button id="header-plan-button" class="header-plan-button" type="button" aria-haspopup="dialog" aria-label="View current plan and trophy capacity">
+          <span><small>Current plan</small><strong id="header-plan-name">Loading…</strong></span>
+          <em id="header-plan-balance">—</em>
+        </button>
         <a class="export-link" href="/api/export.csv" download>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
           <span>Export</span>
@@ -272,15 +276,32 @@
     </section>
   </dialog>
 
+  <dialog id="plan-dialog" class="commercial-dialog plan-dialog">
+    <section>
+      <button class="commercial-dialog-close" type="button" aria-label="Close plans">×</button>
+      <p class="step-label">Plans &amp; trophy capacity</p>
+      <h2>Choose how many trophies you need</h2>
+      <p>Buy individual trophy credits or move to a larger plan. Every purchase is a one-off payment and credits do not expire.</p>
+      <div class="current-plan-summary">
+        <span><small>Current plan</small><strong id="plan-current-name">—</strong></span>
+        <span id="plan-current-usage">—</span>
+      </div>
+      <form id="plan-quote-form" class="plan-quote-form">
+        <label for="additional-trophies"><span>How many additional trophies do you need?</span><input id="additional-trophies" type="number" min="1" max="1000" step="1" value="1" inputmode="numeric"></label>
+        <div id="plan-quote-results" class="plan-quote-results" aria-live="polite"></div>
+      </form>
+      <div class="plan-tier-heading"><div><h3>Available plans</h3><p>Plan upgrades are calculated by deducting the price of your current plan.</p></div><small>Prices exclude VAT where applicable</small></div>
+      <div id="plan-tier-list" class="plan-tier-list"></div>
+      <div id="plan-selection" class="plan-selection" aria-live="polite"></div>
+      <p class="plan-checkout-note"><strong>Secure checkout is not connected yet.</strong> The costs and upgrade choices are ready, but this screen will not take payment until Stripe and its credit ledger are connected.</p>
+    </section>
+  </dialog>
+
   <dialog id="account-settings-dialog" class="commercial-dialog account-settings-dialog">
     <section>
       <button class="commercial-dialog-close" type="button" aria-label="Close account settings">×</button>
-      <p class="step-label">Account &amp; billing</p>
+      <p class="step-label">Account</p>
       <h2>Account settings</h2>
-      <div class="account-plan-card">
-        <div><small>Available trophy credits</small><strong id="settings-credit-balance">—</strong></div>
-        <div class="account-plan-actions"><a href="/#pricing">Change plan</a><a href="/#pricing">Buy more credits</a></div>
-      </div>
       <form id="account-club-form">
         <h3>Club details</h3>
         <label class="settings-logo-picker"><span>Club logo</span><span id="settings-logo-preview" class="settings-logo-preview">Choose a logo</span><input id="settings-logo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
@@ -309,7 +330,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260904-optional-instructions-1" defer></script>
-  <script src="/missing-years.js?v=20260904-winner-sources-1" defer></script>
+  <script src="/app.js?v=20260904-plan-header-1" defer></script>
+  <script src="/missing-years.js?v=20260904-plan-header-1" defer></script>
 </body>
 </html>

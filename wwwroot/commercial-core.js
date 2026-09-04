@@ -5,7 +5,6 @@
     activeWinnerId: null,
   };
 
-  installBalanceIndicator();
   installNewTrophyFlow();
   installMemberDirectory();
   installTrophyPhotoManager();
@@ -23,30 +22,6 @@
       heading.append(actions);
     }
     return actions;
-  }
-
-  function installBalanceIndicator() {
-    const actions = catalogueActions();
-    if (!actions || actions.querySelector('#credit-balance')) return;
-    const balance = document.createElement('a');
-    balance.id = 'credit-balance';
-    balance.className = 'credit-balance';
-    balance.href = '/#pricing';
-    balance.innerHTML = '<span><small>Trophy credits</small><strong id="credit-balance-value">—</strong></span><em>View plans</em>';
-    balance.setAttribute('aria-label', 'Trophy credit balance. View plans.');
-    actions.append(balance);
-  }
-
-  function updateBalanceIndicator(balance) {
-    const value = document.querySelector('#credit-balance-value');
-    const settingsValue = document.querySelector('#settings-credit-balance');
-    const link = document.querySelector('#credit-balance');
-    const label = balance?.unlimited
-      ? 'Unlimited'
-      : `${Number(balance?.trophyCredits || 0)} ${Number(balance?.trophyCredits || 0) === 1 ? 'credit' : 'credits'}`;
-    if (value) value.textContent = label;
-    if (settingsValue) settingsValue.textContent = label;
-    if (link) link.setAttribute('aria-label', `Trophy credit balance: ${label}. View plans.`);
   }
 
   function installNewTrophyFlow() {
@@ -142,7 +117,7 @@
     try {
       const auth = await api('/api/auth/status');
       commercial.illustrationConfigured = Boolean(auth.illustrationConfigured);
-      updateBalanceIndicator(auth.balance);
+      window.refreshPlanSummary?.(auth.balance);
       if (auth.authenticated) await refreshMemberSummary();
       renderTrophyPhotos();
     } catch { }

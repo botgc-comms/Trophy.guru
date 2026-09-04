@@ -19,6 +19,7 @@ public sealed class AccountRecord
     public string PasswordHash { get; set; } = string.Empty;
     public string? ClubId { get; set; }
     public int TrophyCreditBalance { get; set; } = 1;
+    public string PlanCode { get; set; } = "free";
     public bool HasUnlimitedTrophyCredits { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

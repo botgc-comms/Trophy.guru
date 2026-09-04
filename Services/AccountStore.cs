@@ -140,6 +140,7 @@ public sealed class AccountStore(
             }
 
             account.HasUnlimitedTrophyCredits = true;
+            account.PlanCode = "unlimited";
             club.UpdatedAt = DateTimeOffset.UtcNow;
             await SaveUnsafeAsync(cancellationToken);
             return Clone(account);

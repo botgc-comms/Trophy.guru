@@ -19,7 +19,6 @@
   gap: 10px;
 }
 
-.credit-balance,
 .member-upload-button {
   min-height: 58px;
   border: 1px solid rgba(10,42,33,.18);
@@ -28,21 +27,6 @@
   color: var(--green-900);
   text-decoration: none;
 }
-
-.credit-balance {
-  min-width: 142px;
-  padding: 9px 13px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  background: #f2f6f3;
-}
-
-.credit-balance > span { display: grid; gap: 2px; }
-.credit-balance small { color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.credit-balance strong { font-size: 13px; }
-.credit-balance em { color: var(--green-700); font-size: 9px; font-style: normal; font-weight: 700; white-space: nowrap; }
 
 .new-trophy-button,
 .generate-illustration-button {
@@ -186,7 +170,6 @@
 @media (max-width: 680px) {
   .catalogue-heading { grid-template-columns: 1fr auto; }
   .catalogue-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
-  .credit-balance { grid-column: 1 / -1; }
   .member-directory-control,
   .member-upload-button,
   .new-trophy-button { width: 100%; min-width: 0; }
@@ -201,7 +184,6 @@
 
 @media (max-width: 430px) {
   .catalogue-actions { grid-template-columns: 1fr; }
-  .credit-balance { grid-column: auto; }
   .commercial-form-grid { grid-template-columns: 1fr; }
   .commercial-dialog form { padding: 24px 18px; }
 }
@@ -246,13 +228,53 @@
 .manual-member-actions button[type="submit"] { border-color: var(--green-900); background: var(--green-900); color: #fff; }
 .manual-member-actions button:disabled { opacity: .55; cursor: wait; }
 .remove-current-member-match { min-height: 43px; border: 1px solid #d7c7a8; border-radius: 10px; background: #fff9ed; color: #765017; font-size: 11px; font-weight: 700; cursor: pointer; }
-.account-plan-card { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-radius: 13px; background: var(--green-950); color: #fff; }
-.account-plan-card > div:first-child { display: grid; gap: 4px; }
-.account-plan-card small { color: #aac0b7; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
-.account-plan-card strong { font-family: Newsreader, serif; font-size: 24px; }
-.account-plan-actions { display: flex; gap: 7px; }
-.account-plan-actions a { min-height: 37px; padding: 0 11px; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; color: #fff; font-size: 9px; font-weight: 700; text-decoration: none; }
-.account-plan-actions a:last-child { border-color: var(--brass); background: var(--brass); color: #17221d; }
+.plan-dialog { width: min(900px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); overflow-y: auto; }
+.plan-dialog > section { gap: 18px; }
+.current-plan-summary { padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-radius: 13px; background: var(--green-950); color: #fff; }
+.current-plan-summary > span:first-child { display: grid; gap: 3px; }
+.current-plan-summary small { color: #b7c9c1; font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.current-plan-summary strong { font-family: Newsreader, serif; font-size: 27px; font-weight: 600; }
+.current-plan-summary > span:last-child { color: #e2ebe7; font-size: 14px; font-weight: 600; }
+.plan-quote-form { padding: 16px !important; gap: 14px !important; border: 1px solid #d8d6cd; border-radius: 14px; background: #f7f5ef; }
+.plan-quote-form > label { grid-template-columns: minmax(0, 1fr) 110px; align-items: center; gap: 15px; }
+.plan-quote-form > label > span { font-size: 14px; }
+.plan-quote-form input { width: 100%; font-size: 16px; font-weight: 700; text-align: center; }
+.plan-quote-results { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plan-quote-option { min-height: 96px; padding: 13px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid #ced3ce; border-radius: 12px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.plan-quote-option:hover, .plan-quote-option:focus-visible { border-color: var(--green-800); }
+.plan-quote-option.is-selected { border-color: var(--green-800); background: #edf4ef; box-shadow: inset 0 0 0 1px var(--green-800); }
+.plan-quote-option > span { min-width: 0; display: grid; gap: 3px; }
+.plan-quote-option small { color: #92702d; font-size: 12px; font-weight: 800; }
+.plan-quote-option strong { font-size: 15px; }
+.plan-quote-option em { color: var(--muted); font-size: 12px; font-style: normal; }
+.plan-quote-option > b { font-family: Newsreader, serif; font-size: 25px; font-weight: 600; }
+.plan-quote-limit, .unlimited-plan-note { min-height: 96px; padding: 14px; display: grid; align-content: center; gap: 5px; border: 1px dashed #c7cbc6; border-radius: 12px; color: var(--muted); }
+.plan-quote-limit strong, .unlimited-plan-note strong { color: var(--ink); font-size: 14px; }
+.plan-quote-limit span, .unlimited-plan-note span { font-size: 12px; line-height: 1.45; }
+.unlimited-plan-note { grid-column: 1 / -1; min-height: 82px; border-style: solid; background: #edf4ef; }
+.plan-tier-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.plan-tier-heading h3 { margin: 0; font-family: Newsreader, serif; font-size: 23px; }
+.plan-tier-heading p { margin-top: 3px; font-size: 12px; }
+.plan-tier-heading > small { max-width: 180px; color: var(--muted); font-size: 12px; text-align: right; }
+.plan-tier-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.plan-tier { min-width: 0; min-height: 196px; padding: 14px; display: flex; flex-direction: column; border: 1px solid #d8d6cd; border-radius: 12px; background: #fff; }
+.plan-tier.is-current { border-color: #9db6aa; background: #edf4ef; }
+.plan-tier > span { display: grid; gap: 2px; }
+.plan-tier small { color: #8a6b31; font-size: 12px; font-weight: 700; }
+.plan-tier strong { font-family: Newsreader, serif; font-size: 21px; }
+.plan-tier > b { margin-top: 11px; font-family: Newsreader, serif; font-size: 28px; font-weight: 600; }
+.plan-tier > p { margin-top: 6px; font-size: 12px; }
+.plan-tier > button { min-height: 40px; margin-top: auto; padding: 0 9px; border: 1px solid var(--green-900); border-radius: 8px; background: var(--green-900); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.plan-tier > button:disabled { border-color: #cfd3cf; background: #eef0ed; color: #747d78; cursor: default; }
+.plan-selection { min-height: 64px; padding: 10px 12px 10px 15px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-radius: 12px; background: #0d4334; color: #fff; }
+.plan-selection:empty { display: none; }
+.plan-selection > span { display: grid; gap: 2px; }
+.plan-selection small { color: #afc6bd; font-size: 12px; }
+.plan-selection strong { font-size: 14px; }
+.plan-selection button { min-height: 42px; padding: 0 14px; border: 0; border-radius: 8px; background: #d2ad58; color: #182019; font-size: 12px; font-weight: 800; }
+.plan-selection button:disabled { opacity: .62; cursor: not-allowed; }
+.plan-checkout-note { padding: 11px 13px; border-left: 3px solid #c6973c; background: #fff8e8; color: #68532e !important; font-size: 12px !important; }
+.plan-checkout-note strong { color: #4d3a19; }
 .account-settings-dialog form { padding: 0; display: grid; gap: 12px; }
 .account-settings-dialog h3 { margin: 4px 0 0; font-family: Newsreader, serif; font-size: 20px; }
 .settings-logo-picker { cursor: pointer; }
@@ -260,4 +282,5 @@
 .settings-logo-preview img { width: 62px; height: 62px; object-fit: contain; }
 .settings-logo-preview b { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--green-900); color: #fff; }
 .settings-logo-preview small { font-size: 9px; font-weight: 700; }
-@media (max-width:540px) { .reference-photo-actions { grid-template-columns: 1fr; } .account-plan-card { align-items: stretch; flex-direction: column; } .account-plan-actions { display: grid; } .account-plan-actions a { justify-content: center; } .commercial-dialog > section { padding: 24px 18px; } .member-candidate small { white-space: normal; } .manual-member-form .commercial-form-grid, .manual-member-actions { grid-template-columns: 1fr; } }
+@media (max-width:760px) { .plan-tier-list { grid-template-columns: 1fr 1fr; } }
+@media (max-width:540px) { .reference-photo-actions { grid-template-columns: 1fr; } .commercial-dialog > section { padding: 24px 18px; } .member-candidate small { white-space: normal; } .manual-member-form .commercial-form-grid, .manual-member-actions { grid-template-columns: 1fr; } .current-plan-summary, .plan-tier-heading, .plan-selection { align-items: stretch; flex-direction: column; } .current-plan-summary > span:last-child, .plan-tier-heading > small { text-align: left; } .plan-quote-form > label { grid-template-columns: 1fr; } .plan-quote-results, .plan-tier-list { grid-template-columns: 1fr; } .plan-tier { min-height: 180px; } .plan-selection button { width: 100%; } }

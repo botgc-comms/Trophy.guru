@@ -42,6 +42,12 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .club-monogram { width: 42px; height: 42px; font-size: 24px; }
 .club-monogram::after, .login-monogram::after { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(185,137,63,.75); border-radius: inherit; }
 .header-actions { display: flex; align-items: center; gap: 8px; }
+.header-plan-button { min-height: 46px; padding: 6px 12px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(210,173,88,.38); border-radius: 12px; background: rgba(210,173,88,.1); color: #fff; cursor: pointer; }
+.header-plan-button:hover { background: rgba(210,173,88,.17); }
+.header-plan-button > span { display: grid; gap: 1px; text-align: left; line-height: 1.1; }
+.header-plan-button small { color: #cdbd8c; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.header-plan-button strong { max-width: 110px; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.header-plan-button em { padding-left: 11px; border-left: 1px solid rgba(255,255,255,.18); color: #d7e3de; font-size: 12px; font-style: normal; font-weight: 700; white-space: nowrap; }
 .icon-button { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; background: rgba(255,255,255,.06); display: grid; place-items: center; cursor: pointer; }
 .icon-button:hover { background: rgba(255,255,255,.12); }
 .icon-button svg { width: 20px; }
@@ -302,6 +308,9 @@ h2 { font-size: 28px; line-height: 1.05; }
   .home-link { min-height: 40px; padding: 0 10px; font-size: 12px; }
   .archive-account-menu summary { padding-right: 5px; }
   .archive-account-menu summary > span:last-child { display: none; }
+  .header-plan-button { min-width: 76px; padding-inline: 10px; justify-content: center; }
+  .header-plan-button small, .header-plan-button em { display: none; }
+  .header-plan-button strong { max-width: 80px; font-size: 13px; }
   .view { width: min(100% - 28px, 600px); }
   .catalogue-view { padding: 34px 0 90px; }
   .catalogue-heading { align-items: start; }
