@@ -492,6 +492,20 @@ public static class EntryPoint
             return Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         });
 
+        app.MapPut("/api/trophies/{id}/award-format", async (
+            string id,
+            TrophyAwardFormatInput input,
+            CatalogueStore store,
+            CancellationToken cancellationToken) =>
+        {
+            if (!AwardFormats.IsValid(input.AwardFormat))
+                return Results.BadRequest(new { error = "Choose Detect from photos, Individual winner, or Team of players." });
+            var trophy = await store.UpdateAwardFormatAsync(id, input, cancellationToken);
+            return trophy is null
+                ? Results.NotFound()
+                : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
+        });
+
         app.MapPut("/api/trophies/{id}/engraving-instructions", async (
             string id,
             TrophyEngravingInstructionsInput input,

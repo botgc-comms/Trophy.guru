@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260904-special-engravings-1">
+  <link rel="stylesheet" href="/styles.css?v=20260904-team-awards-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -92,7 +92,10 @@
           <h1 id="detail-title"></h1>
           <p id="detail-secondary" class="secondary-name" hidden></p>
           <p id="detail-summary" class="detail-summary"></p>
-          <label class="trophy-division-setting"><span>Trophy type</span><select id="detail-division" aria-label="Trophy type"><option value="mixed">Mixed or open</option><option value="gents">Gents</option><option value="ladies">Ladies</option><option value="junior">Junior</option></select></label>
+          <div class="trophy-settings">
+            <label class="trophy-division-setting"><span>Trophy type</span><select id="detail-division" aria-label="Trophy type"><option value="mixed">Mixed or open</option><option value="gents">Gents</option><option value="ladies">Ladies</option><option value="junior">Junior</option></select></label>
+            <label class="trophy-award-setting"><span>Awarded to</span><select id="detail-award-format" aria-label="Whether this trophy is awarded to an individual or a team"><option value="unknown">Detect from photos</option><option value="individual">Individual winner</option><option value="team">Team of players</option></select></label>
+          </div>
         </div>
       </section>
 
@@ -145,6 +148,14 @@
           <div class="section-heading">
             <div><p class="step-label">Step 2</p><h2>Check the winners</h2></div>
             <button id="add-winner-button" class="text-button" type="button">+ Add winner</button>
+          </div>
+          <div id="team-award-question" class="team-award-question" hidden>
+            <span class="team-award-icon" aria-hidden="true">?</span>
+            <div><strong>Is this trophy awarded to a team?</strong><p id="team-award-reason">Several player names may be associated with the same year.</p></div>
+            <div class="team-award-actions">
+              <button type="button" data-award-format="team">Yes — extract every player</button>
+              <button type="button" data-award-format="individual">No — one winner per year</button>
+            </div>
           </div>
           <div class="timeline-range">
             <div><strong>Expected span</strong><small>Optional — use records from elsewhere to expose gaps.</small></div>
@@ -291,7 +302,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the engraving…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260904-special-engravings-1" defer></script>
+  <script src="/app.js?v=20260904-team-awards-1" defer></script>
   <script src="/missing-years.js?v=20260904-unmatched-override-1" defer></script>
 </body>
 </html>

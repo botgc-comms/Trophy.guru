@@ -175,13 +175,61 @@ function renderDetail() {
   document.querySelector('#timeline-start').value = trophy.timelineStartYear ?? '';
   document.querySelector('#timeline-end').value = trophy.timelineEndYear ?? '';
   document.querySelector('#detail-division').value = trophy.division || 'mixed';
+  document.querySelector('#detail-award-format').value = trophy.awardFormat || 'unknown';
   renderEngravingInstructions();
   document.querySelector('#analyse-button').disabled = trophy.evidence.length === 0 || !state.aiConfigured;
   document.querySelector('#ai-setup-note').hidden = state.aiConfigured;
   renderEvidence();
   renderReaderNote();
+  renderTeamAwardQuestion();
   renderMissingYears();
   renderWinners();
+}
+
+function renderTeamAwardQuestion() {
+  const question = document.querySelector('#team-award-question');
+  const show = state.current?.awardFormat === 'unknown' && state.current?.teamAwardSuggested;
+  question.hidden = !show;
+  if (!show) return;
+  document.querySelector('#team-award-reason').textContent = state.current.teamAwardSuggestionReason
+    || 'Several distinct player names appear to be grouped under the same year.';
+}
+
+async function saveAwardFormat(awardFormat) {
+  if (!state.current || !await saveEngravingInstructions()) return;
+  const trophyId = state.current.id;
+  const controls = [document.querySelector('#detail-award-format'), ...document.querySelectorAll('#team-award-question button')];
+  controls.forEach(control => { control.disabled = true; });
+  try {
+    const data = await api(`/api/trophies/${encodeURIComponent(trophyId)}/award-format`, {
+      method: 'PUT',
+      body: JSON.stringify({ awardFormat }),
+    });
+    if (state.current?.id !== trophyId) return;
+    state.current = data.trophy;
+    state.missingYears = data.missingYears || [];
+    renderDetail();
+
+    if (state.current.evidence.length && state.aiConfigured) {
+      const queued = await api(`/api/trophies/${encodeURIComponent(trophyId)}/analyse`, { method: 'POST', body: '{}' });
+      state.analysisStatus = queued.analysis;
+      renderReaderNote();
+      renderEmptyWinners();
+      startAnalysisPolling();
+      showToast(awardFormat === 'team'
+        ? 'Team award confirmed. The reader will now extract every visible player.'
+        : awardFormat === 'individual'
+          ? 'Individual award confirmed. The photos are being read again.'
+          : 'Automatic team detection restored. The photos are being read again.');
+    } else {
+      showToast(awardFormat === 'team' ? 'Team award saved.' : awardFormat === 'individual' ? 'Individual award saved.' : 'Automatic team detection restored.');
+    }
+  } catch (error) {
+    showToast(error.message, true, 6500);
+    if (state.current?.id === trophyId) document.querySelector('#detail-award-format').value = state.current.awardFormat || 'unknown';
+  } finally {
+    controls.forEach(control => { control.disabled = false; });
+  }
 }
 
 function renderEvidence() {
@@ -566,7 +614,11 @@ async function pollAnalysisStatus() {
       if (state.analysisNoticeShownFor !== noticeKey) {
         state.analysisNoticeShownFor = noticeKey;
         showToast(
-          data.analysis.status === 'complete' ? 'Background reading finished. Check the proposed winners below.' : data.analysis.message,
+          data.analysis.status === 'complete'
+            ? state.current?.teamAwardSuggested
+              ? 'Several names may belong to one winning team. Please answer the team trophy question.'
+              : 'Background reading finished. Check the proposed winners below.'
+            : data.analysis.message,
           data.analysis.status === 'failed',
           data.analysis.status === 'failed' ? 6500 : 4500,
         );
@@ -737,6 +789,11 @@ document.querySelector('#engraving-instructions').addEventListener('input', even
 });
 document.querySelector('#engraving-instructions').addEventListener('blur', () => saveEngravingInstructions());
 document.querySelector('#save-engraving-instructions').addEventListener('click', () => saveEngravingInstructions(true));
+document.querySelector('#detail-award-format').addEventListener('change', event => saveAwardFormat(event.currentTarget.value));
+document.querySelector('#team-award-question').addEventListener('click', event => {
+  const button = event.target.closest('[data-award-format]');
+  if (button) saveAwardFormat(button.dataset.awardFormat);
+});
 document.querySelector('#analyse-button').addEventListener('click', analyseAll);
 document.querySelector('#add-winner-button').addEventListener('click', () => renderWinners(true));
 document.querySelector('#save-range-button').addEventListener('click', saveTimeline);

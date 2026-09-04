@@ -296,13 +296,33 @@ public sealed class CatalogueStore(
         {
             var trophy = Find(tenant, trophyId);
             if (trophy is null) return null;
+            if (trophy.AwardFormat == AwardFormats.Unknown)
+            {
+                trophy.TeamAwardSuggested = extraction.SuggestsTeamAward;
+                trophy.TeamAwardSuggestionReason = extraction.SuggestsTeamAward
+                    ? NullIfEmpty(extraction.TeamAwardReason)
+                    : null;
+            }
+            else
+            {
+                trophy.TeamAwardSuggested = false;
+                trophy.TeamAwardSuggestionReason = null;
+            }
             trophy.Winners.RemoveAll(winner => winner.Source == WinnerSources.Ai && winner.ReviewState != ReviewStates.Confirmed);
             var protectedYears = trophy.Winners.Select(winner => winner.Year).ToHashSet();
-            foreach (var entry in extraction.Entries
-                         .Where(entry => entry.Year is >= 1800 and <= 2200 && !string.IsNullOrWhiteSpace(entry.Winner))
-                         .GroupBy(entry => entry.Year)
-                         .Select(group => group.OrderByDescending(entry => entry.Confidence).First())
-                         .Where(entry => !protectedYears.Contains(entry.Year)))
+            var protectedWinnerKeys = trophy.Winners.Select(winner => WinnerKey(winner.Year, winner.Name)).ToHashSet(StringComparer.Ordinal);
+            var validEntries = extraction.Entries
+                .Where(entry => entry.Year is >= 1800 and <= 2200 && !string.IsNullOrWhiteSpace(entry.Winner));
+            var entries = trophy.AwardFormat == AwardFormats.Team
+                ? validEntries
+                    .GroupBy(entry => WinnerKey(entry.Year, entry.Winner), StringComparer.Ordinal)
+                    .Select(group => group.OrderByDescending(entry => entry.Confidence).First())
+                : validEntries
+                    .GroupBy(entry => entry.Year)
+                    .Select(group => group.OrderByDescending(entry => entry.Confidence).First());
+            foreach (var entry in entries.Where(entry => trophy.AwardFormat == AwardFormats.Team
+                         ? !protectedWinnerKeys.Contains(WinnerKey(entry.Year, entry.Winner))
+                         : !protectedYears.Contains(entry.Year)))
             {
                 trophy.Winners.Add(new WinnerRecord
                 {
@@ -424,6 +444,29 @@ public sealed class CatalogueStore(
             var trophy = Find(tenant, trophyId);
             if (trophy is null) return null;
             trophy.Division = TrophyDivisions.Normalize(input.Division);
+            await SaveUnsafeAsync(tenant, cancellationToken);
+            return Clone(trophy);
+        }
+        finally { tenant.Gate.Release(); }
+    }
+
+    public async Task<TrophyRecord?> UpdateAwardFormatAsync(
+        string trophyId,
+        TrophyAwardFormatInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await GetTenantAsync(cancellationToken);
+        await tenant.Gate.WaitAsync(cancellationToken);
+        try
+        {
+            var trophy = Find(tenant, trophyId);
+            if (trophy is null) return null;
+            var awardFormat = AwardFormats.Normalize(input.AwardFormat);
+            var changed = !trophy.AwardFormat.Equals(awardFormat, StringComparison.OrdinalIgnoreCase);
+            trophy.AwardFormat = awardFormat;
+            trophy.TeamAwardSuggested = false;
+            trophy.TeamAwardSuggestionReason = null;
+            if (changed && trophy.Evidence.Count > 0) trophy.Status = TrophyStatuses.InProgress;
             await SaveUnsafeAsync(tenant, cancellationToken);
             return Clone(trophy);
         }
@@ -643,6 +686,7 @@ public sealed class CatalogueStore(
                     if (trophy.IllustrationState != IllustrationStates.Complete) trophy.ReferenceImage = seed.ReferenceImage;
                 }
                 trophy.Division = TrophyDivisions.Normalize(trophy.Division);
+                trophy.AwardFormat = AwardFormats.Normalize(trophy.AwardFormat);
                 foreach (var winner in trophy.Winners)
                 {
                     if (winner.MemberMatch is null && winner.RejectedMemberIds.Count > 0)
@@ -659,7 +703,7 @@ public sealed class CatalogueStore(
                 if (trophy.IllustrationState == IllustrationStates.Complete)
                     trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
             }
-            tenant.State.Version = 7;
+            tenant.State.Version = 8;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
             await SaveUnsafeAsync(tenant, cancellationToken);
             tenant.Initialized = true;
@@ -734,6 +778,7 @@ public sealed class CatalogueStore(
     };
     private static string NormalizeReviewState(string value) => value == ReviewStates.Confirmed ? ReviewStates.Confirmed : ReviewStates.NeedsReview;
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string WinnerKey(int year, string name) => $"{year}:{string.Join(' ', name.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant()}";
     private static WinnerEvidenceReference? CreateEvidenceReference(AiWinner entry, IReadOnlyList<string> evidenceIds)
     {
         if (entry.EvidenceImageNumber < 1 || entry.EvidenceImageNumber > evidenceIds.Count) return null;
