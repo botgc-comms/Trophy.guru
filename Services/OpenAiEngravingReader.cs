@@ -26,10 +26,11 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
 
         var currentWinners = trophy.Winners
             .OrderBy(winner => winner.Year)
-            .Select(winner => new { winner.Year, winner.Name, winner.ReviewState, winner.Source, winner.Notes });
-        var specialInstructions = string.IsNullOrWhiteSpace(trophy.EngravingInstructions)
+            .Select(winner => new { winner.Year, winner.Name, winner.ReviewState, winner.Source, winner.Description });
+        var hasSpecialInstructions = !string.IsNullOrWhiteSpace(trophy.EngravingInstructions);
+        var specialInstructions = !hasSpecialInstructions
             ? "No special interpretation rule has been supplied."
-            : trophy.EngravingInstructions.Trim();
+            : trophy.EngravingInstructions!.Trim();
         var awardFormatRule = trophy.AwardFormat switch
         {
             AwardFormats.Team => "The club has confirmed this is a team award. For each visible year, return a separate entry for every distinct player whose name appears in the source as part of the winning team. Repeat the year for each player. Do not combine several players into one winner string. Set suggestsTeamAward to false and teamAwardReason to an empty string because the format is already confirmed.",
@@ -47,12 +48,16 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
             Award format rule:
             {{awardFormatRule}}
 
-            First read the visible source text, then apply the special interpretation rule when building each entry. The winner field must contain only the person or team that the rule identifies as the winner; in confirmed team mode it must contain exactly one player. Put every other result detail requested by the rule in notes as a concise, natural-language description; do not repeat the year or winner there. For example, if the source shows Celts and a captain's name, and the rule says the captain belongs in winner and the winning team belongs in the description, put the captain's name in winner and write "The team playing for Celts won" in notes. If a requested detail is not genuinely visible, state the uncertainty in notes rather than inventing it.
+            First read the visible source text, then apply the special interpretation rule when building each entry. The winner field must contain only the person or team that the rule identifies as the winner; in confirmed team mode it must contain exactly one player.
+
+            The description field is public-facing wording for the club's eventual honours page. Populate it only when a special interpretation rule has been supplied and that rule explicitly asks for additional result wording. Otherwise return an empty description. Keep it concise, factual and suitable for publication; do not include comments about image quality, uncertainty, spelling, confidence, reflections or how the text was extracted. For example, if the source shows Celts and a captain's name, and the special rule says the captain belongs in winner and the winning team belongs in the description, put the captain's name in winner and write "The team playing for Celts won" in description.
+
+            The extractionNotes field is private, read-only guidance for the person reviewing the AI result. Put entry-specific uncertainty, faint or ambiguous characters, image-quality problems, and other extraction remarks there. Never put these review remarks in description. If a detail requested by the special rule is not genuinely visible, explain that in extractionNotes and leave the unsupported public description empty rather than inventing it.
 
             Existing working list:
             {{JsonSerializer.Serialize(currentWinners, jsonOptions)}}
 
-            Return entries in ascending year order and follow the award format rule exactly when deciding whether a year can have multiple player entries. Include existing entries when the images support them, correct an existing unconfirmed reading when a clearer image supports the correction, and preserve uncertainty in the notes. Confidence is from 0 to 1. Use below 0.75 when any meaningful character or digit is uncertain. Observations should briefly describe unreadable areas, conflicts between views, and likely missing bands; do not put winner entries in observations.
+            Return entries in ascending year order and follow the award format rule exactly when deciding whether a year can have multiple player entries. Include existing entries when the images support them and correct an existing unconfirmed reading when a clearer image supports the correction. Confidence is from 0 to 1. Use below 0.75 when any meaningful character or digit is uncertain. Observations should briefly describe image-set-wide unreadable areas, conflicts between views, and likely missing bands; entry-specific review comments belong in extractionNotes. Do not put winner entries in observations.
 
             For every entry, identify the single clearest attached evidence image that visibly supports the year and winner. Images are numbered in the text immediately before each image. Return that 1-based image number and a tight rectangle containing the relevant visible year and name. Rectangle coordinates are integers from 0 to 1000 relative to the full source image: x and y are the top-left corner, followed by width and height. Do not return the whole image unless the relevant source text genuinely fills it. This location is only for helping a human reviewer find the evidence.
             """;
@@ -87,14 +92,15 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
                 ["year"] = new Dictionary<string, object?> { ["type"] = "integer", ["minimum"] = 1800, ["maximum"] = 2200 },
                 ["winner"] = new Dictionary<string, object?> { ["type"] = "string" },
                 ["confidence"] = new Dictionary<string, object?> { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
-                ["notes"] = new Dictionary<string, object?> { ["type"] = "string" },
+                ["description"] = new Dictionary<string, object?> { ["type"] = "string", ["maxLength"] = 500 },
+                ["extractionNotes"] = new Dictionary<string, object?> { ["type"] = "string", ["maxLength"] = 500 },
                 ["evidenceImageNumber"] = new Dictionary<string, object?> { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = evidenceFiles.Count },
                 ["regionX"] = CoordinateSchema(),
                 ["regionY"] = CoordinateSchema(),
                 ["regionWidth"] = SizeSchema(),
                 ["regionHeight"] = SizeSchema()
             },
-            ["required"] = new[] { "year", "winner", "confidence", "notes", "evidenceImageNumber", "regionX", "regionY", "regionWidth", "regionHeight" }
+            ["required"] = new[] { "year", "winner", "confidence", "description", "extractionNotes", "evidenceImageNumber", "regionX", "regionY", "regionWidth", "regionHeight" }
         };
         var outputSchema = new Dictionary<string, object?>
         {

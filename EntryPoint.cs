@@ -337,6 +337,7 @@ public static class EntryPoint
                         {
                             winner.Year,
                             name = PublicWinnerName(winner),
+                            description = winner.Description,
                             personId = PublicPersonId(club.Id, winner)
                         })
                         .ToList()
@@ -967,7 +968,7 @@ public static class EntryPoint
         app.MapGet("/api/export.csv", async (CatalogueStore store, CancellationToken cancellationToken) =>
         {
             var summaries = await store.GetSummariesAsync(cancellationToken);
-            var csv = new StringBuilder("Trophy code,Trophy name,Year,Winner,Review status,Source,Notes,Matched member,Membership number,Birth year,Joining year,Match confidence,Match reason\r\n");
+            var csv = new StringBuilder("Trophy code,Trophy name,Year,Winner,Description,AI reading notes,Review status,Source,Matched member,Membership number,Birth year,Joining year,Match confidence,Match reason\r\n");
             foreach (var summary in summaries)
             {
                 var trophy = await store.GetTrophyAsync(summary.Id, cancellationToken);
@@ -977,7 +978,8 @@ public static class EntryPoint
                     csv.AppendLine(string.Join(',', new[]
                     {
                         Csv(trophy.Id), Csv(trophy.Name), winner.Year.ToString(), Csv(winner.Name),
-                        Csv(winner.ReviewState), Csv(winner.Source), Csv(winner.Notes ?? string.Empty),
+                        Csv(winner.Description ?? string.Empty), Csv(winner.ExtractionNotes ?? string.Empty),
+                        Csv(winner.ReviewState), Csv(winner.Source),
                         Csv(winner.MemberMatch?.MemberName ?? string.Empty), Csv(winner.MemberMatch?.MembershipNumber ?? string.Empty),
                         winner.MemberMatch?.BirthYear?.ToString() ?? string.Empty,
                         winner.MemberMatch?.JoinYear?.ToString() ?? string.Empty,
@@ -1061,7 +1063,7 @@ public static class EntryPoint
         if (input.Year is < 1800 or > 2200) return "Enter a year from 1800 to 2200.";
         if (string.IsNullOrWhiteSpace(input.Name)) return "Enter the winner's name.";
         if (input.Name.Trim().Length > 200) return "Keep the winner's name under 200 characters.";
-        if ((input.Notes?.Trim().Length ?? 0) > 500) return "Keep the winner notes under 500 characters.";
+        if (((input.Description ?? input.Notes)?.Trim().Length ?? 0) > 500) return "Keep the winner description under 500 characters.";
         return null;
     }
 

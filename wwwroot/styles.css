@@ -242,7 +242,10 @@ h2 { font-size: 28px; line-height: 1.05; }
 .winner-evidence-link:hover, .winner-evidence-link:focus-visible { border-color: var(--green-800); background: #e4eee7; }
 .winner-evidence-link > span { color: var(--brass); font-size: 13px; line-height: 1; }
 .winner-name > .member-match { grid-column: 1 / -1; }
-.winner-notes input { color: #4e5a54; font-size: 11px; }
+.winner-description input { color: #4e5a54; font-size: 11px; }
+.winner-extraction-notes { padding: 9px 10px; border-left: 3px solid #c79b43; border-radius: 0 8px 8px 0; background: #f7f2e6; color: #59635e; }
+.winner-extraction-notes strong { display: block; color: #806224; font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.winner-extraction-notes p { margin: 3px 0 0; font-size: 12px; line-height: 1.45; }
 .winner-row.is-uncertain { margin: 0 -10px; padding-inline: 10px; background: #fff9ee; }
 .winner-row.is-new { margin: 6px -10px 0; padding-inline: 10px; border-radius: 10px; background: var(--green-100); }
 .confidence { height: 35px; margin-top: 13px; display: grid; align-content: center; justify-items: end; }

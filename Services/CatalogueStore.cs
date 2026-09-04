@@ -339,7 +339,10 @@ public sealed class CatalogueStore(
                     Confidence = Math.Clamp(entry.Confidence, 0, 1),
                     ReviewState = ReviewStates.NeedsReview,
                     Source = WinnerSources.Ai,
-                    Notes = NullIfEmpty(entry.Notes),
+                    Description = string.IsNullOrWhiteSpace(trophy.EngravingInstructions)
+                        ? null
+                        : NullIfEmpty(entry.Description),
+                    ExtractionNotes = NullIfEmpty(entry.ExtractionNotes),
                     EvidenceImageIds = evidenceIds.ToList(),
                     EvidenceReference = CreateEvidenceReference(entry, evidenceIds)
                 });
@@ -364,7 +367,7 @@ public sealed class CatalogueStore(
             {
                 Year = input.Year,
                 Name = input.Name.Trim(),
-                Notes = NullIfEmpty(input.Notes),
+                Description = NullIfEmpty(input.Description ?? input.Notes),
                 ReviewState = NormalizeReviewState(input.ReviewState),
                 Source = WinnerSources.Manual,
                 Confidence = 1
@@ -391,7 +394,7 @@ public sealed class CatalogueStore(
                 || !winner.Name.Equals(input.Name.Trim(), StringComparison.OrdinalIgnoreCase);
             winner.Year = input.Year;
             winner.Name = input.Name.Trim();
-            winner.Notes = NullIfEmpty(input.Notes);
+            winner.Description = NullIfEmpty(input.Description ?? input.Notes);
             winner.ReviewState = NormalizeReviewState(input.ReviewState);
             winner.Source = WinnerSources.Manual;
             if (identityChanged)
@@ -682,6 +685,7 @@ public sealed class CatalogueStore(
                 await using var stream = File.OpenRead(StatePath(tenant));
                 tenant.State = await JsonSerializer.DeserializeAsync<CatalogueState>(stream, jsonOptions, cancellationToken) ?? new();
             }
+            var storedVersion = tenant.State.Version;
             var existingIds = tenant.State.Trophies.Select(trophy => trophy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var seed in seeds.Where(seed => !existingIds.Contains(seed.Id))) tenant.State.Trophies.Add(FromSeed(seed));
             foreach (var trophy in tenant.State.Trophies)
@@ -698,6 +702,7 @@ public sealed class CatalogueStore(
                 trophy.AwardFormat = AwardFormats.Normalize(trophy.AwardFormat);
                 foreach (var winner in trophy.Winners)
                 {
+                    if (storedVersion < 9) MigrateLegacyWinnerNotes(trophy, winner);
                     if (winner.MemberMatch is null && winner.RejectedMemberIds.Count > 0)
                     {
                         winner.KeepMemberUnmatched = true;
@@ -712,7 +717,7 @@ public sealed class CatalogueStore(
                 if (trophy.IllustrationState == IllustrationStates.Complete)
                     trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
             }
-            tenant.State.Version = 8;
+            tenant.State.Version = 9;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
             await SaveUnsafeAsync(tenant, cancellationToken);
             tenant.Initialized = true;
@@ -787,6 +792,18 @@ public sealed class CatalogueStore(
     };
     private static string NormalizeReviewState(string value) => value == ReviewStates.Confirmed ? ReviewStates.Confirmed : ReviewStates.NeedsReview;
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static void MigrateLegacyWinnerNotes(TrophyRecord trophy, WinnerRecord winner)
+    {
+        var legacyNotes = NullIfEmpty(winner.LegacyNotes);
+        if (legacyNotes is null) return;
+
+        if (winner.Source == WinnerSources.Ai && string.IsNullOrWhiteSpace(trophy.EngravingInstructions))
+            winner.ExtractionNotes ??= legacyNotes;
+        else
+            winner.Description ??= legacyNotes;
+
+        winner.LegacyNotes = null;
+    }
     private static string WinnerKey(int year, string name) => $"{year}:{string.Join(' ', name.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant()}";
     private static WinnerEvidenceReference? CreateEvidenceReference(AiWinner entry, IReadOnlyList<string> evidenceIds)
     {

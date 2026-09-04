@@ -39,7 +39,7 @@ public sealed class ClubRecord
 
 public sealed class CatalogueState
 {
-    public int Version { get; set; } = 8;
+    public int Version { get; set; } = 9;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<TrophyRecord> Trophies { get; set; } = [];
 }
@@ -87,7 +87,10 @@ public sealed class WinnerRecord
     public double Confidence { get; set; } = 1;
     public string ReviewState { get; set; } = ReviewStates.NeedsReview;
     public string Source { get; set; } = WinnerSources.Manual;
-    public string? Notes { get; set; }
+    public string? Description { get; set; }
+    public string? ExtractionNotes { get; set; }
+    [JsonPropertyName("notes")]
+    public string? LegacyNotes { get; set; }
     public MemberMatchRecord? MemberMatch { get; set; }
     public bool KeepMemberUnmatched { get; set; }
     public List<string> RejectedMemberIds { get; set; } = [];
@@ -146,7 +149,8 @@ public sealed class AiWinner
     public int Year { get; set; }
     public required string Winner { get; set; }
     public double Confidence { get; set; }
-    public string Notes { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string ExtractionNotes { get; set; } = string.Empty;
     public int EvidenceImageNumber { get; set; }
     public int RegionX { get; set; }
     public int RegionY { get; set; }
@@ -200,7 +204,7 @@ public sealed record MemberDirectorySummary(
     DateTimeOffset? ImportedAt);
 
 public sealed record MemberImportResult(int ImportedCount, int UpdatedCount, int MembershipNumbersAdded, int SkippedCount, string SourceName, DateTimeOffset ImportedAt);
-public sealed record WinnerInput(int Year, string Name, string ReviewState, string? Notes);
+public sealed record WinnerInput(int Year, string Name, string ReviewState, string? Description, string? Notes = null);
 public sealed record TimelineInput(int? StartYear, int? EndYear);
 public sealed record SignupInput(string DisplayName, string Email, string Password);
 public sealed record LoginInput(string Email, string Password);

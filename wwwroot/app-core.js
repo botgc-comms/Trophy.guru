@@ -434,7 +434,8 @@ function winnerRow(winner) {
       <label><span>Year</span><input name="year" type="number" min="1800" max="2200" inputmode="numeric" value="${winner?.year || ''}" aria-label="Winning year"></label>
       <div class="winner-fields">
         <label class="winner-name"><span>Winner</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name shown in the source">${winnerEvidenceButton(winner)}</label>
-        <label class="winner-notes"><span>Notes / description</span><input name="notes" maxlength="500" value="${escapeHtml(winner?.notes || '')}" aria-label="Winner notes or result description" placeholder="Team, award or other source details"></label>
+        <label class="winner-description"><span>Description</span><input name="description" maxlength="500" value="${escapeHtml(winner?.description || '')}" aria-label="Public winner description" placeholder="Optional public wording for this result"></label>
+        ${winner?.extractionNotes ? `<aside class="winner-extraction-notes" aria-label="Read-only AI reading notes"><strong>AI reading notes</strong><p>${escapeHtml(winner.extractionNotes)}</p></aside>` : ''}
       </div>
       <div class="confidence ${reviewState} ${uncertain ? 'uncertain' : ''}">
         ${isNew ? '<span>Manual</span><small>New</small>' : `<span>${Math.round(confidence * 100)}%</span><small>${reviewState === 'confirmed' ? 'Confirmed' : uncertain ? 'Uncertain' : 'Check'}</small>`}
@@ -465,12 +466,12 @@ async function saveWinner(row) {
   const id = row.dataset.winnerId;
   const year = Number(row.querySelector('[name="year"]').value);
   const name = row.querySelector('[name="name"]').value.trim();
-  const notes = row.querySelector('[name="notes"]').value.trim();
+  const description = row.querySelector('[name="description"]').value.trim();
   if (!year || !name) {
     showToast('Enter both the year and winner’s name.', true);
     return;
   }
-  const payload = JSON.stringify({ year, name, reviewState: 'confirmed', notes: notes || null });
+  const payload = JSON.stringify({ year, name, reviewState: 'confirmed', description: description || null });
   try {
     if (id === 'new') {
       await api(`/api/trophies/${encodeURIComponent(state.current.id)}/winners`, { method: 'POST', body: payload });
