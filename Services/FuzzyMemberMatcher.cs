@@ -308,13 +308,29 @@ public sealed class FuzzyMemberMatcher
                 var originalTokens = fullName.Split(
                     (char[]?)null,
                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                resolvedSurname = Normalize(originalTokens.LastOrDefault() ?? string.Empty);
+                var implicitSurname = originalTokens.LastOrDefault() ?? string.Empty;
+                if (originalTokens.Length == 1)
+                    implicitSurname = RemoveCompactLeadingInitials(implicitSurname);
+                resolvedSurname = Normalize(implicitSurname);
             }
             if (resolvedSurname.Length == 0) resolvedSurname = tokens.LastOrDefault() ?? string.Empty;
             var resolvedGiven = Normalize(firstName ?? string.Empty);
             if (resolvedGiven.Length == 0) resolvedGiven = Normalize(initial ?? string.Empty);
             if (resolvedGiven.Length == 0 && tokens.Length > 1) resolvedGiven = tokens[0];
             return new NameParts(full, resolvedGiven, resolvedSurname);
+        }
+
+        private static string RemoveCompactLeadingInitials(string value)
+        {
+            var lastSeparator = value.LastIndexOf('.');
+            if (lastSeparator <= 0 || lastSeparator == value.Length - 1) return value;
+
+            var possibleInitials = value[..(lastSeparator + 1)]
+                .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return possibleInitials.Length > 0
+                && possibleInitials.All(part => part.Length == 1 && char.IsLetter(part[0]))
+                    ? value[(lastSeparator + 1)..]
+                    : value;
         }
     }
 }
