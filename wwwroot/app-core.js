@@ -40,10 +40,10 @@ async function api(url, options = {}) {
 }
 
 function installBatchUploadControl() {
-  if (!document.querySelector('link[href="/async.css"]')) {
+  if (!document.querySelector('link[href^="/async.css"]')) {
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/async.css';
+    stylesheet.href = '/async.css?v=20260904-empty-reading-1';
     document.head.append(stylesheet);
   }
 
@@ -262,14 +262,48 @@ function renderMissingYears() {
 
 function renderWinners(addBlank = false) {
   const winners = [...(state.current?.winners || [])].sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
-  const empty = document.querySelector('#empty-winners');
-  empty.hidden = winners.length > 0 || addBlank;
   const rows = addBlank ? [null, ...winners] : winners;
   elements.winnerList.innerHTML = rows.map(winnerRow).join('');
+  renderEmptyWinners(winners.length);
   const reviewCount = winners.filter(winner => winner.reviewState !== 'confirmed').length;
   const gapCount = state.missingYears.length;
   setText('#save-summary', `${plural(winners.length, 'winner')}${reviewCount ? ` · ${reviewCount} to check` : ''}${gapCount ? ` · ${plural(gapCount, 'gap')}` : ''}`);
   if (addBlank) elements.winnerList.querySelector('[data-winner-id="new"] input[name="year"]')?.focus();
+}
+
+function renderEmptyWinners(winnerCount = state.current?.winners?.length || 0) {
+  const empty = document.querySelector('#empty-winners');
+  if (!empty) return;
+  const hasManualRow = Boolean(elements.winnerList.querySelector('[data-winner-id="new"]'));
+  empty.hidden = winnerCount > 0 || hasManualRow;
+  if (empty.hidden) return;
+
+  const analysis = state.analysisStatus;
+  const evidence = state.current?.evidence || [];
+  const evidenceIsBeingRead = evidence.some(image => ['pending', 'queued', 'processing'].includes(image.processingState));
+  const analysisIsActive = ['queued', 'processing'].includes(analysis?.status) || (!analysis && evidenceIsBeingRead);
+  empty.className = `empty-winners${analysisIsActive ? ' is-reading' : ''}${analysis?.status === 'failed' ? ' is-warning' : ''}`;
+
+  if (analysisIsActive) {
+    const imageCount = analysis?.evidenceCount || evidence.length;
+    const detail = analysis?.status === 'queued'
+      ? 'Your images are saved and waiting for the background reader.'
+      : `The AI is comparing ${plural(imageCount, 'image')}. Names and years will appear here when the reading finishes.`;
+    empty.innerHTML = `<span aria-hidden="true">✦</span><strong>Reading names from your images</strong><p>${escapeHtml(detail)}</p>`;
+    return;
+  }
+
+  if (analysis?.status === 'complete' && evidence.length) {
+    empty.innerHTML = '<span aria-hidden="true">✓</span><strong>No winners found in this reading</strong><p>Try another photograph or enter a winner manually.</p>';
+    return;
+  }
+
+  if (analysis?.status === 'failed') {
+    empty.innerHTML = '<span aria-hidden="true">!</span><strong>The images could not be read</strong><p>Try reading all images again or enter a winner manually.</p>';
+    return;
+  }
+
+  empty.innerHTML = '<span aria-hidden="true">✦</span><strong>No winners recorded yet</strong><p>Add a photograph or enter a winner manually.</p>';
 }
 
 function winnerRow(winner) {
@@ -425,6 +459,7 @@ async function analyseAll() {
     const data = await api(`/api/trophies/${encodeURIComponent(state.current.id)}/analyse`, { method: 'POST', body: '{}' });
     state.analysisStatus = data.analysis;
     renderReaderNote();
+    renderEmptyWinners();
     startAnalysisPolling();
     showToast('A fresh background reading has been queued.');
   } catch (error) {
@@ -451,6 +486,7 @@ async function pollAnalysisStatus() {
     if (state.current?.id !== trophyId) return;
     state.analysisStatus = data.analysis;
     renderReaderNote();
+    renderEmptyWinners();
 
     if (['queued', 'processing'].includes(data.analysis.status)) {
       state.analysisPollTimer = setTimeout(pollAnalysisStatus, 1800);

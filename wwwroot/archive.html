@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260903-winner-layout-1">
+  <link rel="stylesheet" href="/styles.css?v=20260904-empty-reading-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
 </head>
 <body>
@@ -142,7 +142,7 @@
             <button id="save-range-button" type="button">Set</button>
           </div>
           <div id="missing-years" class="missing-years" hidden></div>
-          <div id="empty-winners" class="empty-winners"><span>✦</span><strong>No winners recorded yet</strong><p>Add a photograph or enter a winner manually.</p></div>
+          <div id="empty-winners" class="empty-winners" aria-live="polite"><span>✦</span><strong>No winners recorded yet</strong><p>Add a photograph or enter a winner manually.</p></div>
           <div id="winner-list" class="winner-list"></div>
           <button id="complete-button" class="save-button" type="button"><span>Save confirmed list</span><small id="save-summary">0 winners</small></button>
         </section>
@@ -280,7 +280,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the engraving…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260903-winner-layout-1" defer></script>
+  <script src="/app.js?v=20260904-empty-reading-1" defer></script>
   <script src="/missing-years.js?v=20260903-manual-member-visible-1" defer></script>
 </body>
 </html>

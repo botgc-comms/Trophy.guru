@@ -42,7 +42,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reader-note.is-processing .reader-spark {
+  .reader-note.is-processing .reader-spark,
+  .empty-winners.is-reading > span {
     animation: none;
   }
 }
