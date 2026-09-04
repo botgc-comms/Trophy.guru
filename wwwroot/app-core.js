@@ -255,7 +255,7 @@ function renderReaderNote() {
 
   if (!evidence.length) {
     note.className = 'reader-note is-neutral';
-    note.innerHTML = '<span class="reader-spark" aria-hidden="true">✦</span><span><strong>Add the first winner-record photo</strong><small>Use a trophy inscription, honours board, plaque or another club record. Multiple images will be read together.</small></span>';
+    note.innerHTML = '<span class="reader-spark" aria-hidden="true">✦</span><span><strong>Add the first winner-record photo</strong><small>Use a trophy inscription, honours board, plaque, results sheet or historical note. Multiple images will be read together.</small></span>';
     return;
   }
   if (analysis?.status === 'queued') {
