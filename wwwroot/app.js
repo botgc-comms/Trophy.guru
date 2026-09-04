@@ -80,7 +80,7 @@
   document.querySelector('#club-logo-input')?.addEventListener('change', previewClubLogo);
 
   const coreScript = document.createElement('script');
-  coreScript.src = '/app-core.js?v=20260904-optional-instructions-1';
+  coreScript.src = '/app-core.js?v=20260904-evidence-focus-1';
   coreScript.onload = () => {
     installBatchUploadControl();
     accountInitialise();

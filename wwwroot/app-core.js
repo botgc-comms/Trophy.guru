@@ -23,6 +23,14 @@ const elements = {
   login: document.querySelector('#login-screen'),
 };
 let engravingInstructionsSavePromise = null;
+const evidenceViewer = {
+  region: null,
+  zoom: 1,
+  baseWidth: 0,
+  baseHeight: 0,
+  loadToken: 0,
+  initializedToken: 0,
+};
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -449,7 +457,7 @@ function winnerEvidenceButton(winner) {
   const region = reference?.imageId === evidenceId
     ? ` data-region-x="${Number(reference.x)}" data-region-y="${Number(reference.y)}" data-region-width="${Number(reference.width)}" data-region-height="${Number(reference.height)}"`
     : '';
-  const label = reference?.imageId === evidenceId ? 'Show source text on photo' : 'View source photo';
+  const label = reference?.imageId === evidenceId ? 'View AI source' : 'View source photo';
   return `<button class="winner-evidence-link" data-action="evidence" data-evidence-id="${escapeHtml(evidenceId)}"${region} type="button" title="${label}"><span aria-hidden="true">⌖</span>${label}</button>`;
 }
 
@@ -660,24 +668,124 @@ async function refreshCurrent() {
   renderDetail();
 }
 
+function normalizeEvidenceRegion(region) {
+  if (!region || ![region.x, region.y, region.width, region.height].every(Number.isFinite)) return null;
+  const x = Math.max(0, Math.min(999, Number(region.x)));
+  const y = Math.max(0, Math.min(999, Number(region.y)));
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.min(1000 - x, Number(region.width))),
+    height: Math.max(1, Math.min(1000 - y, Number(region.height))),
+  };
+}
+
+function evidenceRegionCentre() {
+  const region = evidenceViewer.region;
+  return region
+    ? { x: (region.x + region.width / 2) / 1000, y: (region.y + region.height / 2) / 1000 }
+    : { x: .5, y: .5 };
+}
+
+function updateEvidenceZoomControls() {
+  const percentage = Math.round(evidenceViewer.zoom * 100);
+  document.querySelector('#image-zoom-level').value = `${percentage}%`;
+  document.querySelector('#zoom-image-out-button').disabled = evidenceViewer.zoom <= 1.01;
+  document.querySelector('#zoom-image-in-button').disabled = evidenceViewer.zoom >= 7.99;
+  document.querySelector('#show-whole-image-button').disabled = evidenceViewer.zoom <= 1.01;
+}
+
+function applyEvidenceZoom(nextZoom, targetPoint = null) {
+  const viewport = document.querySelector('#image-dialog-viewport');
+  const canvas = document.querySelector('#image-dialog-canvas');
+  const stage = document.querySelector('#image-dialog-stage');
+  if (!evidenceViewer.baseWidth || !evidenceViewer.baseHeight || !viewport.clientWidth || !viewport.clientHeight) return;
+
+  let point = targetPoint;
+  if (!point && stage.offsetWidth && stage.offsetHeight) {
+    point = {
+      x: Math.max(0, Math.min(1, (viewport.scrollLeft + viewport.clientWidth / 2 - stage.offsetLeft) / stage.offsetWidth)),
+      y: Math.max(0, Math.min(1, (viewport.scrollTop + viewport.clientHeight / 2 - stage.offsetTop) / stage.offsetHeight)),
+    };
+  }
+  point ||= { x: .5, y: .5 };
+
+  evidenceViewer.zoom = Math.max(1, Math.min(8, nextZoom));
+  const stageWidth = Math.round(evidenceViewer.baseWidth * evidenceViewer.zoom);
+  const stageHeight = Math.round(evidenceViewer.baseHeight * evidenceViewer.zoom);
+  const canvasWidth = Math.max(viewport.clientWidth, stageWidth);
+  const canvasHeight = Math.max(viewport.clientHeight, stageHeight);
+  canvas.style.width = `${canvasWidth}px`;
+  canvas.style.height = `${canvasHeight}px`;
+  stage.style.width = `${stageWidth}px`;
+  stage.style.height = `${stageHeight}px`;
+  stage.style.left = `${Math.round((canvasWidth - stageWidth) / 2)}px`;
+  stage.style.top = `${Math.round((canvasHeight - stageHeight) / 2)}px`;
+
+  requestAnimationFrame(() => {
+    const left = stage.offsetLeft + stageWidth * point.x - viewport.clientWidth / 2;
+    const top = stage.offsetTop + stageHeight * point.y - viewport.clientHeight / 2;
+    viewport.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'auto' });
+  });
+  updateEvidenceZoomControls();
+}
+
+function focusEvidenceSource() {
+  const region = evidenceViewer.region;
+  if (!region) return;
+  const viewport = document.querySelector('#image-dialog-viewport');
+  const regionWidth = evidenceViewer.baseWidth * region.width / 1000;
+  const regionHeight = evidenceViewer.baseHeight * region.height / 1000;
+  const horizontalZoom = viewport.clientWidth * .72 / Math.max(1, regionWidth);
+  const verticalZoom = viewport.clientHeight * .62 / Math.max(1, regionHeight);
+  applyEvidenceZoom(Math.max(1, Math.min(8, horizontalZoom, verticalZoom)), evidenceRegionCentre());
+}
+
+function initializeEvidenceViewer(focusSource = false) {
+  const viewport = document.querySelector('#image-dialog-viewport');
+  const image = document.querySelector('#dialog-image');
+  if (!image.naturalWidth || !image.naturalHeight || !viewport.clientWidth || !viewport.clientHeight) return;
+  const fitScale = Math.min(viewport.clientWidth / image.naturalWidth, viewport.clientHeight / image.naturalHeight);
+  evidenceViewer.baseWidth = Math.max(1, image.naturalWidth * fitScale);
+  evidenceViewer.baseHeight = Math.max(1, image.naturalHeight * fitScale);
+  evidenceViewer.zoom = 1;
+  if (focusSource && evidenceViewer.region) focusEvidenceSource();
+  else applyEvidenceZoom(1, { x: .5, y: .5 });
+}
+
 function openEvidence(id, region = null, contextLabel = '') {
   const evidence = state.current?.evidence.find(item => item.id === id);
   if (!evidence) return;
   state.activeEvidenceId = id;
   const image = document.querySelector('#dialog-image');
   const marker = document.querySelector('#dialog-evidence-region');
-  image.src = evidence.url;
-  const hasRegion = region && [region.x, region.y, region.width, region.height].every(Number.isFinite);
-  marker.hidden = !hasRegion;
-  if (hasRegion) {
-    marker.style.left = `${Math.max(0, Math.min(99.9, region.x / 10))}%`;
-    marker.style.top = `${Math.max(0, Math.min(99.9, region.y / 10))}%`;
-    marker.style.width = `${Math.max(.1, Math.min(100 - region.x / 10, region.width / 10))}%`;
-    marker.style.height = `${Math.max(.1, Math.min(100 - region.y / 10, region.height / 10))}%`;
+  const dialog = document.querySelector('#image-dialog');
+  evidenceViewer.region = normalizeEvidenceRegion(region);
+  evidenceViewer.baseWidth = 0;
+  evidenceViewer.baseHeight = 0;
+  evidenceViewer.zoom = 1;
+  const loadToken = ++evidenceViewer.loadToken;
+  evidenceViewer.initializedToken = 0;
+  marker.hidden = !evidenceViewer.region;
+  document.querySelector('#focus-source-button').hidden = !evidenceViewer.region;
+  if (evidenceViewer.region) {
+    marker.style.left = `${evidenceViewer.region.x / 10}%`;
+    marker.style.top = `${evidenceViewer.region.y / 10}%`;
+    marker.style.width = `${evidenceViewer.region.width / 10}%`;
+    marker.style.height = `${evidenceViewer.region.height / 10}%`;
   }
   elements.photoStrip.querySelectorAll('.evidence-thumb').forEach(button => button.classList.toggle('is-source', button.dataset.evidenceId === id));
   setText('#dialog-image-label', contextLabel || `${capitalize(evidence.kind)} · ${formatDate(evidence.uploadedAt)}`);
-  document.querySelector('#image-dialog').showModal();
+  const initialize = () => {
+    if (loadToken !== evidenceViewer.loadToken || evidenceViewer.initializedToken === loadToken) return;
+    evidenceViewer.initializedToken = loadToken;
+    requestAnimationFrame(() => initializeEvidenceViewer(Boolean(evidenceViewer.region)));
+  };
+  image.onload = initialize;
+  image.src = evidence.url;
+  dialog.showModal();
+  updateEvidenceZoomControls();
+  if (image.complete && image.naturalWidth) initialize();
 }
 
 async function deleteEvidence() {
@@ -805,8 +913,15 @@ document.querySelector('#save-range-button').addEventListener('click', saveTimel
 document.querySelector('#complete-button').addEventListener('click', markComplete);
 document.querySelector('#close-image-button').addEventListener('click', () => document.querySelector('#image-dialog').close());
 document.querySelector('#delete-image-button').addEventListener('click', deleteEvidence);
+document.querySelector('#focus-source-button').addEventListener('click', focusEvidenceSource);
+document.querySelector('#show-whole-image-button').addEventListener('click', () => applyEvidenceZoom(1, { x: .5, y: .5 }));
+document.querySelector('#zoom-image-out-button').addEventListener('click', () => applyEvidenceZoom(evidenceViewer.zoom / 1.5));
+document.querySelector('#zoom-image-in-button').addEventListener('click', () => applyEvidenceZoom(evidenceViewer.zoom * 1.5));
 document.querySelector('#image-dialog').addEventListener('click', event => {
   if (event.target === event.currentTarget) event.currentTarget.close();
+});
+window.addEventListener('resize', () => {
+  if (document.querySelector('#image-dialog').open) initializeEvidenceViewer(Boolean(evidenceViewer.region));
 });
 window.addEventListener('popstate', () => {
   const id = trophyIdFromHash();

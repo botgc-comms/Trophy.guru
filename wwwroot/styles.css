@@ -274,12 +274,25 @@ h2 { font-size: 28px; line-height: 1.05; }
 .login-card > small { margin-top: 20px; color: #8a918d; font-family: var(--font-serif); font-style: italic; }
 .form-error { width: 100%; margin: 9px 0 0; padding: 9px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 11px; }
 
-.image-dialog { max-width: min(920px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; border: 0; border-radius: 18px; background: #111; color: #fff; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.image-dialog { width: min(1040px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 24px); padding: 0; overflow: hidden; border: 0; border-radius: 18px; background: #111; color: #fff; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.image-dialog[open] { display: flex; flex-direction: column; }
 .image-dialog::backdrop { background: rgba(5,16,12,.82); backdrop-filter: blur(5px); }
-.image-dialog-stage { position: relative; width: max-content; max-width: 100%; margin: 0 auto; }
-.image-dialog img { width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 100px); object-fit: contain; }
+.image-dialog-viewport { width: 100%; height: min(72dvh, 720px); overflow: auto; overscroll-behavior: contain; background: #090b0a; scrollbar-color: #5d6c66 #171b19; touch-action: pan-x pan-y; }
+.image-dialog-viewport:focus-visible { outline: 3px solid #efc667; outline-offset: -3px; }
+.image-dialog-canvas { position: relative; min-width: 100%; min-height: 100%; }
+.image-dialog-stage { position: absolute; top: 0; left: 0; }
+.image-dialog img { display: block; width: 100%; height: 100%; max-width: none; max-height: none; object-fit: fill; user-select: none; -webkit-user-drag: none; }
 .dialog-evidence-region { position: absolute; z-index: 1; min-width: 12px; min-height: 12px; pointer-events: none; border: 3px solid #efc667; border-radius: 5px; background: rgba(239,198,103,.12); box-shadow: 0 0 0 9999px rgba(0,0,0,.18), 0 0 18px rgba(239,198,103,.72); animation: evidence-focus 1.2s ease-out; }
-.dialog-evidence-region::after { position: absolute; left: -3px; bottom: calc(100% + 5px); padding: 4px 7px; border-radius: 5px; background: #efc667; color: #17221d; content: "AI source"; font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.dialog-evidence-region::after { position: absolute; left: -3px; bottom: calc(100% + 5px); padding: 4px 7px; border-radius: 5px; background: #efc667; color: #17221d; content: "AI source"; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.image-dialog-controls { min-height: 54px; padding: 8px 14px; display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255,255,255,.1); background: #151816; }
+.image-dialog-controls > button, .image-zoom-controls button { min-height: 38px; padding: 0 13px; border: 1px solid rgba(255,255,255,.22); border-radius: 8px; background: #232925; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
+.image-dialog-controls button:hover, .image-dialog-controls button:focus-visible { border-color: #efc667; background: #303832; outline: 0; }
+.image-dialog-controls button:disabled { opacity: .42; cursor: default; }
+.image-zoom-controls { margin-left: auto; display: grid; grid-template-columns: 38px 58px 38px; align-items: center; }
+.image-zoom-controls button { padding: 0; border-radius: 0; font-size: 19px; }
+.image-zoom-controls button:first-child { border-radius: 8px 0 0 8px; }
+.image-zoom-controls button:last-child { border-radius: 0 8px 8px 0; }
+.image-zoom-controls output { min-height: 38px; display: grid; place-items: center; border-block: 1px solid rgba(255,255,255,.22); background: #111; color: #dce4df; font-size: 11px; font-weight: 700; }
 .image-dialog footer { min-height: 54px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #111; font-size: 11px; }
 .image-dialog footer button { border: 0; background: transparent; color: #f2a99d; cursor: pointer; }
 .dialog-close { position: absolute; z-index: 1; top: 10px; right: 10px; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.3); border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 25px; cursor: pointer; }
@@ -360,6 +373,12 @@ h2 { font-size: 28px; line-height: 1.05; }
   .confidence span { font-size: 10px; }
   .confidence small { font-size: 7px; }
   .save-button { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 2; box-shadow: 0 10px 26px rgba(10,42,33,.25); }
+  .image-dialog { width: calc(100% - 12px); max-height: calc(100dvh - 12px); border-radius: 12px; }
+  .image-dialog-viewport { height: calc(100dvh - 172px); min-height: 280px; }
+  .image-dialog-controls { flex-wrap: wrap; padding: 8px; }
+  .image-dialog-controls > button { flex: 1 1 auto; }
+  .image-zoom-controls { width: 100%; margin-left: 0; grid-template-columns: 44px 1fr 44px; }
+  .image-dialog footer { min-height: 46px; padding-inline: 10px; }
   .login-card { padding: 30px 22px; }
   .login-card h1 { font-size: 38px; }
 }
