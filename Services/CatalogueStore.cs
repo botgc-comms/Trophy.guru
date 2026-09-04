@@ -359,13 +359,18 @@ public sealed class CatalogueStore(
             var trophy = Find(tenant, trophyId);
             var winner = trophy?.Winners.FirstOrDefault(item => item.Id == winnerId);
             if (trophy is null || winner is null) return null;
+            var identityChanged = winner.Year != input.Year
+                || !winner.Name.Equals(input.Name.Trim(), StringComparison.OrdinalIgnoreCase);
             winner.Year = input.Year;
             winner.Name = input.Name.Trim();
             winner.Notes = NullIfEmpty(input.Notes);
             winner.ReviewState = NormalizeReviewState(input.ReviewState);
             winner.Source = WinnerSources.Manual;
-            winner.MemberMatch = null;
-            winner.RejectedMemberIds.Clear();
+            if (identityChanged && !winner.KeepMemberUnmatched)
+            {
+                winner.MemberMatch = null;
+                winner.RejectedMemberIds.Clear();
+            }
             if (winner.ReviewState == ReviewStates.Confirmed) winner.Confidence = 1;
             winner.UpdatedAt = DateTimeOffset.UtcNow;
             trophy.Winners = trophy.Winners.OrderBy(item => item.Year).ThenBy(item => item.Name).ToList();
@@ -493,7 +498,7 @@ public sealed class CatalogueStore(
         finally { tenant.Gate.Release(); }
     }
 
-    public async Task<TrophyRecord?> RejectMemberMatchAsync(
+    public async Task<TrophyRecord?> KeepWinnerUnmatchedAsync(
         string trophyId,
         string winnerId,
         CancellationToken cancellationToken = default)
@@ -505,10 +510,9 @@ public sealed class CatalogueStore(
             var trophy = Find(tenant, trophyId);
             var winner = trophy?.Winners.FirstOrDefault(item => item.Id == winnerId);
             if (trophy is null || winner is null) return null;
-            var memberId = winner.MemberMatch?.MemberId;
-            if (!string.IsNullOrWhiteSpace(memberId) && !winner.RejectedMemberIds.Contains(memberId, StringComparer.OrdinalIgnoreCase))
-                winner.RejectedMemberIds.Add(memberId);
             winner.MemberMatch = null;
+            winner.KeepMemberUnmatched = true;
+            winner.RejectedMemberIds.Clear();
             winner.UpdatedAt = DateTimeOffset.UtcNow;
             await SaveUnsafeAsync(tenant, cancellationToken);
             return Clone(trophy);
@@ -529,6 +533,7 @@ public sealed class CatalogueStore(
             var winner = trophy?.Winners.FirstOrDefault(item => item.Id == winnerId);
             if (trophy is null || winner is null) return null;
             winner.RejectedMemberIds.RemoveAll(id => id.Equals(match.MemberId, StringComparison.OrdinalIgnoreCase));
+            winner.KeepMemberUnmatched = false;
             winner.MemberMatch = match;
             winner.UpdatedAt = DateTimeOffset.UtcNow;
             await SaveUnsafeAsync(tenant, cancellationToken);
@@ -549,7 +554,14 @@ public sealed class CatalogueStore(
             var trophy = Find(tenant, trophyId);
             if (trophy is null) return null;
             foreach (var winner in trophy.Winners)
+            {
+                if (winner.KeepMemberUnmatched)
+                {
+                    winner.MemberMatch = null;
+                    continue;
+                }
                 if (matches.TryGetValue(winner.Id, out var match)) winner.MemberMatch = match;
+            }
             await SaveUnsafeAsync(tenant, cancellationToken);
             return Clone(trophy);
         }
@@ -612,6 +624,11 @@ public sealed class CatalogueStore(
                 trophy.Division = TrophyDivisions.Normalize(trophy.Division);
                 foreach (var winner in trophy.Winners)
                 {
+                    if (winner.MemberMatch is null && winner.RejectedMemberIds.Count > 0)
+                    {
+                        winner.KeepMemberUnmatched = true;
+                        winner.RejectedMemberIds.Clear();
+                    }
                     if (winner.MemberMatch is not null)
                         winner.MemberMatch.Gender = MemberGenders.Normalize(winner.MemberMatch.Gender);
                     NormalizeEvidenceReference(winner, trophy.Evidence);
@@ -621,7 +638,7 @@ public sealed class CatalogueStore(
                 if (trophy.IllustrationState == IllustrationStates.Complete)
                     trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
             }
-            tenant.State.Version = 5;
+            tenant.State.Version = 6;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
             await SaveUnsafeAsync(tenant, cancellationToken);
             tenant.Initialized = true;

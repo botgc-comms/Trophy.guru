@@ -211,6 +211,7 @@
 .member-match { width: 100%; border: 0; text-align: left; cursor: pointer; }
 .member-match:hover, .member-match:focus-visible { box-shadow: inset 0 0 0 1px rgba(18,61,48,.28); }
 .member-match.is-unmatched { background: #f1f0eb; color: var(--muted); }
+.member-match.is-deliberately-unmatched { background: #edf1f4; color: #43535d; }
 .reference-photos-dialog, .member-match-dialog, .account-settings-dialog { width: min(620px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); overflow-y: auto; }
 .reference-photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .reference-photo-actions label { min-height: 46px; display: grid; place-items: center; border: 1px solid var(--green-900); border-radius: 10px; background: var(--green-900); color: #fff; cursor: pointer; }

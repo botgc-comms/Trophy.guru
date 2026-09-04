@@ -777,7 +777,7 @@ public static class EntryPoint
             CatalogueStore catalogue,
             CancellationToken cancellationToken) =>
         {
-            var trophy = await catalogue.RejectMemberMatchAsync(trophyId, winnerId, cancellationToken);
+            var trophy = await catalogue.KeepWinnerUnmatchedAsync(trophyId, winnerId, cancellationToken);
             return trophy is null
                 ? Results.NotFound()
                 : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });

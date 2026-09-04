@@ -2,7 +2,7 @@
   window.addEventListener('trophy-app-ready', () => {
     installEmptyCatalogueState();
     const script = document.createElement('script');
-    script.src = '/missing-years-core.js?v=20260903-manual-member-visible-1';
+    script.src = '/missing-years-core.js?v=20260904-unmatched-override-1';
     document.head.append(script);
   }, { once: true });
 

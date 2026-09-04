@@ -385,9 +385,15 @@
       badge.dataset.openMemberMatch = winner.id;
 
       if (!match) {
-        badge.className = 'member-match is-unmatched';
-        badge.title = 'No member is currently attached. Click to choose an existing member or add one manually.';
-        badge.innerHTML = '<b>No member attached</b><span>Choose an existing member or add one manually</span><em>Choose ›</em>';
+        if (winner.keepMemberUnmatched) {
+          badge.className = 'member-match is-unmatched is-deliberately-unmatched';
+          badge.title = 'This winner has deliberately been left unlinked, for example because they were not a club member. Click to attach a member if needed.';
+          badge.innerHTML = '<b>Not linked to a member</b><span>Kept unmatched by your choice</span><em>Change ›</em>';
+        } else {
+          badge.className = 'member-match is-unmatched';
+          badge.title = 'No member is currently attached. Click to choose an existing member or add one manually.';
+          badge.innerHTML = '<b>No member attached</b><span>Choose an existing member or add one manually</span><em>Choose ›</em>';
+        }
         nameLabel.append(badge);
         continue;
       }
@@ -408,7 +414,9 @@
     const dialog = document.querySelector('#member-match-dialog');
     const list = dialog.querySelector('#member-candidate-list');
     document.querySelector('#member-match-title').textContent = `Match ${winner?.name || 'winner'}`;
-    document.querySelector('#member-match-copy').textContent = winner
+    document.querySelector('#member-match-copy').textContent = winner?.keepMemberUnmatched
+      ? `This ${winner.year} winner is deliberately not linked to a member. Choose a record below only if you want to change that.`
+      : winner
       ? `Choose the membership record for the ${winner.year} winner. Age is shown at the time of the award.`
       : 'Choose the correct membership record.';
     document.querySelector('#remove-current-member-match').hidden = !winner?.memberMatch;
@@ -530,7 +538,7 @@
         renderDetail();
       }
       document.querySelector('#member-match-dialog').close();
-      showToast('Member match removed.');
+      showToast('Winner left unmatched. Automatic matching will not add the member back.');
     } catch (exception) {
       showToast(exception.message, true);
     }

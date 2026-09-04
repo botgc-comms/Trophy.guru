@@ -15,7 +15,9 @@ public sealed class MemberMatchingCoordinator(
         var memberIds = members.Select(member => member.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var matches = trophy.Winners.ToDictionary(
             winner => winner.Id,
-            winner => winner.MemberMatch?.ManuallySelected == true && memberIds.Contains(winner.MemberMatch.MemberId)
+            winner => winner.KeepMemberUnmatched
+                ? null
+                : winner.MemberMatch?.ManuallySelected == true && memberIds.Contains(winner.MemberMatch.MemberId)
                 ? winner.MemberMatch
                 : members.Count == 0 ? null : matcher.FindBest(trophy, winner, members));
         return await catalogue.ApplyMemberMatchesAsync(trophyId, matches, cancellationToken);
