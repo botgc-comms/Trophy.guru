@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08261d">
+  <meta name="description" content="Explore this club's confirmed trophy winners by year, trophy and person.">
+  <meta name="robots" content="noindex,follow">
+  <title>Club honours board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/honours.css?v=20260904-1">
+  <script src="/honours.js?v=20260904-1" defer></script>
+</head>
+<body>
+  <header class="honours-header">
+    <div class="honours-header-inner">
+      <a class="honours-product-mark" href="/" aria-label="Trophy Archive home">
+        <span>TA</span>
+        <strong>Trophy Archive</strong>
+      </a>
+      <button id="share-board" class="share-board" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5"></path></svg>
+        <span>Share honours board</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="honours-intro" aria-labelledby="honours-title">
+      <div class="club-identity">
+        <span class="club-crest">
+          <img id="club-logo" src="" alt="" hidden>
+          <b id="club-monogram" aria-hidden="true">C</b>
+        </span>
+        <div>
+          <p id="club-context" class="eyebrow">Club honours</p>
+          <h1 id="honours-title">Honours board</h1>
+          <p id="honours-introduction">Every confirmed name in the trophy cabinet, preserved for members past and present.</p>
+        </div>
+      </div>
+      <dl class="honours-summary" aria-label="Archive summary">
+        <div><dt id="summary-trophies">—</dt><dd>Trophies</dd></div>
+        <div><dt id="summary-winners">—</dt><dd>Honours</dd></div>
+        <div><dt id="summary-years">—</dt><dd>Years</dd></div>
+      </dl>
+    </section>
+
+    <nav id="view-navigation" class="view-navigation" aria-label="Browse the honours board">
+      <button type="button" data-view="year" aria-pressed="true">
+        <span>01</span><strong>By year</strong><small>Who won each season</small>
+      </button>
+      <button type="button" data-view="trophy" aria-pressed="false">
+        <span>02</span><strong>By trophy</strong><small>Every trophy's history</small>
+      </button>
+      <button type="button" data-view="person" aria-pressed="false">
+        <span>03</span><strong>By person</strong><small>Each winner's honours</small>
+      </button>
+    </nav>
+
+    <section id="browser-view" class="browser-view" aria-live="polite">
+      <div class="browser-tools">
+        <div>
+          <p id="browser-eyebrow" class="eyebrow">Season archive</p>
+          <h2 id="browser-title">Winners by year</h2>
+        </div>
+        <label class="honours-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+          <span class="sr-only">Search the honours board</span>
+          <input id="honours-search" type="search" autocomplete="off" placeholder="Search names or trophies">
+        </label>
+      </div>
+
+      <div id="division-filters" class="division-filters" role="group" aria-label="Filter trophy type">
+        <button type="button" data-division="all" aria-pressed="true">All</button>
+        <button type="button" data-division="gents" aria-pressed="false">Gents</button>
+        <button type="button" data-division="ladies" aria-pressed="false">Ladies</button>
+        <button type="button" data-division="junior" aria-pressed="false">Junior</button>
+        <button type="button" data-division="mixed" aria-pressed="false">Mixed &amp; open</button>
+      </div>
+
+      <div id="year-navigation" class="year-navigation" aria-label="Choose a year"></div>
+      <div id="honours-results" class="honours-results">
+        <div class="honours-loading"><span></span><strong>Opening the honours book…</strong></div>
+      </div>
+    </section>
+
+    <section id="detail-view" class="detail-view" aria-live="polite" hidden>
+      <button id="detail-back" class="detail-back" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+        Back to the honours board
+      </button>
+      <div id="detail-content"></div>
+    </section>
+
+    <section id="honours-empty" class="honours-empty" hidden>
+      <span aria-hidden="true">✦</span>
+      <h2>This honours board is being prepared</h2>
+      <p>Confirmed winners will appear here as the club completes its trophy archive.</p>
+    </section>
+
+    <section id="honours-error" class="honours-error" hidden>
+      <span aria-hidden="true">?</span>
+      <h1>Honours board unavailable</h1>
+      <p>This link may be incomplete, or the club's archive may no longer be available.</p>
+      <a href="/">Visit Trophy Archive</a>
+    </section>
+  </main>
+
+  <footer class="honours-footer">
+    <p>Published from a verified club archive.</p>
+    <a href="/">Preserve your club's trophy history with Trophy Archive</a>
+  </footer>
+
+  <p id="share-status" class="share-status" role="status" aria-live="polite"></p>
+</body>
+</html>

@@ -29,6 +29,14 @@ public sealed class CatalogueStore(
         finally { tenant.Gate.Release(); }
     }
 
+    public async Task<IReadOnlyList<TrophyRecord>> GetTrophiesAsync(CancellationToken cancellationToken = default)
+    {
+        var tenant = await GetTenantAsync(cancellationToken);
+        await tenant.Gate.WaitAsync(cancellationToken);
+        try { return Clone(tenant.State.Trophies); }
+        finally { tenant.Gate.Release(); }
+    }
+
     public async Task<TrophyRecord?> GetTrophyAsync(string id, CancellationToken cancellationToken = default)
     {
         var tenant = await GetTenantAsync(cancellationToken);

@@ -20,6 +20,12 @@
       document.querySelector('#public-account-name').textContent = displayName;
       document.querySelector('#public-menu-name').textContent = displayName;
       document.querySelector('#public-menu-email').textContent = auth.user?.email || '';
+      if (auth.club?.id && auth.club?.complete) {
+        document.querySelectorAll('[data-honours-link]').forEach(link => {
+          link.href = `/honours/${encodeURIComponent(auth.club.id)}`;
+          link.hidden = false;
+        });
+      }
       document.querySelector('#public-logout-button').addEventListener('click', signOut);
     } catch {
       // The public information page remains fully usable if account status is unavailable.

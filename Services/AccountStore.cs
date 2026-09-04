@@ -171,6 +171,17 @@ public sealed class AccountStore(
         finally { gate.Release(); }
     }
 
+    public async Task<ClubRecord?> GetClubAsync(string clubId, CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var club = state.Clubs.FirstOrDefault(item => item.Id.Equals(clubId, StringComparison.OrdinalIgnoreCase));
+            return club is null ? null : Clone(club);
+        }
+        finally { gate.Release(); }
+    }
+
     public async Task<ClubRecord> UpsertClubAsync(string accountId, ClubInput input, CancellationToken cancellationToken = default)
     {
         var name = input.Name?.Trim() ?? string.Empty;
@@ -259,6 +270,19 @@ public sealed class AccountStore(
         {
             var account = state.Accounts.FirstOrDefault(item => item.Id == accountId);
             var club = account?.ClubId is null ? null : state.Clubs.FirstOrDefault(item => item.Id == account.ClubId);
+            if (club?.LogoStoredName is null || club.LogoContentType is null) return null;
+            var path = Path.Combine(AppDataPath.ClubRoot(dataRoot, club.Id), "brand", Path.GetFileName(club.LogoStoredName));
+            return File.Exists(path) ? (path, club.LogoContentType) : null;
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task<(string Path, string ContentType)?> GetLogoForClubAsync(string clubId, CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var club = state.Clubs.FirstOrDefault(item => item.Id.Equals(clubId, StringComparison.OrdinalIgnoreCase));
             if (club?.LogoStoredName is null || club.LogoContentType is null) return null;
             var path = Path.Combine(AppDataPath.ClubRoot(dataRoot, club.Id), "brand", Path.GetFileName(club.LogoStoredName));
             return File.Exists(path) ? (path, club.LogoContentType) : null;

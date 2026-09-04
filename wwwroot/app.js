@@ -449,6 +449,11 @@
     if (!club) return;
     document.querySelector('#club-name').textContent = club.name;
     document.querySelector('#club-subtitle').textContent = `${club.sport} · Trophy Archive`;
+    const honoursLink = document.querySelector('#honours-board-link');
+    if (honoursLink && club.id && club.complete) {
+      honoursLink.href = `/honours/${encodeURIComponent(club.id)}`;
+      honoursLink.hidden = false;
+    }
     const monogram = document.querySelector('#club-monogram');
     const logo = document.querySelector('#club-logo');
     monogram.textContent = club.name.trim().charAt(0).toUpperCase() || 'T';

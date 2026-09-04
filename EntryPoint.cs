@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
@@ -113,7 +114,8 @@ public static class EntryPoint
             context.Response.Headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()";
             context.Response.Headers["Content-Security-Policy"] =
                 "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
-            if (context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase))
+            if (context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
+                context.Request.Path.StartsWithSegments("/honours"))
             {
                 context.Response.Headers["X-Robots-Tag"] = "noindex,nofollow,noarchive";
             }
@@ -204,6 +206,7 @@ public static class EntryPoint
         {
             if (!context.Request.Path.StartsWithSegments("/api") ||
                 context.Request.Path.StartsWithSegments("/api/auth") ||
+                context.Request.Path.StartsWithSegments("/api/public") ||
                 context.Request.Path == "/health")
             {
                 await next();
@@ -250,6 +253,7 @@ public static class EntryPoint
         });
 
         MapHealth(app);
+        MapPublicHonours(app, webRootPath);
         MapAuthentication(app);
         MapClub(app);
         MapCatalogue(app);
@@ -291,6 +295,119 @@ public static class EntryPoint
             aiConfigured = reader.IsAvailable,
             illustrationConfigured = illustrator.IsAvailable
         }));
+    }
+
+    private static void MapPublicHonours(WebApplication app, string webRootPath)
+    {
+        app.MapGet("/honours/{clubId}", (string clubId, HttpContext context) =>
+        {
+            if (!ValidPublicClubId(clubId)) return Results.NotFound();
+            context.Response.Headers.CacheControl = "no-cache";
+            return Results.File(Path.Combine(webRootPath, "honours.html"), "text/html; charset=utf-8");
+        });
+
+        app.MapGet("/api/public/clubs/{clubId}/honours", async (
+            string clubId,
+            HttpContext context,
+            AccountStore accounts,
+            CatalogueStore catalogue,
+            ClubContextAccessor clubContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!ValidPublicClubId(clubId)) return Results.NotFound();
+            var club = await accounts.GetClubAsync(clubId, cancellationToken);
+            if (!accounts.IsClubComplete(club)) return Results.NotFound();
+
+            using var clubScope = clubContext.Push(club!.Id);
+            var trophies = await catalogue.GetTrophiesAsync(cancellationToken);
+            var publishedTrophies = trophies
+                .Select(trophy => new
+                {
+                    trophy.Id,
+                    trophy.Name,
+                    trophy.SecondaryName,
+                    trophy.Category,
+                    division = TrophyDivisions.Normalize(trophy.Division),
+                    imageUrl = PublicTrophyImageUrl(club.Id, trophy),
+                    winners = trophy.Winners
+                        .Where(winner => winner.ReviewState == ReviewStates.Confirmed)
+                        .OrderByDescending(winner => winner.Year)
+                        .ThenBy(winner => PublicWinnerName(winner), StringComparer.OrdinalIgnoreCase)
+                        .Select(winner => new
+                        {
+                            winner.Year,
+                            name = PublicWinnerName(winner),
+                            personId = PublicPersonId(club.Id, winner)
+                        })
+                        .ToList()
+                })
+                .Where(trophy => trophy.winners.Count > 0)
+                .OrderBy(trophy => trophy.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var years = publishedTrophies.SelectMany(trophy => trophy.winners).Select(winner => winner.Year).Distinct().OrderBy(year => year).ToList();
+            var honoursCount = publishedTrophies.Sum(trophy => trophy.winners.Count);
+            var peopleCount = publishedTrophies.SelectMany(trophy => trophy.winners).Select(winner => winner.personId).Distinct(StringComparer.Ordinal).Count();
+            context.Response.Headers.CacheControl = "public,max-age=60";
+            return Results.Ok(new
+            {
+                club = new
+                {
+                    club.Id,
+                    club.Name,
+                    club.Sport,
+                    club.Country,
+                    club.Website,
+                    logoUrl = $"/api/public/clubs/{Uri.EscapeDataString(club.Id)}/logo"
+                },
+                summary = new
+                {
+                    trophies = publishedTrophies.Count,
+                    honours = honoursCount,
+                    people = peopleCount,
+                    years = years.Count,
+                    firstYear = years.Count == 0 ? (int?)null : years[0],
+                    latestYear = years.Count == 0 ? (int?)null : years[^1]
+                },
+                trophies = publishedTrophies
+            });
+        });
+
+        app.MapGet("/api/public/clubs/{clubId}/logo", async (
+            string clubId,
+            HttpContext context,
+            AccountStore accounts,
+            CancellationToken cancellationToken) =>
+        {
+            if (!ValidPublicClubId(clubId)) return Results.NotFound();
+            var club = await accounts.GetClubAsync(clubId, cancellationToken);
+            if (!accounts.IsClubComplete(club)) return Results.NotFound();
+            var logo = await accounts.GetLogoForClubAsync(club!.Id, cancellationToken);
+            if (logo is null) return Results.NotFound();
+            context.Response.Headers.CacheControl = "public,max-age=3600";
+            return Results.File(logo.Value.Path, logo.Value.ContentType, enableRangeProcessing: true);
+        });
+
+        app.MapGet("/api/public/clubs/{clubId}/trophies/{trophyId}/illustration", async (
+            string clubId,
+            string trophyId,
+            HttpContext context,
+            AccountStore accounts,
+            CatalogueStore catalogue,
+            ClubContextAccessor clubContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!ValidPublicClubId(clubId)) return Results.NotFound();
+            var club = await accounts.GetClubAsync(clubId, cancellationToken);
+            if (!accounts.IsClubComplete(club)) return Results.NotFound();
+            using var clubScope = clubContext.Push(club!.Id);
+            var trophy = await catalogue.GetTrophyAsync(trophyId, cancellationToken);
+            if (trophy is null || !trophy.Winners.Any(winner => winner.ReviewState == ReviewStates.Confirmed)) return Results.NotFound();
+            var path = await catalogue.GetIllustrationPathAsync(trophyId, cancellationToken);
+            if (path is null) return Results.NotFound();
+            context.Response.Headers.CacheControl = "public,max-age=3600";
+            return Results.File(path, "image/png", enableRangeProcessing: true);
+        });
     }
 
     private static void MapAuthentication(WebApplication app)
@@ -952,6 +1069,43 @@ public static class EntryPoint
     {
         if (input.StartYear is < 1800 or > 2200 || input.EndYear is < 1800 or > 2200) return false;
         return !input.StartYear.HasValue || !input.EndYear.HasValue || (input.StartYear <= input.EndYear && input.EndYear - input.StartYear <= 250);
+    }
+
+    private static bool ValidPublicClubId(string clubId) =>
+        clubId.Length is > 0 and <= 80 && clubId.All(character => char.IsLetterOrDigit(character) || character is '-' or '_');
+
+    private static string PublicWinnerName(WinnerRecord winner)
+    {
+        var match = winner.MemberMatch;
+        var trustedMatch = match is not null &&
+            (match.ManuallySelected || match.State == MemberMatchStates.Strong) &&
+            !string.IsNullOrWhiteSpace(match.MemberName);
+        return (trustedMatch ? match!.MemberName : winner.Name).Trim();
+    }
+
+    private static string PublicPersonId(string clubId, WinnerRecord winner)
+    {
+        var match = winner.MemberMatch;
+        var trustedMemberId = match is not null &&
+            (match.ManuallySelected || match.State == MemberMatchStates.Strong) &&
+            !string.IsNullOrWhiteSpace(match.MemberId);
+        var identity = trustedMemberId
+            ? $"member:{match!.MemberId}"
+            : $"name:{string.Join(' ', PublicWinnerName(winner).ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries))}";
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes($"{clubId}\n{identity}"));
+        return Convert.ToHexString(digest.AsSpan(0, 8)).ToLowerInvariant();
+    }
+
+    private static string? PublicTrophyImageUrl(string clubId, TrophyRecord trophy)
+    {
+        var image = trophy.ReferenceImage?.Trim();
+        if (string.IsNullOrWhiteSpace(image)) return null;
+        if (image.StartsWith("/api/trophies/", StringComparison.OrdinalIgnoreCase) &&
+            image.EndsWith("/illustration", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"/api/public/clubs/{Uri.EscapeDataString(clubId)}/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
+        }
+        return image.StartsWith('/') && !image.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) ? image : null;
     }
 
     private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
