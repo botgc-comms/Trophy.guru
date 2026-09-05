@@ -30,10 +30,10 @@
   <link rel="preload" as="image" href="/hero.webp" type="image/webp" fetchpriority="high">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/marketing.css">
+  <link rel="stylesheet" href="/marketing.css?v=20260905">
   <script src="/marketing.js" defer></script>
   <script type="application/ld+json">
   {
@@ -91,7 +91,7 @@
   }
   </script>
 </head>
-<body>
+<body class="marketing-home">
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="/" aria-label="Trophy Archive AI home">
@@ -128,21 +128,25 @@
     <section class="hero">
       <div class="hero-inner">
         <div class="hero-copy">
-          <p class="eyebrow"><span aria-hidden="true">✦</span> AI trophy history archive</p>
-          <h1>Preserve<br>every name<br><em>on every</em><br>trophy.</h1>
-          <p class="hero-intro">Turn decades of trophy inscriptions, honours boards, historical notes and winner records into a searchable digital archive. Let AI compare the photographs, then review and export the result.</p>
+          <p class="eyebrow"><span aria-hidden="true">✦</span> AI trophy &amp; honours archive</p>
+          <h1>
+            <span>Preserve every</span>
+            <span>name <em>on every</em></span>
+            <span>trophy.</span>
+          </h1>
+          <p class="hero-intro">Turn decades of trophy inscriptions, honours boards and historic notes into a searchable digital archive. Add the photographs, let AI compare the evidence, then review and publish every result.</p>
           <div class="hero-actions">
-            <a class="primary-button" href="/archive.html#signup">Start your archive</a>
-            <a class="secondary-button" href="/archive.html#login">Log in</a>
+            <a class="primary-button" href="/archive.html#signup">Start your archive <span aria-hidden="true">→</span></a>
+            <a class="secondary-button" href="#how-it-works"><span class="button-play" aria-hidden="true">↓</span> See how it works</a>
           </div>
           <ul class="hero-points" aria-label="Service benefits">
-            <li><span class="point-mark" aria-hidden="true">01</span><span><b>Built for clubs</b><small>No card needed to try.</small></span></li>
-            <li><span class="point-mark" aria-hidden="true">02</span><span><b>Controlled member access</b><small>Only confirmed winners are shared.</small></span></li>
-            <li><span class="point-mark" aria-hidden="true">03</span><span><b>Always editable</b><small>Your club confirms every record.</small></span></li>
+            <li><span class="point-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 12v4m-3 3h6m-7 0h8"/></svg></span><span><strong>Built for clubs</strong><small>Start with one trophy. No card required.</small></span></li>
+            <li><span class="point-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></svg></span><span><strong>Secure &amp; private</strong><small>Source evidence and member data stay private.</small></span></li>
+            <li><span class="point-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/></svg></span><span><strong>Always editable</strong><small>Your club reviews and confirms every record.</small></span></li>
           </ul>
         </div>
         <figure class="product-preview">
-          <div class="preview-topbar"><span class="preview-logo">N</span><span><strong>Northfield Golf Club</strong><small>Trophy archive</small></span></div>
+          <div class="preview-topbar"><span class="preview-logo">N</span><span><strong>Northfield Golf Club</strong><small>Illustrative example archive</small></span><em>Example</em></div>
           <div class="preview-stage">
             <img src="/hero-trophy.webp" alt="Historic silver cup being catalogued from its engraved winners">
             <div class="reading-card reading-one"><small>Best gross</small><strong>1932</strong><span>C. Harrington</span><em>98% confidence</em></div>
@@ -154,11 +158,15 @@
       </div>
     </section>
 
-    <section class="club-strip" aria-label="Suitable historic collections">
-      <p>Purpose-built for historic collections</p>
+    <section class="club-strip" aria-labelledby="collection-types-heading">
+      <p id="collection-types-heading">Built for clubs and historic collections</p>
       <ul>
-        <li><span>G</span><b>Golf clubs</b></li><li><span>R</span><b>Rugby clubs</b></li><li><span>C</span><b>Cricket clubs</b></li>
-        <li><span>T</span><b>Tennis clubs</b></li><li><span>S</span><b>Schools</b></li><li><span>M</span><b>Museums</b></li>
+        <li><span class="club-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M14 32V7m0 2 13 4-13 5M8 32h20M24 29c0 1.7-1.6 3-3.5 3S17 30.7 17 29s1.6-3 3.5-3 3.5 1.3 3.5 3Z"/></svg></span><strong>Golf clubs</strong></li>
+        <li><span class="club-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M14 9v22m6-22v22m6-22v22M11 9h18M11 31h18"/><circle cx="31" cy="27" r="4"/></svg></span><strong>Cricket clubs</strong></li>
+        <li><span class="club-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M9 27c3-9 11-15 22-14-3 9-11 15-22 14Z"/><path d="m15 25 10-10m-6 7 3 3m-5-1 3 3"/></svg></span><strong>Rugby clubs</strong></li>
+        <li><span class="club-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="14" cy="25" r="6"/><circle cx="26" cy="25" r="6"/><path d="M18 14c2-3 6-3 8 0s1 7-2 9m-9-7 6-6"/></svg></span><strong>Bowls &amp; tennis clubs</strong></li>
+        <li><span class="club-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M7 16h26L20 7 7 16Zm3 15h20M12 17v12m6-12v12m10-12v12m-6-12v12"/></svg></span><strong>Schools &amp; universities</strong></li>
+        <li><span class="club-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M8 13h24v19H8V13Zm5-5h14v5H13V8Z"/><path d="M13 18h14M13 23h14M13 28h9"/></svg></span><strong>Museums &amp; halls of fame</strong></li>
       </ul>
     </section>
 
@@ -167,14 +175,14 @@
         <div class="workflow-lead">
           <p class="eyebrow">From cabinet to catalogue</p>
           <h2>One trophy.<br>A few photographs.<br>A record your club can keep forever.</h2>
-          <p>Reflective metal, curved bands, distant honours boards and worn lettering defeat ordinary scanners. This workflow combines every surviving source for the trophy.</p>
-          <a href="/archive.html#signup">Start with your first trophy</a>
+          <p>Reflective metal, curved engraving bands, distant honours boards and worn notes can defeat ordinary scanners. Add every useful photograph and Trophy.guru analyses the complete evidence set.</p>
+          <a class="workflow-link" href="/archive.html#signup">Start with your first trophy <span aria-hidden="true">→</span></a>
         </div>
         <ol class="workflow-steps">
-          <li><span class="step-number">01</span><h3>Capture</h3><p>Photograph the trophy text, honours board, plaque, results sheet or historical note. Add extra views wherever the text is unclear.</p><div class="step-visual phone-visual"><span class="phone-frame"><img src="/catalogue/D05.jpg" alt="A trophy framed for a mobile photograph"></span></div></li>
-          <li><span class="step-number">02</span><h3>AI reads</h3><p>Reflections, perspective, rows and columns are reconciled across the complete set.</p><div class="step-visual scan-visual"><img src="/catalogue/D19.jpg" alt="Detailed trophy inscription used for AI comparison"><span>Multiple views compared</span></div></li>
-          <li><span class="step-number">03</span><h3>You review</h3><p>Check uncertain results and confirm names before they enter the archive.</p><div class="step-visual review-visual" aria-label="Example winner review"><span><small>1932</small><b>C. Harrington</b><em>Confirmed</em></span><span><small>1933</small><b>A. L. Gibson</b><em>Confirmed</em></span><span class="is-uncertain"><small>1934</small><b>A. Macdonald</b><em>Review</em></span></div></li>
-          <li><span class="step-number">04</span><h3>Publish &amp; export</h3><p>Share a live honours board with members, or download a clean record to use elsewhere.</p><div class="step-visual export-visual"><span class="export-sheet"><small>Trophy Archive</small><strong>LIVE</strong><em>Years · trophies · winners</em></span></div></li>
+          <li class="workflow-step"><span class="step-number" aria-hidden="true">01</span><h3>Capture</h3><p>Photograph the trophy from several angles, or upload honours boards, plaques, result sheets and historical notes.</p><div class="step-visual phone-visual"><img src="/marketing/capture-phone.webp" width="719" height="1080" loading="lazy" decoding="async" alt="A person photographing a silver trophy with a mobile phone"></div></li>
+          <li class="workflow-step"><span class="step-number" aria-hidden="true">02</span><h3>AI reads</h3><p>AI compares the complete image set and proposes years, names and other details, even when text spans several sources.</p><div class="step-visual scan-visual"><img src="/marketing/engraving-detail.webp" width="900" height="822" loading="lazy" decoding="async" alt="Close-up of trophy plates engraved with winners for 1932 and 1933"><span>Source views compared</span></div></li>
+          <li class="workflow-step"><span class="step-number" aria-hidden="true">03</span><h3>You review</h3><p>Check each proposed winner against the source, correct uncertain text and confirm what belongs in the archive.</p><div class="step-visual review-visual" role="img" aria-label="Example review showing two confirmed winners and one name to check"><span><small>1932</small><b>C. Harrington</b><em>Confirmed</em><i aria-hidden="true">✓</i></span><span><small>1933</small><b>A. L. Gibson</b><em>Confirmed</em><i aria-hidden="true">✓</i></span><span class="is-uncertain"><small>1934</small><b>A. Macdonald</b><em>Check name</em><i aria-hidden="true">?</i></span></div></li>
+          <li class="workflow-step"><span class="step-number" aria-hidden="true">04</span><h3>Archive &amp; export</h3><p>Publish confirmed winners as a searchable honours board, and export the archive as CSV whenever you need a copy.</p><div class="step-visual export-visual"><img src="/marketing/archive-book.webp" width="900" height="844" loading="lazy" decoding="async" alt="Green leather-bound trophy archive embossed in gold"><span>Honours board ready</span></div></li>
         </ol>
       </div>
     </section>
