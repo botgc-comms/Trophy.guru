@@ -92,7 +92,7 @@ main { min-height: calc(100vh - 160px); }
 .year-results > .no-results, .trophy-results > .no-results, .person-results > .no-results { grid-column: 1 / -1; }
 .year-honour-card { min-height: 248px; display: grid; grid-template-columns: 43% 57%; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow: hidden; }
 .trophy-visual { position: relative; width: 100%; height: 100%; min-height: 180px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 37%, #fff, #e5dfd2 70%); }
-.trophy-visual img { position: relative; z-index: 1; width: 100%; height: 100%; display: block; object-fit: cover; }
+.trophy-visual img { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; object-position: center; }
 .trophy-placeholder { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 7px; color: #887954; }
 .trophy-placeholder b { font-size: 1rem; }
 .trophy-placeholder small { font-family: var(--serif); font-size: 3.5rem; }
