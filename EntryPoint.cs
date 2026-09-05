@@ -1076,23 +1076,25 @@ public static class EntryPoint
     private static bool ValidPublicClubId(string clubId) =>
         clubId.Length is > 0 and <= 80 && clubId.All(character => char.IsLetterOrDigit(character) || character is '-' or '_');
 
-    private static string PublicWinnerName(WinnerRecord winner)
+    private static MemberMatchRecord? PublicMemberMatch(WinnerRecord winner)
     {
         var match = winner.MemberMatch;
-        var trustedMatch = match is not null &&
-            (match.ManuallySelected || match.State == MemberMatchStates.Strong) &&
-            !string.IsNullOrWhiteSpace(match.MemberName);
-        return (trustedMatch ? match!.MemberName : winner.Name).Trim();
+        return !winner.KeepMemberUnmatched && !string.IsNullOrWhiteSpace(match?.MemberName)
+            ? match
+            : null;
+    }
+
+    private static string PublicWinnerName(WinnerRecord winner)
+    {
+        var match = PublicMemberMatch(winner);
+        return PublicHonoursNameFormatter.Format(match?.MemberName ?? winner.Name);
     }
 
     private static string PublicPersonId(string clubId, WinnerRecord winner)
     {
-        var match = winner.MemberMatch;
-        var trustedMemberId = match is not null &&
-            (match.ManuallySelected || match.State == MemberMatchStates.Strong) &&
-            !string.IsNullOrWhiteSpace(match.MemberId);
-        var identity = trustedMemberId
-            ? $"member:{match!.MemberId}"
+        var match = PublicMemberMatch(winner);
+        var identity = !string.IsNullOrWhiteSpace(match?.MemberId)
+            ? $"member:{match.MemberId.Trim()}"
             : $"name:{string.Join(' ', PublicWinnerName(winner).ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries))}";
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes($"{clubId}\n{identity}"));
         return Convert.ToHexString(digest.AsSpan(0, 8)).ToLowerInvariant();

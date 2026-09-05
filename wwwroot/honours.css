@@ -112,6 +112,12 @@ main { min-height: calc(100vh - 160px); }
 .trophy-results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px; }
 .trophy-card { min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow: hidden; }
 .trophy-card-visual { height: 275px; display: block; }
+.trophy-card-visual .trophy-visual img { padding: 16px 20px 12px; object-fit: contain; }
+.trophy-card-visual .trophy-visual.is-illustration img {
+  filter:
+    drop-shadow(0 1px 0 rgba(255,255,255,.24))
+    drop-shadow(0 12px 13px rgba(6,27,21,.2));
+}
 .trophy-card > div { padding: 23px; }
 .trophy-card dl { margin: 23px 0 0; padding-top: 18px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; border-top: 1px solid var(--line); }
 .trophy-card dl div + div { padding-left: 12px; border-left: 1px solid var(--line); }
