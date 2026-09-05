@@ -48,14 +48,7 @@
     if (!button) return;
     const year = box.querySelector('.missing-year-actions select')?.value;
     if (!year) return;
-    renderWinners(true);
-    const row = document.querySelector('#winner-list [data-winner-id="new"]');
-    const yearInput = row?.querySelector('input[name="year"]');
-    const nameInput = row?.querySelector('input[name="name"]');
-    if (!yearInput || !nameInput) return;
-    yearInput.value = year;
-    nameInput.focus();
-    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    addWinnerDraft(Number(year));
   });
 
   const observer = new MutationObserver(addManualControl);

@@ -246,6 +246,9 @@ h2 { font-size: 28px; line-height: 1.05; }
 .winner-extraction-notes { padding: 9px 10px; border-left: 3px solid #c79b43; border-radius: 0 8px 8px 0; background: #f7f2e6; color: #59635e; }
 .winner-extraction-notes strong { display: block; color: #806224; font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .winner-extraction-notes p { margin: 3px 0 0; font-size: 12px; line-height: 1.45; }
+.winner-add-another { width: fit-content; min-height: 30px; padding: 4px 10px; border: 1px solid #c9d5cf; border-radius: 999px; background: #fff; color: var(--green-800); font-size: 9px; font-weight: 700; cursor: pointer; }
+.winner-add-another:hover, .winner-add-another:focus-visible { border-color: var(--green-800); background: #edf4ef; outline: 0; }
+.confirm-winner:disabled { opacity: .55; cursor: wait; }
 .winner-row.is-uncertain { margin: 0 -10px; padding-inline: 10px; background: #fff9ee; }
 .winner-row.is-new { margin: 6px -10px 0; padding-inline: 10px; border-radius: 10px; background: var(--green-100); }
 .confidence { height: 35px; margin-top: 13px; display: grid; align-content: center; justify-items: end; }
@@ -383,6 +386,7 @@ h2 { font-size: 28px; line-height: 1.05; }
   .winner-row { padding-block: 14px; grid-template-columns: 66px minmax(0, 1fr) 52px; }
   .winner-actions { grid-column: 1 / -1; height: 36px; margin-top: 0; }
   .confirm-winner { font-size: 10px; }
+  .winner-add-another { min-height: 42px; }
   .confidence span { font-size: 10px; }
   .confidence small { font-size: 7px; }
   .save-button { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 2; box-shadow: 0 10px 26px rgba(10,42,33,.25); }

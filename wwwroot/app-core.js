@@ -318,15 +318,34 @@ function renderMissingYears() {
   box.hidden = false;
 }
 
-function renderWinners(addBlank = false) {
+function renderWinners() {
   const winners = [...(state.current?.winners || [])].sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
-  const rows = addBlank ? [null, ...winners] : winners;
-  elements.winnerList.innerHTML = rows.map(winnerRow).join('');
+  elements.winnerList.innerHTML = winners.map((winner, index) => winnerRow(winner, {
+    allowAdditional: winners[index + 1]?.year !== winner.year,
+  })).join('');
   renderEmptyWinners(winners.length);
   const reviewCount = winners.filter(winner => winner.reviewState !== 'confirmed').length;
   const gapCount = state.missingYears.length;
   setText('#save-summary', `${plural(winners.length, 'winner')}${reviewCount ? ` · ${reviewCount} to check` : ''}${gapCount ? ` · ${plural(gapCount, 'gap')}` : ''}`);
-  if (addBlank) elements.winnerList.querySelector('[data-winner-id="new"] input[name="year"]')?.focus();
+}
+
+function addWinnerDraft(initialYear = '', afterRow = null) {
+  const existing = elements.winnerList.querySelector('[data-winner-id="new"]');
+  if (existing) {
+    existing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const existingYear = existing.querySelector('[name="year"]')?.value;
+    existing.querySelector(existingYear ? '[name="name"]' : '[name="year"]')?.focus();
+    showToast('Save or cancel the new winner first.');
+    return;
+  }
+
+  const markup = winnerRow(null, { initialYear });
+  if (afterRow) afterRow.insertAdjacentHTML('afterend', markup);
+  else elements.winnerList.insertAdjacentHTML('afterbegin', markup);
+  renderEmptyWinners();
+  const draft = elements.winnerList.querySelector('[data-winner-id="new"]');
+  draft?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  draft?.querySelector(initialYear ? '[name="name"]' : '[name="year"]')?.focus();
 }
 
 function renderEngravingInstructions() {
@@ -424,18 +443,19 @@ function renderEmptyWinners(winnerCount = state.current?.winners?.length || 0) {
   empty.innerHTML = '<span aria-hidden="true">✦</span><strong>No winners recorded yet</strong><p>Add a photograph or enter a winner manually.</p>';
 }
 
-function winnerRow(winner) {
+function winnerRow(winner, options = {}) {
   const isNew = !winner;
   const reviewState = winner?.reviewState || 'needs-review';
   const confidence = winner?.confidence ?? 1;
   const uncertain = !isNew && confidence < 0.75;
   return `
     <article class="winner-row ${uncertain ? 'is-uncertain' : ''} ${isNew ? 'is-new' : ''}" data-winner-id="${winner?.id || 'new'}">
-      <label><span>Year</span><input name="year" type="number" min="1800" max="2200" inputmode="numeric" value="${winner?.year || ''}" aria-label="Winning year"></label>
+      <label><span>Year</span><input name="year" type="number" min="1800" max="2200" inputmode="numeric" value="${winner?.year ?? options.initialYear ?? ''}" aria-label="Winning year"></label>
       <div class="winner-fields">
         <label class="winner-name"><span>Winner</span><input name="name" maxlength="200" value="${escapeHtml(winner?.name || '')}" aria-label="Winner name" placeholder="Name shown in the source">${winnerEvidenceButton(winner)}</label>
         <label class="winner-description"><span>Description</span><input name="description" maxlength="500" value="${escapeHtml(winner?.description || '')}" aria-label="Public winner description" placeholder="Optional public wording for this result"></label>
         ${winner?.extractionNotes ? `<aside class="winner-extraction-notes" aria-label="Read-only AI reading notes"><strong>AI reading notes</strong><p>${escapeHtml(winner.extractionNotes)}</p></aside>` : ''}
+        ${options.allowAdditional ? `<button class="winner-add-another" data-action="add-another" type="button" aria-label="Add another winner for ${winner.year}" title="Add another winner for ${winner.year}">+ Add another winner</button>` : ''}
       </div>
       <div class="confidence ${reviewState} ${uncertain ? 'uncertain' : ''}">
         ${isNew ? '<span>Manual</span><small>New</small>' : `<span>${Math.round(confidence * 100)}%</span><small>${reviewState === 'confirmed' ? 'Confirmed' : uncertain ? 'Uncertain' : 'Check'}</small>`}
@@ -471,6 +491,11 @@ async function saveWinner(row) {
     showToast('Enter both the year and winner’s name.', true);
     return;
   }
+  const saveButton = row.querySelector('[data-action="confirm"]');
+  if (saveButton.disabled) return;
+  const originalLabel = saveButton.textContent;
+  saveButton.disabled = true;
+  saveButton.textContent = id === 'new' ? 'Adding…' : 'Saving…';
   const payload = JSON.stringify({ year, name, reviewState: 'confirmed', description: description || null });
   try {
     if (id === 'new') {
@@ -483,6 +508,11 @@ async function saveWinner(row) {
     showToast(id === 'new' ? 'Winner added.' : 'Winner confirmed.');
   } catch (error) {
     showToast(error.message, true);
+  } finally {
+    if (saveButton.isConnected) {
+      saveButton.disabled = false;
+      saveButton.textContent = originalLabel;
+    }
   }
 }
 
@@ -899,6 +929,17 @@ elements.winnerList.addEventListener('click', event => {
   const action = event.target.closest('[data-action]');
   if (!action) return;
   const row = action.closest('.winner-row');
+  if (action.dataset.action === 'add-another') {
+    const yearInput = row.querySelector('[name="year"]');
+    const year = Number(yearInput.value);
+    if (!Number.isInteger(year) || year < 1800 || year > 2200) {
+      showToast('Enter a valid year before adding another winner.', true);
+      yearInput.focus();
+      return;
+    }
+    addWinnerDraft(year, row);
+    return;
+  }
   if (action.dataset.action === 'evidence') {
     event.preventDefault();
     event.stopPropagation();
@@ -911,7 +952,10 @@ elements.winnerList.addEventListener('click', event => {
   }
   if (action.dataset.action === 'confirm') saveWinner(row);
   if (action.dataset.action === 'delete') deleteWinner(row.dataset.winnerId);
-  if (action.dataset.action === 'cancel') renderWinners();
+  if (action.dataset.action === 'cancel') {
+    row.remove();
+    renderEmptyWinners();
+  }
 });
 document.querySelector('.club-mark').addEventListener('click', event => {
   event.preventDefault();
@@ -936,7 +980,7 @@ document.querySelector('#team-award-question').addEventListener('click', event =
   if (button) saveAwardFormat(button.dataset.awardFormat);
 });
 document.querySelector('#analyse-button').addEventListener('click', analyseAll);
-document.querySelector('#add-winner-button').addEventListener('click', () => renderWinners(true));
+document.querySelector('#add-winner-button').addEventListener('click', () => addWinnerDraft());
 document.querySelector('#save-range-button').addEventListener('click', saveTimeline);
 document.querySelector('#complete-button').addEventListener('click', markComplete);
 document.querySelector('#close-image-button').addEventListener('click', () => document.querySelector('#image-dialog').close());
