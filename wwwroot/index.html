@@ -36,6 +36,8 @@
   <link rel="stylesheet" href="/marketing.css?v=20260906-3">
   <link rel="stylesheet" href="/analytics.css?v=20260906-1">
   <script src="/analytics.js?v=20260906-1" defer></script>
+  <link rel="stylesheet" href="/integration-offer.css?v=20260906-1">
+  <script src="/integration-offer.js?v=20260906-1" defer></script>
   <link rel="stylesheet" href="/honours-preview.css?v=20260906-1">
   <script src="/marketing.js" defer></script>
   <script src="/honours-preview.js?v=20260906-1" defer></script>
@@ -269,14 +271,20 @@
 
     <section id="pricing" class="pricing-band">
       <div class="pricing-inner">
-        <div class="pricing-intro"><p class="eyebrow">Simple, fair pricing</p><h2>Start with one.<br>Preserve the whole collection.</h2><p>Your first trophy is free. Add more with a one-time credit purchase, whenever your club is ready. No subscription or per-user fees for your core archive.</p><small>Credits never expire. Managed website integrations will be priced separately.</small></div>
+        <div class="pricing-intro"><p class="eyebrow">Simple, fair pricing</p><h2>Start with one.<br>Preserve the whole collection.</h2><p>Your first trophy is free. Add more with a one-time credit purchase, whenever your club is ready. No subscription or per-user fees for your core archive.</p><small>Credits never expire. Optional Intelligent Golf integration: £299 per club per year.</small></div>
         <div class="pricing-grid">
-          <article class="price-card free-card"><p>Try it properly</p><h3>First trophy</h3><strong>Free</strong><small>No card required</small><ul><li>Two trophy photographs</li><li>One trophy evaluation</li><li>Full feature access</li></ul><a href="/archive.html#signup">Try for free</a></article>
+          <article class="price-card free-card"><p>Try it properly</p><h3>First trophy</h3><strong>Free</strong><small>No card required</small><ul><li>Up to 12 saved photographs</li><li>AI readings and illustration</li><li>Core archive features</li></ul><a href="/archive.html#signup">Try for free</a></article>
           <article class="price-card"><p>Pay as you go</p><h3>1 trophy</h3><strong>£7.50</strong><small>One-time payment</small><ul><li>Core archive features included</li><li>No subscription</li><li>Credits never expire</li></ul><a href="/archive.html#signup">Get started</a></article>
-          <article class="price-card featured-price"><span class="popular-label">Save 20%</span><p>Club collection</p><h3>10 trophies</h3><strong>£60</strong><small>£6 per trophy</small><ul><li>Everything in a single credit</li><li>Shared member access</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
+          <article class="price-card featured-price"><span class="popular-label">Save 20%</span><p>Club collection</p><h3>10 trophies</h3><strong>£60</strong><small>£6 per trophy</small><ul><li>Everything in a single credit</li><li>Shareable public honours board</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
           <article class="price-card"><p>Heritage collection</p><h3>50 trophies</h3><strong>£225</strong><small>£4.50 per trophy · save 40%</small><ul><li>Built for larger collections</li><li>Credits never expire</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
           <article class="price-card"><p>Complete cabinet</p><h3>250 trophies</h3><strong>£875</strong><small>£3.50 per trophy · save 53%</small><ul><li>For the whole collection</li><li>Core archive features included</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
         </div>
+        <article id="intelligent-golf-extra" class="integration-offer" aria-labelledby="ig-offer-title" data-ig-offer>
+          <div class="integration-offer-copy"><p class="integration-kicker">Optional annual extra</p><h3 id="ig-offer-title">Intelligent Golf integration</h3><p>Bring your trophy history into the club website your members already use.</p><span class="integration-status" data-ig-status>In development</span></div>
+          <div class="integration-offer-features"><p class="integration-feature-label">Planned member experience</p><ul><li>An honours board in your member area</li><li>“My trophies” for signed-in members</li><li>Search winners and explore trophy history</li><li>Managed setup and ongoing updates</li></ul></div>
+          <div class="integration-offer-price"><p><strong>£299</strong><span>per club / year</span></p><a class="integration-detail-link" href="/integrations/intelligent-golf/">Explore the integration <span aria-hidden="true">→</span></a><button type="button" class="integration-subscribe" disabled data-ig-unavailable>Coming soon</button><a class="integration-subscribe" href="/archive.html?addon=intelligent-golf#login" data-ig-subscribe hidden>Choose annual integration</a><small data-ig-availability>The member integration is being prepared. No payment is taken yet.</small></div>
+          <p class="integration-offer-footnote">Your core archive already includes public honours-board sharing, winner search and member matching. This optional service adds managed Intelligent Golf installation and member features.</p>
+        </article>
       </div>
     </section>
 
@@ -304,7 +312,7 @@
   <footer class="site-footer">
     <a class="brand footer-brand" href="/"><span class="brand-seal">TA</span><span><strong>Trophy Archive</strong><small>AI</small></span></a>
     <p>AI-assisted trophy and honours board transcription for sports clubs and heritage collections.</p>
-    <nav aria-label="Footer navigation"><a href="#how-it-works">How it works</a><a href="#member-experience">Member experience</a><a href="#pricing">Pricing</a><a href="/uk/how-to-catalogue-trophy-winners/">UK guide</a><a href="/us/how-to-catalog-trophy-winners/">US guide</a><a href="/privacy.html">Privacy &amp; cookies</a><a href="/archive.html#login">Log in</a></nav>
+    <nav aria-label="Footer navigation"><a href="#how-it-works">How it works</a><a href="#member-experience">Member experience</a><a href="#pricing">Pricing</a><a href="/uk/how-to-catalogue-trophy-winners/">UK guide</a><a href="/us/how-to-catalog-trophy-winners/">US guide</a><a href="/integrations/intelligent-golf/">Intelligent Golf</a><a href="/privacy.html">Privacy &amp; cookies</a><a href="/archive.html#login">Log in</a></nav>
     <small>© 2026 Trophy Archive AI. AI readings require human verification.</small>
   </footer>
 </body>

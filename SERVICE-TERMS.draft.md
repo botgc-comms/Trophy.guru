@@ -32,6 +32,8 @@ Pack upgrades add the difference in credits and charge the difference in pack pr
 
 ## Optional recurring integrations
 
+The proposed Intelligent Golf option is £299 per club per year, separate from one-off trophy credits, with no per-member fee. [Confirm tax treatment, setup scope, supported delivery method and renewal/cancellation wording before activation.] It remains in development and is not currently available to purchase.
+
 A separately accepted integration order must identify the supported platform, included setup/support, price and tax, billing frequency, renewal terms, cancellation method and what happens when payment fails or access ends. Cancelling an integration must not delete the core trophy archive. [Complete and test notices, cancellation, refunds and any applicable consumer subscription obligations before offering this option.] No integration is advertised as available until it can actually be delivered.
 
 ## Support, remedies and ending the service

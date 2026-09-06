@@ -8,6 +8,12 @@ public static class BillingEndpoints
 {
     public static void MapBillingEndpoints(this WebApplication app)
     {
+        app.MapGet("/api/public/integrations/intelligent-golf", async (HttpContext context, StripeBillingService stripe) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(await stripe.IntegrationOfferAsync(context.RequestAborted));
+        }).AllowAnonymous();
+
         app.MapGet("/api/billing", (HttpContext context, AccountStore accounts, BillingStore billing, StripeBillingService stripe) => Respond(async () =>
         {
             var account = await AccountAsync(context, accounts, billing, false);
@@ -17,6 +23,7 @@ public static class BillingEndpoints
             foreach (var purchase in purchases.Where(x => x.State == "paid"))
                 foreach (var pack in TrophyCreditPack.All)
                     try { upgrades.Add(billing.Quote(account.ClubId!, pack.Code, purchase.Id)); } catch (BillingException) { }
+            var integrationOffer = await stripe.IntegrationOfferAsync(context.RequestAborted);
             return Results.Ok(new
             {
                 balance = new { balance.Unlimited, balance.Available, balance.Reserved, balance.Used, balance.OnHold },
@@ -25,7 +32,7 @@ public static class BillingEndpoints
                 paymentsEnabled = stripe.Enabled, mode = stripe.Mode,
                 owner = AccountSecurity.IsOwner(account), emailVerified = AccountSecurity.IsEmailVerified(account),
                 portalAvailable = stripe.Enabled && balance.CustomerId != null,
-                integrationAvailable = stripe.IntegrationAvailable,
+                integrationAvailable = integrationOffer.Available, integrationOffer, integrationSubscription = billing.IntegrationSubscription(account.ClubId!),
                 allowance = new { free = new { photos = 12, analyses = 3, illustrations = 2 }, paid = new { photos = 40, analyses = 12, illustrations = 3 } }
             });
         }));

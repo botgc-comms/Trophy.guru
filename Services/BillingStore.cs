@@ -29,12 +29,20 @@ public sealed class BillingStore
             CREATE UNIQUE INDEX IF NOT EXISTS one_upgrade ON billing_purchases(upgrade_from) WHERE upgrade_from IS NOT NULL AND state IN ('pending','paid','review');
             CREATE TABLE IF NOT EXISTS payment_holds(payment_id TEXT PRIMARY KEY, kind TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS stripe_events(id TEXT PRIMARY KEY, event_type TEXT NOT NULL, created_at INTEGER NOT NULL);
-            CREATE TABLE IF NOT EXISTS integration_subscriptions(subscription_id TEXT PRIMARY KEY, club_id TEXT NOT NULL, status TEXT NOT NULL, active_until INTEGER NOT NULL, price_id TEXT NOT NULL, updated_at INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS integration_subscriptions(subscription_id TEXT PRIMARY KEY, club_id TEXT NOT NULL, status TEXT NOT NULL, active_until INTEGER NOT NULL, price_id TEXT NOT NULL, updated_at INTEGER NOT NULL, stripe_status TEXT);
+            CREATE TABLE IF NOT EXISTS integration_checkouts(id TEXT PRIMARY KEY, club_id TEXT NOT NULL, price_id TEXT NOT NULL, state TEXT NOT NULL, checkout_id TEXT UNIQUE, checkout_url TEXT, created_at INTEGER NOT NULL);
+            CREATE UNIQUE INDEX IF NOT EXISTS one_pending_integration_checkout ON integration_checkouts(club_id) WHERE state='pending';
             CREATE TABLE IF NOT EXISTS billable_jobs(id TEXT PRIMARY KEY, club_id TEXT NOT NULL, trophy_id TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL, message TEXT NOT NULL, due_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, evidence_count INTEGER NOT NULL DEFAULT 0);
             CREATE UNIQUE INDEX IF NOT EXISTS one_active_job ON billable_jobs(club_id,trophy_id,kind) WHERE state IN ('queued','running','needs_review');
             CREATE INDEX IF NOT EXISTS jobs_due ON billable_jobs(kind,state,due_at);
             CREATE TABLE IF NOT EXISTS ai_attempts(job_id TEXT PRIMARY KEY, club_id TEXT NOT NULL, trophy_id TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL);
             """);
+        // Additive sidecar migration: archive, identity and existing subscription rows stay intact.
+        var hasProviderStatus = false;
+        using (var columns = Command(db, null, "PRAGMA table_info(integration_subscriptions)"))
+        using (var reader = columns.ExecuteReader())
+            while (reader.Read()) if (reader.GetString(1) == "stripe_status") hasProviderStatus = true;
+        if (!hasProviderStatus) Execute(db, null, "ALTER TABLE integration_subscriptions ADD COLUMN stripe_status TEXT");
         // A crash after sending a request has an unknown provider outcome. Never blindly replay it.
         Execute(db, null, "UPDATE billable_jobs SET state='needs_review',message='This request was interrupted. Its provider outcome needs review before retrying.',updated_at=$now WHERE state='running'", ("$now", Now));
         return Task.CompletedTask;
@@ -61,10 +69,10 @@ public sealed class BillingStore
         return 0;
     });
 
-    public void SyncSubscription(string subscriptionId, string clubId, string status, long activeUntil, string priceId) => Write((db, tx) =>
+    public void SyncSubscription(string subscriptionId, string clubId, string status, long activeUntil, string priceId, string? providerStatus = null) => Write((db, tx) =>
     {
-        Execute(db, tx, "INSERT INTO integration_subscriptions(subscription_id,club_id,status,active_until,price_id,updated_at) VALUES($id,$club,$status,$until,$price,$now) ON CONFLICT(subscription_id) DO UPDATE SET status=$status,active_until=$until,price_id=$price,updated_at=$now WHERE club_id=$club",
-            ("$id", subscriptionId), ("$club", clubId), ("$status", status), ("$until", activeUntil), ("$price", priceId), ("$now", Now));
+        Execute(db, tx, "INSERT INTO integration_subscriptions(subscription_id,club_id,status,active_until,price_id,updated_at,stripe_status) VALUES($id,$club,$status,$until,$price,$now,$providerStatus) ON CONFLICT(subscription_id) DO UPDATE SET status=$status,active_until=$until,price_id=$price,updated_at=$now,stripe_status=$providerStatus WHERE club_id=$club",
+            ("$id", subscriptionId), ("$club", clubId), ("$status", status), ("$until", activeUntil), ("$price", priceId), ("$now", Now), ("$providerStatus", providerStatus ?? status));
         return 0;
     });
 
@@ -73,6 +81,48 @@ public sealed class BillingStore
         using var db = Open();
         return Scalar(db, null, "SELECT COUNT(*) FROM integration_subscriptions WHERE club_id=$club AND price_id=$price AND status='active' AND active_until>$now", ("$club", clubId), ("$price", priceId), ("$now", DateTimeOffset.UtcNow.ToUnixTimeSeconds())) > 0;
     }
+    public IntegrationSubscriptionState IntegrationSubscription(string clubId)
+    {
+        using var db = Open();
+        using var cmd = Command(db, null, "SELECT status,stripe_status,active_until FROM integration_subscriptions WHERE club_id=$club ORDER BY CASE WHEN stripe_status IN ('canceled','incomplete_expired') THEN 1 ELSE 0 END,updated_at DESC LIMIT 1", ("$club", clubId));
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read()) return new(false, false, "none", null);
+        var status = S(reader, "stripe_status") ?? S(reader, "status")!;
+        var current = status is not ("canceled" or "incomplete_expired");
+        var until = Convert.ToInt64(reader["active_until"]);
+        var paidThrough = S(reader, "status") == "active" && until > DateTimeOffset.UtcNow.ToUnixTimeSeconds() && until <= DateTimeOffset.MaxValue.ToUnixTimeSeconds()
+            ? DateTimeOffset.FromUnixTimeSeconds(until) : (DateTimeOffset?)null;
+        return new(true, current, status, paidThrough);
+    }
+
+    // Keep the order before asking Stripe to create a session. New browser request IDs and
+    // restarts must reuse the same provider idempotency key until Stripe resolves that session.
+    public IntegrationCheckoutOrder GetOrCreateIntegrationCheckout(string clubId, string priceId) => Write((db, tx) =>
+    {
+        if (Balance(db, tx, clubId).OnHold) throw new BillingException("billing_review", "Billing is awaiting review. Contact support before making another purchase.");
+        using (var cmd = Command(db, tx, "SELECT * FROM integration_checkouts WHERE club_id=$club AND state='pending'", ("$club", clubId)))
+        using (var reader = cmd.ExecuteReader())
+            if (reader.Read()) return IntegrationCheckout(reader);
+        var order = new IntegrationCheckoutOrder(Guid.NewGuid().ToString("N"), clubId, priceId, null, null, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        Execute(db, tx, "INSERT INTO integration_checkouts(id,club_id,price_id,state,created_at) VALUES($id,$club,$price,'pending',$created)",
+            ("$id", order.Id), ("$club", clubId), ("$price", priceId), ("$created", order.CreatedAt));
+        return order;
+    });
+
+    public void AttachIntegrationCheckout(string orderId, string checkoutId, string checkoutUrl) => Write((db, tx) =>
+    {
+        if (Execute(db, tx, "UPDATE integration_checkouts SET checkout_id=$session,checkout_url=$url WHERE id=$id AND state='pending' AND (checkout_id IS NULL OR checkout_id=$session)",
+            ("$session", checkoutId), ("$url", checkoutUrl), ("$id", orderId)) != 1)
+            throw new BillingException("integration_checkout_conflict", "This integration checkout needs support to review its payment status.");
+        return 0;
+    });
+
+    public void ExpireIntegrationCheckout(string orderId) => Write((db, tx) =>
+    {
+        Execute(db, tx, "UPDATE integration_checkouts SET state='expired' WHERE id=$id AND state='pending'", ("$id", orderId));
+        return 0;
+    });
+
     public IReadOnlyList<BillingPurchase> Purchases(string clubId)
     {
         using var db = Open();
@@ -314,6 +364,7 @@ public sealed class BillingStore
         using var reader = cmd.ExecuteReader();
         return reader.Read() ? Purchase(reader) : null;
     }
+    private static IntegrationCheckoutOrder IntegrationCheckout(SqliteDataReader r) => new(S(r,"id")!, S(r,"club_id")!, S(r,"price_id")!, S(r,"checkout_id"), S(r,"checkout_url"), Convert.ToInt64(r["created_at"]));
     private static BillingPurchase Purchase(SqliteDataReader r) => new(S(r,"id")!, S(r,"club_id")!, S(r,"pack_code")!, Convert.ToInt32(r["credits"]), Convert.ToInt64(r["amount_pence"]), S(r,"state")!, S(r,"upgrade_from"), S(r,"checkout_id"), S(r,"checkout_url"), S(r,"payment_id"), S(r,"request_id"));
     private static DurableBillableJob Job(SqliteDataReader r) => new(S(r,"id")!, S(r,"club_id")!, S(r,"trophy_id")!, S(r,"kind")!, S(r,"state")!, S(r,"message")!, DateTimeOffset.FromUnixTimeMilliseconds(Convert.ToInt64(r["due_at"])), DateTimeOffset.FromUnixTimeMilliseconds(Convert.ToInt64(r["updated_at"])), Convert.ToInt32(r["evidence_count"]));
     private static string? S(SqliteDataReader r, string name) => r[name] is DBNull ? null : Convert.ToString(r[name]);

@@ -97,12 +97,15 @@ public static class EntryPoint
         var marketingDocuments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["/"] = Path.Combine(webRootPath, "index.html"),
+            ["/integrations/intelligent-golf/"] = Path.Combine(webRootPath, "integrations", "intelligent-golf", "index.html"),
             ["/uk/how-to-catalogue-trophy-winners/"] = Path.Combine(webRootPath, "uk", "how-to-catalogue-trophy-winners", "index.html"),
             ["/us/how-to-catalog-trophy-winners/"] = Path.Combine(webRootPath, "us", "how-to-catalog-trophy-winners", "index.html")
         };
         var marketingRedirects = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["/index.html"] = "/",
+            ["/integrations/intelligent-golf"] = "/integrations/intelligent-golf/",
+            ["/integrations/intelligent-golf/index.html"] = "/integrations/intelligent-golf/",
             ["/uk/how-to-catalogue-trophy-winners"] = "/uk/how-to-catalogue-trophy-winners/",
             ["/uk/how-to-catalogue-trophy-winners/index.html"] = "/uk/how-to-catalogue-trophy-winners/",
             ["/us/how-to-catalog-trophy-winners"] = "/us/how-to-catalog-trophy-winners/",

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -11,11 +12,18 @@ namespace Trophy.Catalogue.Services;
 public sealed class StripeBillingService(IHttpClientFactory clients, IConfiguration configuration, BillingStore billing)
 {
     private readonly SemaphoreSlim webhookGate = new(1, 1);
+    private readonly SemaphoreSlim offerGate = new(1, 1);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> integrationCheckoutGates = new(StringComparer.Ordinal);
+    private IntegrationOffer? cachedIntegrationOffer;
+    private string? cachedIntegrationPrice;
+    private DateTimeOffset integrationOfferExpires;
+
     public string Mode => configuration["BILLING_MODE"] ?? "disabled";
     private string SecretKey => configuration["STRIPE_SECRET_KEY"] ?? "";
     private string WebhookSecret => configuration["STRIPE_WEBHOOK_SECRET"] ?? "";
     private string IntegrationPrice => configuration["STRIPE_IG_PRICE_ID"] ?? "";
-    public bool IntegrationAvailable => Enabled && configuration.GetValue<bool>("IG_INTEGRATION_AVAILABLE") && IntegrationPrice.StartsWith("price_", StringComparison.Ordinal);
+    private bool IntegrationConfigured => Enabled && configuration.GetValue<bool>("IG_INTEGRATION_AVAILABLE") && IntegrationPrice.StartsWith("price_", StringComparison.Ordinal);
+    public bool IntegrationAvailable => IntegrationConfigured && cachedIntegrationPrice == Mode + ":" + IntegrationPrice && cachedIntegrationOffer?.Available == true && integrationOfferExpires > DateTimeOffset.UtcNow;
     public bool Enabled => ValidConfiguration();
 
     private bool ValidConfiguration()
@@ -29,6 +37,57 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
             _ => false
         };
     }
+
+    public async Task<IntegrationOffer> IntegrationOfferAsync(CancellationToken cancellationToken, bool refresh = false)
+    {
+        if (!configuration.GetValue<bool>("IG_INTEGRATION_AVAILABLE"))
+            return IntegrationOffer.IntelligentGolf(false, "coming_soon", "Planned optional extra. Purchases open after the supported Intelligent Golf integration is ready to deliver.");
+        if (!Enabled)
+            return IntegrationOffer.IntelligentGolf(false, "payments_unavailable", "Online payments are not enabled yet.");
+        if (!IntegrationConfigured)
+            return IntegrationOffer.IntelligentGolf(false, "price_unavailable", "The annual integration checkout is not configured yet.");
+        await offerGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!refresh && cachedIntegrationPrice == Mode + ":" + IntegrationPrice && cachedIntegrationOffer != null && integrationOfferExpires > DateTimeOffset.UtcNow)
+                return cachedIntegrationOffer;
+            IntegrationOffer offer;
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(TimeSpan.FromSeconds(10));
+                using var result = await RequestAsync(HttpMethod.Get, "prices/" + Uri.EscapeDataString(IntegrationPrice), null, null, timeout.Token);
+                offer = IsSupportedIntegrationPrice(result.RootElement)
+                    ? IntegrationOffer.IntelligentGolf(true, "available")
+                    : IntegrationOffer.IntelligentGolf(false, "price_unavailable", "The annual integration checkout is not configured with the advertised £299 GBP yearly price.");
+            }
+            catch (Exception e) when (e is HttpRequestException or JsonException or BillingException || e is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                offer = IntegrationOffer.IntelligentGolf(false, "price_unavailable", "The annual checkout could not be verified. Please try again later.");
+            }
+            cachedIntegrationOffer = offer;
+            cachedIntegrationPrice = Mode + ":" + IntegrationPrice;
+            integrationOfferExpires = DateTimeOffset.UtcNow.AddSeconds(60);
+            return offer;
+        }
+        finally { offerGate.Release(); }
+    }
+
+    private bool IsSupportedIntegrationPrice(JsonElement price)
+    {
+        if (price.ValueKind != JsonValueKind.Object || String(price, "id") != IntegrationPrice || String(price, "object") != "price" ||
+            !True(price, "active") || !price.TryGetProperty("livemode", out var live) || live.ValueKind is not (JsonValueKind.True or JsonValueKind.False) || live.GetBoolean() != (Mode == "live") ||
+            String(price, "currency") != "gbp" || String(price, "type") != "recurring" || String(price, "billing_scheme") != "per_unit" ||
+            !NullOrMissing(price, "custom_unit_amount") || !NullOrMissing(price, "tiers_mode") || !NullOrMissing(price, "transform_quantity") ||
+            !price.TryGetProperty("unit_amount", out var amount) || amount.ValueKind != JsonValueKind.Number || !amount.TryGetInt64(out var pence) || pence != IntegrationOffer.IntelligentGolfAmountPence ||
+            !price.TryGetProperty("recurring", out var recurring) || recurring.ValueKind != JsonValueKind.Object ||
+            String(recurring, "interval") != "year" || String(recurring, "usage_type") != "licensed" ||
+            !recurring.TryGetProperty("interval_count", out var count) || count.ValueKind != JsonValueKind.Number || !count.TryGetInt32(out var periods) || periods != 1)
+            return false;
+        return true;
+    }
+    private static bool True(JsonElement value, string key) => value.TryGetProperty(key, out var property) && property.ValueKind == JsonValueKind.True;
+    private static bool NullOrMissing(JsonElement value, string key) => !value.TryGetProperty(key, out var property) || property.ValueKind == JsonValueKind.Null;
 
     private string SiteUrl => configuration["PUBLIC_SITE_URL"]!.TrimEnd('/');
     private void RequireEnabled() { if (!Enabled) throw new BillingException("payments_unavailable", "Payments are not enabled. Your existing archive remains available.", 503); }
@@ -68,20 +127,63 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
 
     public async Task<string> IntegrationCheckoutAsync(AccountRecord account, string requestId, CancellationToken cancellationToken)
     {
-        if (!IntegrationAvailable) throw new BillingException("integration_unavailable", "The managed Intelligent Golf integration is not available to purchase yet.", 503);
         if (!Guid.TryParse(requestId, out _)) throw new BillingException("invalid_request", "A checkout request identifier is required.", 400);
-        if (billing.HasActiveIntegration(account.ClubId!, IntegrationPrice)) throw new BillingException("already_subscribed", "This club already has an active integration. Manage it through billing.");
-        var customer = await CustomerAsync(account, cancellationToken);
-        using var result = await RequestAsync(HttpMethod.Post, "checkout/sessions", new()
+        var offer = await IntegrationOfferAsync(cancellationToken, refresh: true);
+        if (!offer.Available) throw new BillingException("integration_unavailable", offer.AvailabilityReason ?? "The Intelligent Golf integration is not available to purchase yet.", 503);
+        var gate = integrationCheckoutGates.GetOrAdd(account.ClubId!, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
         {
-            ["mode"] = "subscription", ["customer"] = customer,
-            ["success_url"] = SiteUrl + "/archive.html?billing=success", ["cancel_url"] = SiteUrl + "/archive.html?billing=cancelled",
-            ["line_items[0][price]"] = IntegrationPrice, ["line_items[0][quantity]"] = "1",
-            ["metadata[club_id]"] = account.ClubId!, ["subscription_data[metadata][club_id]"] = account.ClubId!,
-            ["payment_method_types[0]"] = "card"
-        }, "integration:" + account.ClubId + ":" + requestId, cancellationToken);
-        var url = RequiredString(result.RootElement, "url"); ValidateStripeRedirect(url, "checkout.stripe.com"); return url;
+            if (billing.IntegrationSubscription(account.ClubId!).Current) throw AlreadySubscribed();
+            var customer = await CustomerAsync(account, cancellationToken);
+            var order = billing.GetOrCreateIntegrationCheckout(account.ClubId!, IntegrationPrice);
+            if (order.PriceId != IntegrationPrice) throw new BillingException("integration_checkout_review", "A previous integration checkout needs support to review before the configured price can change.");
+            if (order.CheckoutId is not null)
+            {
+                using var prior = await RequestAsync(HttpMethod.Get, "checkout/sessions/" + Uri.EscapeDataString(order.CheckoutId), null, null, cancellationToken);
+                var session = prior.RootElement;
+                if (String(session, "id") != order.CheckoutId || String(session, "mode") != "subscription" || Id(session, "customer") != customer ||
+                    Metadata(session, "club_id") != account.ClubId || Metadata(session, "integration_order_id") != order.Id ||
+                    !session.TryGetProperty("livemode", out var live) || live.ValueKind is not (JsonValueKind.True or JsonValueKind.False) || live.GetBoolean() != (Mode == "live"))
+                    throw new BillingException("integration_checkout_mismatch", "The existing integration checkout needs support to verify its ownership.");
+                var status = String(session, "status");
+                if (status == "open")
+                {
+                    var existingUrl = RequiredString(session, "url"); ValidateStripeRedirect(existingUrl, "checkout.stripe.com"); return existingUrl;
+                }
+                if (status == "complete")
+                {
+                    var subscriptionId = Id(session, "subscription");
+                    if (subscriptionId is null) throw new BillingException("integration_payment_pending", "Your integration payment is still being confirmed. Manage billing before starting another checkout.");
+                    var subscriptionStatus = await RefreshSubscriptionAsync(subscriptionId, cancellationToken);
+                    if (subscriptionStatus is not ("canceled" or "incomplete_expired")) throw AlreadySubscribed();
+                }
+                else if (status != "expired") throw new BillingException("integration_payment_pending", "The previous integration checkout is still being confirmed.");
+                billing.ExpireIntegrationCheckout(order.Id);
+                order = billing.GetOrCreateIntegrationCheckout(account.ClubId!, IntegrationPrice);
+            }
+            // Stripe retains idempotency keys for at least 24 hours. An older unknown response
+            // must be reconciled by support, never silently retried as a second subscription.
+            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - order.CreatedAt > 23 * 60 * 60)
+                throw new BillingException("integration_checkout_review", "The outcome of an earlier integration checkout needs support to review before trying again.");
+            using var result = await RequestAsync(HttpMethod.Post, "checkout/sessions", new()
+            {
+                ["mode"] = "subscription", ["customer"] = customer,
+                ["success_url"] = SiteUrl + "/archive.html?billing=success", ["cancel_url"] = SiteUrl + "/archive.html?billing=cancelled",
+                ["expires_at"] = (order.CreatedAt + 24 * 60 * 60).ToString(CultureInfo.InvariantCulture),
+                ["line_items[0][price]"] = order.PriceId, ["line_items[0][quantity]"] = "1",
+                ["metadata[club_id]"] = account.ClubId!, ["metadata[integration_order_id]"] = order.Id,
+                ["subscription_data[metadata][club_id]"] = account.ClubId!, ["subscription_data[metadata][integration_order_id]"] = order.Id,
+                ["payment_method_types[0]"] = "card"
+            }, "integration-order:" + order.Id, cancellationToken);
+            var url = RequiredString(result.RootElement, "url"); ValidateStripeRedirect(url, "checkout.stripe.com");
+            billing.AttachIntegrationCheckout(order.Id, RequiredString(result.RootElement, "id"), url);
+            return url;
+        }
+        finally { gate.Release(); }
     }
+
+    private static BillingException AlreadySubscribed() => new("already_subscribed", "This club already has an integration subscription or a payment awaiting confirmation. Manage it through billing.");
 
     private async Task<string> CustomerAsync(AccountRecord account, CancellationToken cancellationToken)
     {
@@ -140,11 +242,11 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
         finally { webhookGate.Release(); }
     }
 
-    private async Task RefreshSubscriptionAsync(string id, CancellationToken cancellationToken)
+    private async Task<string?> RefreshSubscriptionAsync(string id, CancellationToken cancellationToken)
     {
         using var result = await RequestAsync(HttpMethod.Get, "subscriptions/" + Uri.EscapeDataString(id) + "?expand[]=latest_invoice", null, null, cancellationToken);
         var sub = result.RootElement; var club = Metadata(sub, "club_id");
-        if (club is null) return;
+        if (club is null) return null;
         var customer = Id(sub, "customer");
         if (customer != billing.Balance(club).CustomerId) throw new BillingException("wrong_customer", "Subscription customer mismatch.", 400);
         var items = sub.GetProperty("items").GetProperty("data");
@@ -152,7 +254,8 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
         var status = RequiredString(sub, "status");
         var paid = sub.TryGetProperty("latest_invoice", out var invoice) && invoice.ValueKind == JsonValueKind.Object && String(invoice, "status") == "paid";
         var periodEnd = sub.TryGetProperty("current_period_end", out var end) ? end.GetInt64() : 0;
-        billing.SyncSubscription(id, club, status == "active" && paid && priceId == IntegrationPrice ? "active" : "inactive", periodEnd, priceId ?? "");
+        billing.SyncSubscription(id, club, status == "active" && paid && priceId == IntegrationPrice ? "active" : "inactive", periodEnd, priceId ?? "", status);
+        return status;
     }
 
     public static bool VerifySignature(byte[] body, string header, string secret, DateTimeOffset now)
