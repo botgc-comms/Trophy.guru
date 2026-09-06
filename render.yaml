@@ -11,6 +11,8 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: PUBLIC_SITE_URL
+        value: https://trophy.guru
       - key: DATA_PATH
         value: /var/data
       - key: APP_PASSWORD
