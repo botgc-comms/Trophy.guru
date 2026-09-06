@@ -56,9 +56,11 @@ The reference renderer sends a shared `X-BOTGC-Website-Key` injected into downlo
 
 Those checks cannot protect a commercial members-only API: downloaded JavaScript can be inspected, browser variables can be changed, and a non-browser client can supply an Origin header. The current reference also obtains administrator permissions using a client-supplied member ID. Do not carry that trust model or the browser-driven mutation routes into the commercial connector.
 
-Security correction from the deeper 6 September audit: `BOTGC.API/Program.cs:351` explicitly excludes `/api/cms/pages` from `AuthKeyMiddleware`. The HTML and Markdown publishing actions in `Controllers/CmsController.cs:237,309` have no independent authorisation requirement, and the global website middleware only acts on routes marked `ClubWebsite`. The inspected source therefore leaves those publishing actions unauthenticated. The earlier statement that the publisher was protected by its API-key middleware was incorrect. Verify the deployed version and restrict these routes before reuse; the publishing request sending a key does not prove the server requires it. See [security audit](SECURITY-AUDIT-2026-09-06.md).
+The supplied files are UX/functionality references only. Their BOTGC-specific administration API is not a dependency of the new plugin. Implement and verify a dedicated server-side installation/publishing connection only where needed; no publisher or archive-write credential belongs in the member page or CDN script. The separate historical service observations are outside the current scope.
 
 ## Product scope and boundaries
+
+User clarification: the plugin is a read-only member experience. Do not reproduce trophy creation, editing, deletion or administration from the example page. Those actions, including member matching, stay in the authenticated Trophy Archive app. Read-only permissions must be enforced on the server, not merely by hiding buttons.
 
 The proposed £299-per-club annual managed option can cover installation on an agreed Intelligent Golf page, club branding, ongoing compatibility maintenance, access to the selected delivery mode and support. Its member-facing features should be described precisely:
 
@@ -75,7 +77,7 @@ Purchasing the annual option should create an installation entitlement, not auto
 
 1. Select and implement the pilot delivery mode with the club; record the desired audience and approved data scope.
 2. Build per-club connector configuration, safely held publisher credentials, page/domain bindings, installation status and rollback.
-3. Adapt the reference renderer to the approved Trophy Archive snapshot contract and remove BOTGC API dependencies and administration controls.
+3. Build the shared read-only renderer around the Trophy Archive board and approved snapshot contract, using the supplied page only as a UX reference. Do not bring its administration controls or BOTGC API dependencies into the plugin.
 4. Add approved archive-person to provider-player mappings. Preserve the original inscription and unmatched historical names.
 5. For CMS snapshots, implement reviewed publication, refresh and verified withdrawal into the protected page. For a live API, implement verified identity and entitlement checks before enabling private data routes.
 6. Connect annual subscription events to the connector entitlement and installation workflow; verify the configured Stripe price is annual, in GBP and agrees with the amount shown to the buyer.

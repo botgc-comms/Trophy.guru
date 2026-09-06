@@ -11,6 +11,7 @@
       const response = await fetch('/api/auth/status', { credentials: 'same-origin' });
       if (!response.ok) return;
       const auth = await response.json();
+      window.TrophyRegionalGuide?.update(auth.club?.country);
       if (!auth.authenticated) return;
 
       document.querySelector('#signed-out-actions').hidden = true;

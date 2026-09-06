@@ -8,8 +8,11 @@ namespace Trophy.Catalogue.Services;
 public sealed class CatalogueStore(
     IWebHostEnvironment environment,
     IConfiguration configuration,
-    ClubContextAccessor clubContext)
+    ClubContextAccessor clubContext,
+    BillingStore? billing = null)
 {
+    private readonly ArchiveResourceLimits resourceLimits = new(configuration);
+    private readonly SemaphoreSlim storageGate = ArchiveResourceLimits.StorageGate;
     private readonly ConcurrentDictionary<string, TenantCatalogue> tenants = new(StringComparer.OrdinalIgnoreCase);
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -55,6 +58,7 @@ public sealed class CatalogueStore(
         await tenant.Gate.WaitAsync(cancellationToken);
         try
         {
+            resourceLimits.CheckTrophyCount(tenant.State.Trophies.Count + 1, Allowance(tenant));
             var requestedCode = AppDataPath.SafeSegment(input.Code ?? string.Empty).ToUpperInvariant();
             var id = string.IsNullOrWhiteSpace(requestedCode) ? NextTrophyId(tenant) : requestedCode;
             if (id.Length > 24) id = id[..24];
@@ -90,6 +94,10 @@ public sealed class CatalogueStore(
         {
             var trophy = Find(tenant, trophyId);
             if (trophy is null) return null;
+            CheckPhotoAllowanceUnsafe(tenant, trophy);
+            ArchiveResourceLimits.ValidateUploadMetadata(originalName, contentType);
+            if (kind is not (EvidenceKinds.Photo or EvidenceKinds.Rubbing))
+                throw new BillingException("invalid_image_kind", "Choose a photograph or rubbing.", 400);
             var evidence = new EvidenceImage
             {
                 OriginalName = Path.GetFileName(originalName),
@@ -100,13 +108,12 @@ public sealed class CatalogueStore(
             evidence.StoredName = $"{evidence.Id}{ExtensionFor(contentType)}";
             evidence.Url = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/images/{evidence.Id}";
             var directory = Path.Combine(UploadRoot(tenant), AppDataPath.SafeSegment(trophy.Id));
-            Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, evidence.StoredName);
-            await using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-                await content.CopyToAsync(output, cancellationToken);
-            trophy.Evidence.Add(evidence);
-            trophy.Status = TrophyStatuses.InProgress;
-            await SaveUnsafeAsync(tenant, cancellationToken);
+            await SaveImageUnsafeAsync(tenant, path, content, () =>
+            {
+                trophy.Evidence.Add(evidence);
+                trophy.Status = TrophyStatuses.InProgress;
+            }, cancellationToken);
             return Clone(evidence);
         }
         finally { tenant.Gate.Release(); }
@@ -169,10 +176,11 @@ public sealed class CatalogueStore(
                     winner.EvidenceReference = null;
             }
             var directory = Path.Combine(UploadRoot(tenant), AppDataPath.SafeSegment(trophy.Id));
-            if (Directory.Exists(directory))
-                foreach (var path in Directory.EnumerateFiles(directory, $"{evidence.Id}.*")) File.Delete(path);
             trophy.Status = TrophyStatuses.InProgress;
             await SaveUnsafeAsync(tenant, cancellationToken);
+            // A rejected metadata save must never leave a saved record pointing at a deleted file.
+            if (Directory.Exists(directory))
+                foreach (var path in Directory.EnumerateFiles(directory, $"{evidence.Id}.*")) File.Delete(path);
             return true;
         }
         finally { tenant.Gate.Release(); }
@@ -191,6 +199,8 @@ public sealed class CatalogueStore(
         {
             var trophy = Find(tenant, trophyId);
             if (trophy is null) return null;
+            CheckPhotoAllowanceUnsafe(tenant, trophy);
+            ArchiveResourceLimits.ValidateUploadMetadata(originalName, contentType);
             var photo = new EvidenceImage
             {
                 OriginalName = Path.GetFileName(originalName),
@@ -201,13 +211,12 @@ public sealed class CatalogueStore(
             photo.StoredName = $"{photo.Id}{ExtensionFor(contentType)}";
             photo.Url = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/trophy-photos/{photo.Id}";
             var directory = Path.Combine(TrophyPhotoRoot(tenant), AppDataPath.SafeSegment(trophy.Id));
-            Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, photo.StoredName);
-            await using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-                await content.CopyToAsync(output, cancellationToken);
-            trophy.TrophyPhotos.Add(photo);
-            trophy.Status = TrophyStatuses.InProgress;
-            await SaveUnsafeAsync(tenant, cancellationToken);
+            await SaveImageUnsafeAsync(tenant, path, content, () =>
+            {
+                trophy.TrophyPhotos.Add(photo);
+                trophy.Status = TrophyStatuses.InProgress;
+            }, cancellationToken);
             return Clone(photo);
         }
         finally { tenant.Gate.Release(); }
@@ -264,10 +273,10 @@ public sealed class CatalogueStore(
             if (trophy is null || photo is null) return false;
             trophy.TrophyPhotos.Remove(photo);
             var directory = Path.Combine(TrophyPhotoRoot(tenant), AppDataPath.SafeSegment(trophy.Id));
-            if (Directory.Exists(directory))
-                foreach (var path in Directory.EnumerateFiles(directory, $"{photo.Id}.*")) File.Delete(path);
             trophy.Status = TrophyStatuses.InProgress;
             await SaveUnsafeAsync(tenant, cancellationToken);
+            if (Directory.Exists(directory))
+                foreach (var path in Directory.EnumerateFiles(directory, $"{photo.Id}.*")) File.Delete(path);
             return true;
         }
         finally { tenant.Gate.Release(); }
@@ -539,23 +548,52 @@ public sealed class CatalogueStore(
 
     public async Task<TrophyRecord?> SaveIllustrationAsync(string trophyId, byte[] image, CancellationToken cancellationToken = default)
     {
+        if (image.LongLength == 0 || image.LongLength > resourceLimits.IllustrationBytes)
+            throw new BillingException("illustration_limit", "The generated illustration exceeds the allowed image size.", 413);
         var tenant = await GetTenantAsync(cancellationToken);
         await tenant.Gate.WaitAsync(cancellationToken);
         try
         {
             var trophy = Find(tenant, trophyId);
             if (trophy is null) return null;
+            await storageGate.WaitAsync(cancellationToken);
             var path = Path.Combine(IllustrationRoot(tenant), $"{AppDataPath.SafeSegment(trophy.Id)}.png");
             var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
-            await File.WriteAllBytesAsync(temporaryPath, image, cancellationToken);
-            File.Move(temporaryPath, path, true);
-            trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
-            trophy.IllustrationState = IllustrationStates.Complete;
-            trophy.IllustrationMessage = "Illustration generated from the saved trophy photographs.";
-            trophy.IllustrationGenerationCount++;
-            trophy.IllustrationGeneratedAt = DateTimeOffset.UtcNow;
-            await SaveUnsafeAsync(tenant, cancellationToken);
-            return Clone(trophy);
+            var backupPath = $"{path}.{Guid.NewGuid():N}.previous";
+            var replaced = false;
+            var committed = false;
+            try
+            {
+                var previousLength = File.Exists(path) ? new FileInfo(path).Length : 0;
+                resourceLimits.CheckWrite(dataRoot, tenant.Root, Allowance(tenant), image.LongLength, previousLength);
+                await File.WriteAllBytesAsync(temporaryPath, image, cancellationToken);
+                if (File.Exists(path)) File.Replace(temporaryPath, path, backupPath, ignoreMetadataErrors: true);
+                else File.Move(temporaryPath, path);
+                replaced = true;
+                trophy.ReferenceImage = $"/api/trophies/{Uri.EscapeDataString(trophy.Id)}/illustration";
+                trophy.IllustrationState = IllustrationStates.Complete;
+                trophy.IllustrationMessage = "Illustration generated from the saved trophy photographs.";
+                trophy.IllustrationGenerationCount++;
+                trophy.IllustrationGeneratedAt = DateTimeOffset.UtcNow;
+                await SaveUnsafeAsync(tenant, cancellationToken, storageGateHeld: true);
+                committed = true;
+                TryDeleteTemporary(backupPath);
+                return Clone(trophy);
+            }
+            catch when (!committed)
+            {
+                RestoreSavedState(tenant);
+                // Replace atomically on rollback too. If a reader prevents restoration, retain
+                // the backup for recovery; never delete the last saved illustration in cleanup.
+                if (File.Exists(backupPath)) File.Replace(backupPath, path, null, ignoreMetadataErrors: true);
+                else if (replaced) TryDeleteTemporary(path);
+                throw;
+            }
+            finally
+            {
+                try { TryDeleteTemporary(temporaryPath); }
+                finally { storageGate.Release(); }
+            }
         }
         finally { tenant.Gate.Release(); }
     }
@@ -719,7 +757,8 @@ public sealed class CatalogueStore(
             }
             tenant.State.Version = 9;
             tenant.State.Trophies = tenant.State.Trophies.OrderBy(trophy => trophy.Id, StringComparer.OrdinalIgnoreCase).ToList();
-            await SaveUnsafeAsync(tenant, cancellationToken);
+            // Cache migrations in memory; merely reading an archive must not rewrite its files.
+            tenant.SavedState = JsonSerializer.SerializeToUtf8Bytes(tenant.State, jsonOptions);
             tenant.Initialized = true;
             return tenant;
         }
@@ -734,13 +773,129 @@ public sealed class CatalogueStore(
         return await JsonSerializer.DeserializeAsync<List<TrophySeed>>(stream, jsonOptions, cancellationToken) ?? [];
     }
 
-    private async Task SaveUnsafeAsync(TenantCatalogue tenant, CancellationToken cancellationToken)
+    private ArchiveAllowance Allowance(TenantCatalogue tenant) => resourceLimits.Allowance(billing?.Balance(tenant.ClubId));
+
+    private void CheckPhotoAllowanceUnsafe(TenantCatalogue tenant, TrophyRecord trophy)
     {
-        tenant.State.UpdatedAt = DateTimeOffset.UtcNow;
-        var temporaryPath = $"{StatePath(tenant)}.{Guid.NewGuid():N}.tmp";
-        await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-            await JsonSerializer.SerializeAsync(stream, tenant.State, jsonOptions, cancellationToken);
-        File.Move(temporaryPath, StatePath(tenant), true);
+        // The count and file creation run under the same tenant gate, including concurrent batches.
+        var count = trophy.Evidence.Count + trophy.TrophyPhotos.Count + 1;
+        if (billing is not null) billing.CheckPhotoAllowance(tenant.ClubId, trophy.Id, count);
+        else if (count > 12) throw new BillingException("photo_limit", "The current allowance is 12 saved photographs per trophy.", 402);
+    }
+
+    private async Task SaveImageUnsafeAsync(TenantCatalogue tenant, string path, Stream content, Action applyMetadata, CancellationToken cancellationToken)
+    {
+        await storageGate.WaitAsync(cancellationToken);
+        var created = false;
+        try
+        {
+            var allowance = Allowance(tenant);
+            var maximum = Math.Min(resourceLimits.UploadBytes, resourceLimits.RemainingFileBytes(dataRoot, tenant.Root, allowance));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                created = true;
+                await ArchiveResourceLimits.CopyBoundedAsync(content, output, maximum, cancellationToken);
+            }
+            applyMetadata();
+            await SaveUnsafeAsync(tenant, cancellationToken, storageGateHeld: true);
+        }
+        catch
+        {
+            RestoreSavedState(tenant);
+            if (created) File.Delete(path);
+            throw;
+        }
+        finally { storageGate.Release(); }
+    }
+
+    private async Task SaveUnsafeAsync(TenantCatalogue tenant, CancellationToken cancellationToken, bool storageGateHeld = false)
+    {
+        // Always acquire the tenant gate first, then protect the shared disk across clubs.
+        var acquired = false;
+        string? temporaryPath = null;
+        try
+        {
+            if (!storageGateHeld)
+            {
+                await storageGate.WaitAsync(cancellationToken);
+                acquired = true;
+            }
+            var previous = JsonSerializer.Deserialize<CatalogueState>(tenant.SavedState, jsonOptions) ?? new();
+            var allowance = Allowance(tenant);
+            resourceLimits.ValidateState(tenant.State, previous, allowance);
+            tenant.State.UpdatedAt = DateTimeOffset.UtcNow;
+            // Existing records above today's limit remain readable and can shrink, but cannot grow.
+            using var buffer = new BoundedArchiveStream(Math.Max(resourceLimits.StateBytes, tenant.SavedState.LongLength));
+            await JsonSerializer.SerializeAsync(buffer, tenant.State, jsonOptions, cancellationToken);
+            var stateBytes = buffer.ToArray();
+            ValidateMetadataStrings(stateBytes, tenant.SavedState);
+            var statePath = StatePath(tenant);
+            resourceLimits.CheckWrite(dataRoot, tenant.Root, allowance, stateBytes.LongLength,
+                File.Exists(statePath) ? new FileInfo(statePath).Length : 0);
+            temporaryPath = $"{statePath}.{Guid.NewGuid():N}.tmp";
+            await File.WriteAllBytesAsync(temporaryPath, stateBytes, cancellationToken);
+            File.Move(temporaryPath, statePath, true);
+            tenant.SavedState = stateBytes;
+        }
+        catch
+        {
+            RestoreSavedState(tenant);
+            throw;
+        }
+        finally
+        {
+            try { if (temporaryPath is not null) TryDeleteTemporary(temporaryPath); }
+            finally { if (acquired) storageGate.Release(); }
+        }
+    }
+
+    private static void TryDeleteTemporary(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    private void RestoreSavedState(TenantCatalogue tenant) =>
+        tenant.State = JsonSerializer.Deserialize<CatalogueState>(tenant.SavedState, jsonOptions) ?? new();
+
+    private static void ValidateMetadataStrings(byte[] currentBytes, byte[] previousBytes)
+    {
+        using var current = JsonDocument.Parse(currentBytes);
+        using var previous = JsonDocument.Parse(previousBytes);
+        Check(current.RootElement, previous.RootElement);
+        static void Check(JsonElement value, JsonElement previous)
+        {
+            if (value.ValueKind == JsonValueKind.String)
+                ArchiveResourceLimits.CheckText(value.GetString(), previous.ValueKind == JsonValueKind.String ? previous.GetString() : null,
+                    16384, "Archive metadata");
+            else if (value.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in value.EnumerateObject())
+                {
+                    var old = previous.ValueKind == JsonValueKind.Object && previous.TryGetProperty(property.Name, out var found) ? found : default;
+                    Check(property.Value, old);
+                }
+            }
+            else if (value.ValueKind == JsonValueKind.Array)
+            {
+                var previousById = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+                if (previous.ValueKind == JsonValueKind.Array)
+                    foreach (var item in previous.EnumerateArray())
+                        if (item.ValueKind == JsonValueKind.Object && item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
+                            previousById.TryAdd(id.GetString()!, item);
+                var index = 0;
+                foreach (var item in value.EnumerateArray())
+                {
+                    var old = previous.ValueKind == JsonValueKind.Array && index < previous.GetArrayLength() ? previous[index] : default;
+                    if (item.ValueKind == JsonValueKind.Object && item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
+                        old = previousById.GetValueOrDefault(id.GetString()!);
+                    Check(item, old);
+                    index++;
+                }
+            }
+        }
     }
 
     private static string StatePath(TenantCatalogue tenant) => Path.Combine(tenant.Root, "catalogue-state.json");
@@ -855,6 +1010,7 @@ public sealed class CatalogueStore(
         public string Root { get; } = root;
         public SemaphoreSlim Gate { get; } = new(1, 1);
         public CatalogueState State { get; set; } = new();
+        public byte[] SavedState { get; set; } = "{}"u8.ToArray();
         public bool Initialized { get; set; }
     }
 }

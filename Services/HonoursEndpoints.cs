@@ -27,7 +27,7 @@ public static class HonoursEndpoints
             if (account?.ClubId is null) return Results.Unauthorized();
             try { return Results.Ok(await store.PreviewAsync(account.ClubId, options, cancellationToken)); }
             catch (PublicationException exception) { return Invalid(exception); }
-        });
+        }).WithMetadata(new RequestBodyLimit(1024 * 1024));
 
         app.MapPost("/api/publication/publish", async (HttpContext context, PublishHonoursInput input,
             HonoursPublicationStore store, CancellationToken cancellationToken) =>
@@ -39,7 +39,7 @@ public static class HonoursEndpoints
                 error = "publication_owner_required", message = "A club owner with a verified email address must approve publication." }, statusCode: 403);
             try { return Results.Ok(new { publication = Status(await store.PublishAsync(account.ClubId, account.Id, input, cancellationToken)) }); }
             catch (PublicationException exception) { return Invalid(exception); }
-        });
+        }).WithMetadata(new RequestBodyLimit(1024 * 1024));
 
         app.MapPost("/api/publication/withdraw", async (HttpContext context, HonoursPublicationStore store, CancellationToken cancellationToken) =>
         {

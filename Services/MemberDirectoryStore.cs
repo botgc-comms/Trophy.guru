@@ -1,11 +1,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Xml;
-using System.Xml.Linq;
 using Trophy.Catalogue.Domain;
 
 namespace Trophy.Catalogue.Services;
@@ -15,6 +12,7 @@ public sealed class MemberDirectoryStore(
     IConfiguration configuration,
     ClubContextAccessor clubContext)
 {
+    private readonly SemaphoreSlim importGate = new(1, 1);
     private readonly ConcurrentDictionary<string, TenantDirectory> tenants = new(StringComparer.OrdinalIgnoreCase);
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly string dataRoot = AppDataPath.Resolve(environment, configuration);
@@ -50,6 +48,7 @@ public sealed class MemberDirectoryStore(
         ManualMemberInput input,
         CancellationToken cancellationToken = default)
     {
+        ValidateManualFields(input);
         var fullName = Clean(input.FullName ?? string.Empty);
         if (fullName.Length < 2) throw new MemberImportException("Enter the member's full name.");
         if (fullName.Length > 200) throw new MemberImportException("Keep the member's name under 200 characters.");
@@ -97,6 +96,10 @@ public sealed class MemberDirectoryStore(
             var existing = tenant.State.Members.FirstOrDefault(item => SameMember(item, member));
             if (existing is not null) return Clone(existing);
 
+            if (tenant.State.Members.Count >= MemberImportLimits.Members)
+                throw new MemberImportException("The directory already contains 10,000 members. No existing members have been changed.");
+            var previousState = tenant.State;
+            tenant.State = new MemberDirectoryState { Members = previousState.Members.ToList(), SourceName = previousState.SourceName, ImportedAt = previousState.ImportedAt };
             tenant.State.Members.Add(member);
             tenant.State.Members = tenant.State.Members
                 .OrderBy(item => item.Surname)
@@ -104,7 +107,8 @@ public sealed class MemberDirectoryStore(
                 .ToList();
             tenant.State.SourceName ??= "Manually maintained directory";
             tenant.State.ImportedAt ??= DateTimeOffset.UtcNow;
-            await SaveUnsafeAsync(tenant, cancellationToken);
+            try { await SaveUnsafeAsync(tenant, cancellationToken); }
+            catch { tenant.State = previousState; throw; }
             return Clone(member);
         }
         finally { tenant.Gate.Release(); }
@@ -115,13 +119,15 @@ public sealed class MemberDirectoryStore(
         Stream content,
         CancellationToken cancellationToken = default)
     {
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var rows = extension switch
-        {
-            ".xlsx" => ReadXlsx(content),
-            ".xml" => ReadXml(content),
-            _ => await ReadDelimitedAsync(content, cancellationToken)
-        };
+        if (!await importGate.WaitAsync(0, cancellationToken))
+            throw new MemberImportException("Another member import is in progress. Try again once it finishes.");
+        try { return await ImportCoreAsync(fileName, content, cancellationToken); }
+        finally { importGate.Release(); }
+    }
+
+    private async Task<MemberImportResult> ImportCoreAsync(string fileName, Stream content, CancellationToken cancellationToken)
+    {
+        var rows = await MemberImportReader.ReadAsync(fileName, content, cancellationToken);
         if (rows.Count < 2) throw new MemberImportException("The member file does not contain any data rows.");
 
         var headers = rows[0].Select(NormalizeHeader).ToList();
@@ -133,6 +139,7 @@ public sealed class MemberDirectoryStore(
         var skipped = 0;
         foreach (var row in rows.Skip(1))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var fullName = Cell(row, columns.FullName);
             var firstName = Cell(row, columns.FirstName);
             var initial = Cell(row, columns.Initial);
@@ -152,6 +159,7 @@ public sealed class MemberDirectoryStore(
             var birthYear = parsedBirthDate.Year;
             var joinYear = ParseYearOrDate(Cell(row, columns.DateJoined));
             if (birthYear.HasValue && joinYear.HasValue && joinYear.Value < birthYear.Value) joinYear = null;
+            ValidateImportedFields(fullName, firstName, initial, surname, Cell(row, columns.MembershipNumber));
             members.Add(new MemberRecord
             {
                 FullName = Clean(fullName),
@@ -180,12 +188,14 @@ public sealed class MemberDirectoryStore(
         await tenant.Gate.WaitAsync(cancellationToken);
         try
         {
-            var previousMembers = tenant.State.Members;
+            var previousState = tenant.State;
+            var previousMembers = previousState.Members;
             var updatedCount = 0;
             var membershipNumbersAdded = 0;
             var matchedPreviousIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var member in members)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var previous = FindPreviousMember(previousMembers, members, member, matchedPreviousIds);
                 if (previous is null) continue;
                 member.Id = previous.Id;
@@ -196,6 +206,8 @@ public sealed class MemberDirectoryStore(
                 updatedCount++;
             }
             members.AddRange(previousMembers.Where(member => member.ManuallyAdded && !members.Any(imported => SameMember(imported, member))));
+            if (members.Count > MemberImportLimits.Members)
+                throw new MemberImportException("The import and retained manual entries exceed 10,000 members. The existing directory has not been changed.");
             members = members
                 .OrderBy(member => member.Surname)
                 .ThenBy(member => member.FirstName)
@@ -206,7 +218,8 @@ public sealed class MemberDirectoryStore(
                 SourceName = Path.GetFileName(fileName),
                 ImportedAt = DateTimeOffset.UtcNow
             };
-            await SaveUnsafeAsync(tenant, cancellationToken);
+            try { await SaveUnsafeAsync(tenant, cancellationToken); }
+            catch { tenant.State = previousState; throw; }
             return new MemberImportResult(members.Count, updatedCount, membershipNumbersAdded, skipped, tenant.State.SourceName!, tenant.State.ImportedAt!.Value);
         }
         finally { tenant.Gate.Release(); }
@@ -249,169 +262,37 @@ public sealed class MemberDirectoryStore(
     private async Task SaveUnsafeAsync(TenantDirectory tenant, CancellationToken cancellationToken)
     {
         var temporaryPath = $"{tenant.StatePath}.{Guid.NewGuid():N}.tmp";
-        await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-            await JsonSerializer.SerializeAsync(stream, tenant.State, jsonOptions, cancellationToken);
-        File.Move(temporaryPath, tenant.StatePath, true);
-    }
-
-    private async Task<List<List<string>>> ReadDelimitedAsync(Stream content, CancellationToken cancellationToken)
-    {
-        using var reader = new StreamReader(content, Encoding.UTF8, true, 81920, leaveOpen: true);
-        var text = await reader.ReadToEndAsync(cancellationToken);
-        return ParseDelimited(text, DetectSeparator(text));
-    }
-
-    private static char DetectSeparator(string text)
-    {
-        var firstLine = text.Split(new[] { "\r\n", "\n" }, 2, StringSplitOptions.None)[0];
-        var candidates = new[] { ',', '\t', ';' };
-        return candidates.OrderByDescending(separator => firstLine.Count(character => character == separator)).First();
-    }
-
-    private static List<List<string>> ParseDelimited(string text, char separator)
-    {
-        var rows = new List<List<string>>();
-        var row = new List<string>();
-        var field = new StringBuilder();
-        var quoted = false;
-        for (var index = 0; index < text.Length; index++)
+        try
         {
-            var character = text[index];
-            if (character == '"')
+            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
             {
-                if (quoted && index + 1 < text.Length && text[index + 1] == '"')
-                {
-                    field.Append('"');
-                    index++;
-                }
-                else quoted = !quoted;
+                await JsonSerializer.SerializeAsync(stream, tenant.State, jsonOptions, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+                stream.Flush(flushToDisk: true);
             }
-            else if (character == separator && !quoted)
-            {
-                row.Add(field.ToString());
-                field.Clear();
-            }
-            else if ((character == '\r' || character == '\n') && !quoted)
-            {
-                if (character == '\r' && index + 1 < text.Length && text[index + 1] == '\n') index++;
-                row.Add(field.ToString());
-                field.Clear();
-                if (row.Any(value => !string.IsNullOrWhiteSpace(value))) rows.Add(row);
-                row = [];
-            }
-            else field.Append(character);
+            File.Move(temporaryPath, tenant.StatePath, true);
         }
-        row.Add(field.ToString());
-        if (row.Any(value => !string.IsNullOrWhiteSpace(value))) rows.Add(row);
-        return rows;
-    }
-
-    private static List<List<string>> ReadXml(Stream content)
-    {
-        var settings = new XmlReaderSettings
+        finally
         {
-            DtdProcessing = DtdProcessing.Prohibit,
-            XmlResolver = null,
-            MaxCharactersInDocument = 50 * 1024 * 1024
-        };
-        using var reader = XmlReader.Create(content, settings);
-        var document = XDocument.Load(reader, LoadOptions.None);
-        var rowGroups = document
-            .Descendants()
-            .Where(element => element.Elements().Any() && element.Elements().All(child => !child.Elements().Any()))
-            .GroupBy(element => element.Name.LocalName, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(group => group.Count())
-            .ThenByDescending(group => group.First().Elements().Count())
-            .ToList();
-        var records = rowGroups.FirstOrDefault()?.ToList()
-            ?? throw new MemberImportException("The XML file does not contain recognisable member rows.");
-
-        var headers = records
-            .SelectMany(record => record.Attributes().Select(attribute => attribute.Name.LocalName)
-                .Concat(record.Elements().Select(element => element.Name.LocalName)))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (headers.Count == 0) throw new MemberImportException("The XML member rows do not contain any fields.");
-
-        var rows = new List<List<string>> { headers };
-        foreach (var record in records)
-        {
-            var fields = record.Attributes().ToDictionary(attribute => attribute.Name.LocalName, attribute => attribute.Value, StringComparer.OrdinalIgnoreCase);
-            foreach (var element in record.Elements()) fields[element.Name.LocalName] = element.Value;
-            rows.Add(headers.Select(header => fields.GetValueOrDefault(header, string.Empty)).ToList());
+            try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
-        return rows;
-    }
-    private static List<List<string>> ReadXlsx(Stream content)
-    {
-        using var archive = new ZipArchive(content, ZipArchiveMode.Read, leaveOpen: true);
-        var sharedStrings = ReadSharedStrings(archive);
-        var workbook = LoadXml(archive, "xl/workbook.xml");
-        XNamespace main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        XNamespace rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-        var relationshipId = workbook.Descendants(main + "sheet").FirstOrDefault()?.Attribute(rel + "id")?.Value
-            ?? throw new MemberImportException("The workbook does not contain a worksheet.");
-        var relationships = LoadXml(archive, "xl/_rels/workbook.xml.rels");
-        XNamespace packageRel = "http://schemas.openxmlformats.org/package/2006/relationships";
-        var target = relationships.Descendants(packageRel + "Relationship")
-            .FirstOrDefault(node => node.Attribute("Id")?.Value == relationshipId)?.Attribute("Target")?.Value
-            ?? throw new MemberImportException("The first worksheet could not be opened.");
-        target = target.Replace('\\', '/').TrimStart('/');
-        var sheetPath = target.StartsWith("xl/", StringComparison.OrdinalIgnoreCase) ? target : $"xl/{target}";
-        var sheet = LoadXml(archive, sheetPath);
-
-        var rows = new List<List<string>>();
-        foreach (var rowElement in sheet.Descendants(main + "row"))
-        {
-            var values = new SortedDictionary<int, string>();
-            foreach (var cell in rowElement.Elements(main + "c"))
-            {
-                var reference = cell.Attribute("r")?.Value ?? string.Empty;
-                var columnIndex = ColumnIndex(reference);
-                var type = cell.Attribute("t")?.Value;
-                string value;
-                if (type == "inlineStr") value = string.Concat(cell.Descendants(main + "t").Select(node => node.Value));
-                else
-                {
-                    value = cell.Element(main + "v")?.Value ?? string.Empty;
-                    if (type == "s" && int.TryParse(value, out var sharedIndex) && sharedIndex >= 0 && sharedIndex < sharedStrings.Count)
-                        value = sharedStrings[sharedIndex];
-                }
-                values[columnIndex] = value;
-            }
-            if (values.Count == 0) continue;
-            var output = Enumerable.Repeat(string.Empty, values.Keys.Max() + 1).ToList();
-            foreach (var (index, value) in values) output[index] = value;
-            rows.Add(output);
-        }
-        return rows;
     }
 
-    private static List<string> ReadSharedStrings(ZipArchive archive)
+    private static void ValidateManualFields(ManualMemberInput input)
     {
-        var entry = archive.GetEntry("xl/sharedStrings.xml");
-        if (entry is null) return [];
-        using var stream = entry.Open();
-        var document = XDocument.Load(stream);
-        XNamespace main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        return document.Descendants(main + "si")
-            .Select(item => string.Concat(item.Descendants(main + "t").Select(node => node.Value)))
-            .ToList();
+        if ((input.FullName?.Length ?? 0) > 200 || (input.MembershipNumber?.Length ?? 0) > 80 ||
+            (input.DateOfBirth?.Length ?? 0) > 64 || (input.DateJoined?.Length ?? 0) > 64 || (input.Gender?.Length ?? 0) > 32)
+            throw new MemberImportException("Keep names under 201 characters, membership numbers under 81 characters, and dates and gender concise.");
     }
 
-    private static XDocument LoadXml(ZipArchive archive, string path)
+    private static void ValidateImportedFields(string fullName, string firstName, string initial, string surname, string membershipNumber)
     {
-        var entry = archive.GetEntry(path) ?? throw new MemberImportException($"The workbook component '{path}' is missing.");
-        if (entry.Length > 50 * 1024 * 1024) throw new MemberImportException("That workbook expands beyond the safe import limit.");
-        using var stream = entry.Open();
-        return XDocument.Load(stream);
-    }
-
-    private static int ColumnIndex(string reference)
-    {
-        var result = 0;
-        foreach (var character in reference.TakeWhile(char.IsLetter)) result = result * 26 + char.ToUpperInvariant(character) - 'A' + 1;
-        return Math.Max(0, result - 1);
+        if (new[] { fullName, firstName, initial, surname }.Any(value => value.Length > 200))
+            throw new MemberImportException("Keep each imported member name under 201 characters.");
+        if (membershipNumber.Length > 80)
+            throw new MemberImportException("Keep imported membership numbers under 81 characters.");
     }
 
     private static MemberColumns ResolveColumns(IReadOnlyList<string> headers) => new(

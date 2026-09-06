@@ -12,10 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260905-co-winner-1">
+  <link rel="stylesheet" href="/styles.css?v=20260906-completed-export-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
-  <link rel="stylesheet" href="/analytics.css?v=20260906-1">
-  <script src="/analytics.js?v=20260906-1" defer></script>
   <link rel="stylesheet" href="/publication.css?v=20260906-1">
   <link rel="stylesheet" href="/integration-offer.css?v=20260906-1">
   <link rel="stylesheet" href="/billing.css?v=20260906-1">
@@ -64,6 +62,10 @@
           <p class="eyebrow">Club collection</p>
           <h1>Choose a trophy</h1>
           <p class="intro">Photograph or upload its winner records and build a verified list.</p>
+          <a id="export-completed-button" class="completed-export-button" href="/api/export.csv?completedOnly=true" download title="Export all completed trophies as CSV">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
+            <span>Export completed</span>
+          </a>
         </div>
         <div class="collection-progress" aria-label="Archive progress">
           <strong id="complete-count">—</strong><span>of <b id="total-count">—</b><br>catalogued</span>

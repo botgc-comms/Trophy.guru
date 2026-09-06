@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  if (['/archive.html', '/account-security.html'].includes(location.pathname.toLowerCase())) return;
 
   // The embedded fictional board is part of its parent's page, which owns consent.
   if (window.parent !== window && location.pathname.toLowerCase() === '/honours.html' &&

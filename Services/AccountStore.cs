@@ -36,7 +36,7 @@ public sealed partial class AccountStore(
         finally { gate.Release(); }
 
         var legacyPassword = configuration["APP_PASSWORD"];
-        if (LegacyArchiveExists && !string.IsNullOrWhiteSpace(legacyPassword))
+        if (LegacyArchiveExists && !state.Accounts.Any(account => account.ClubId == "legacy" && account.Role == AccountRoles.Owner) && !string.IsNullOrWhiteSpace(legacyPassword))
             await OpenLegacyArchiveAsync(legacyPassword, cancellationToken);
     }
 
@@ -91,6 +91,19 @@ public sealed partial class AccountStore(
         finally { gate.Release(); }
     }
 
+    public async Task<AccountRecord?> AuthenticateOriginalArchiveAsync(string? password, CancellationToken cancellationToken = default)
+    {
+        if (!LegacyArchiveExists || string.IsNullOrEmpty(password) || password.Length > 128) return null;
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var account = state.Accounts.FirstOrDefault(item => item.ClubId == "legacy" && item.Role == AccountRoles.Owner);
+            if (account is null || passwordHasher.VerifyHashedPassword(account, account.PasswordHash, password) == PasswordVerificationResult.Failed) return null;
+            return Clone(account);
+        }
+        finally { gate.Release(); }
+    }
+
     public async Task<AccountRecord> OpenLegacyArchiveAsync(string credential, CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
@@ -129,8 +142,8 @@ public sealed partial class AccountStore(
                 state.Accounts.Add(account);
             }
             // Opening the original archive never reassigns another account or replaces
-            // its saved name, email, password, role or club. The legacy password remains
-            // an independently checked login path in LegacyArchiveAccess.
+            // its saved name, email, password, role or club. This method is for initialisation;
+            // HTTP login must use AuthenticateOriginalArchiveAsync and the current account password.
 
             account.HasUnlimitedTrophyCredits = true;
             account.PlanCode = "unlimited";

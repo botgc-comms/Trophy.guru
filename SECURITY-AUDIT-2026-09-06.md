@@ -2,9 +2,25 @@
 
 ## Scope and decision
 
-The current Trophy.guru working tree and the supplied older BOTGC Intelligent Golf page were reviewed. The latter led to a targeted review of its BOTGC.API trophy, CMS and authentication code. Findings concern the inspected source, including uncommitted changes. No live club website, production API, deployment credentials, hosting dashboard or WAF was tested. No real trophy, identity, image, original account or application source was changed. This report and two earlier audit documents were written/corrected.
+Scope clarified by the user: assess the new Trophy.guru service and its proposed read-only Intelligent Golf member integration. The three supplied BOTGC files are examples of the desired experience, not a request to audit that older service or reproduce its administration features. The earlier review went beyond this scope; those observations are retained separately in REFERENCE-SERVICE-NOTES-2026-09-06.md and are not findings against Trophy.guru or prerequisites for its launch.
 
-**Do not treat the previous functional test pass as production security approval. There are confirmed application weaknesses to fix and serious source-level flaws in the older service before it can be reused.** No evidence of an actual intrusion was sought or found by this source review. Deployed exposure remains unknown.
+This report records the original source review and the subsequent local remediation in Trophy.guru, including uncommitted changes. No live service, hosting dashboard, deployment credentials or WAF was tested. Remediation changes application source only; the original account, trophy data and illustrations are preserved.
+
+**The five confirmed source findings below have now been addressed locally.** The finding descriptions preserve the original evidence and refer to the pre-remediation code; their line numbers are historical. This is not production security approval. No evidence of an actual intrusion was sought or found by this source review. Deployed exposure remains unknown.
+
+## Remediation status
+
+| Finding | Local change |
+|---|---|
+| TA-1: resource exhaustion | Bounded free/paid/shared storage, credit-backed draft limits, serialised quota checks, bounded metadata and streaming uploads; verified resource endpoints; strict CSV/XML/XLSX import limits and one concurrent import. Rejected writes preserve existing records and image files. |
+| TA-2: anonymous lock growth | A fixed pool of 128 publication locks replaces an unbounded per-ID dictionary. Public reads and expensive operations now have rate/concurrency limits. |
+| TA-3: independent legacy password | The original-archive login now checks the existing account’s current password hash. `APP_PASSWORD` can bootstrap a missing original owner, but cannot bypass an existing owner’s password or create a passwordless Development login. Startup preserves existing identity-file bytes. |
+| TA-4: verification bypass | Verification follows matched endpoint metadata, so route case and trailing slashes do not bypass it. |
+| TA-5: CSV formulas | Export prefixes formula-shaped cells safely while retaining original archive text. |
+| Publication storage | Streamed artwork is capped at 64 MiB per version; identical approval creates no extra copies. Only recognised obsolete publication copies are cleaned after commit, retaining current/previous. Withdrawal remains available over quota. |
+| Browser hardening | Removed analytics execution from private archive/login pages; removed unrestricted inline scripts from CSP, using a fresh nonce for public structured data. |
+
+Storage allowances are deployment-configurable. Existing over-limit records remain readable; reaching a limit does not delete them. The original owner’s unlimited credit entitlement is retained. See `LAUNCH-RUNBOOK.md` for exact defaults and remaining production checks. Public-name copying, member authentication for Intelligent Golf, owner MFA, edit history and verified off-host recovery remain separate matters below.
 
 ## Direct answer: browser credentials
 
@@ -12,33 +28,9 @@ The current Trophy.guru working tree and the supplied older BOTGC Intelligent Go
 
 Authentication uses an ASP.NET encrypted/authenticated session cookie. Source configures HttpOnly, SameSite=Strict and Secure outside Development, with a 30-day sliding lifetime (`EntryPoint.cs:40–52`). Page JavaScript cannot read the HttpOnly cookie. It is still a credential: theft through a compromised device/browser can permit impersonation, and injected same-origin JavaScript can make authenticated requests without reading it. Browser storage holds consent/preferences and checkout retry IDs, not login tokens. Reset/verification/invitation links contain short-lived capability tokens; the recovery page removes the fragment from the address bar and holds it in memory, and the server stores a hash and checks purpose/expiry/single use.
 
-**Older BOTGC Intelligent Golf page:** `trophy-winners.js:4` contains a deployment placeholder for a shared website access key; lines 36–47 attach it to API requests. It does not contain a literal member password or bearer-token implementation. The deployed key value was not inspected or disclosed. If substituted into the downloadable script, it can be recovered by anyone able to obtain that script. It cannot prove which member is signed in.
+## Intended plugin boundary
 
-## Urgent findings in the older BOTGC.API integration
-
-### IG-1 — Critical: CMS publishing routes lack authentication in the inspected source
-
-`../Services/BOTGC.API/Program.cs:351` excludes the entire `/api/cms/pages` prefix from `AuthKeyMiddleware`. `CmsController.cs:237` (Markdown publishing) and `:309` (HTML publishing) have no authorisation requirement. There is no global fallback authorisation policy; `ClubWebsiteMiddleware` applies only to actions bearing its attribute. These two actions lack it.
-
-The HTML action uses the server's Intelligent Golf connection to save supplied page content (`Services/QueryHandlers/UpdateCmsPageHandler.cs:69–81`). The Markdown action also accepts public/restricted settings (`CmsController.cs:280–302`). If this source is deployed without an independent upstream restriction, an unauthenticated caller could alter club pages, introduce malicious content or change their visibility. No mutation or live probe was attempted.
-
-**Action:** verify deployed code and restrict publishing immediately if this route is reachable. Require explicit authenticated server-to-server publisher permissions, deny by default, and test unauthenticated/ordinary-member rejection. Keeping a key in the CI request is insufficient when the receiving route does not require it.
-
-**Correction:** the previous integration note said the CMS publisher had API-key protection. That missed the middleware exemption and was incorrect; the note and launch runbook have now been corrected.
-
-### IG-2 — High: a browser-shared key permits trophy mutation and directory harvesting
-
-`ClubWebsiteMiddleware.cs:59–80` checks Origin plus the shared website key, not a verified member session. `TrophiesController.cs:366–388` permits trophy winner creation/overwrite and `:95–118` deletion without administrator identity checks. The member search endpoint at `:163–186` returns directory names, membership numbers and player IDs under the same weak boundary. Restricting the CMS page or hiding edit buttons does not restrict these independent API calls.
-
-**Impact:** a holder of the delivered browser key can make direct requests to read data or change records if the deployed service matches this source. A non-browser client can supply an Origin header; CORS is a browser policy, not proof of identity. [OWASP REST security guidance](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html).
-
-**Action:** authenticate the member server-side and enforce administrator permissions for writes. Do not provide membership-directory access through browser-shared credentials. Rotate the old key after replacing the trust model; rotation alone does not fix it.
-
-### IG-3 — High: CMS document permissions trust a supplied member ID
-
-`CmsController.cs:454–481` permits permission lookup using a query member ID. `CmsDocumentAuthorisationService.cs:94–110` compares that supplied ID to administrator records without establishing caller identity. Configuration and document operations accept similar submitted IDs (`CmsController.cs:135–170,514–519,624–637`).
-
-**Action:** derive identity from verified authentication on the server, never from request fields or `window.userID`. A page-local approved snapshot protected by Intelligent Golf remains a potential alternative for read-only honours, but only after the publisher and restricted-page protections are verified.
+The Intelligent Golf member page is read-only: browse approved honours, search winners and trophy histories, and show “My trophies” using approved member links. Trophy creation, edits, deletion, member matching and publication decisions remain in the authenticated Trophy Archive administration app. Enforce this distinction in server permissions; hiding controls is insufficient. The page/CDN script must not contain reusable private API secrets or credentials that grant archive-write access. Private read access still requires a verified member connection or a genuinely restricted page-local snapshot.
 
 ## Findings in the new Trophy.guru service
 
@@ -91,26 +83,35 @@ The new implementation does keep private archives inaccessible until explicit pu
 ## Additional hardening and recovery gaps
 
 - **Account takeover resistance:** no MFA/passkey support was found. Password hashing, generic login errors, rate limiting, owner/editor separation and session-version revocation exist, but a stolen owner password still authorises damaging edits. Owner MFA/passkeys and stronger credential-abuse controls are appropriate before scaling.
-- **Browser script containment:** the general archive/login CSP permits `script-src 'unsafe-inline'` (`EntryPoint.cs:127`), reducing protection if an HTML injection is later found. No credible stored-XSS path was found in reviewed name/description rendering; this is a defence-in-depth gap, not proof of an existing injection exploit. Prefer nonce/hash policies and remove unnecessary inline execution. [OWASP CSP guidance](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html).
-- **Third-party scripts:** with consent, production archive/login pages load Google Analytics JavaScript (`archive.html:18`, `analytics.js:138–162`). The current event wrapper excludes names and private parameters, but a third-party script runs with page privileges. Keep account/evidence screens free of third-party execution where practical; the recovery page already is. Consent is not a technical sandbox.
+- **Browser script containment — remediated locally:** the original general archive/login CSP permitted `script-src 'unsafe-inline'` (`EntryPoint.cs:127`), reducing protection if an HTML injection is later found. No credible stored-XSS path was found in reviewed name/description rendering; this is a defence-in-depth gap, not proof of an existing injection exploit. Prefer nonce/hash policies and remove unnecessary inline execution. [OWASP CSP guidance](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html).
+- **Third-party scripts — remediated locally:** with consent, the original archive/login pages loaded Google Analytics JavaScript (`archive.html:18`, `analytics.js:138–162`). The current event wrapper excludes names and private parameters, but a third-party script runs with page privileges. Keep account/evidence screens free of third-party execution where practical; the recovery page already is. Consent is not a technical sandbox.
 - **Recovery after malicious edits:** winner and evidence deletion is permanent in the current catalogue, with state replacement and no per-edit user-attributed revision/undo system (`CatalogueStore.cs:164–175,425–427,737–743`). Publication has a limited audit trail; that is not a general trophy-edit history. Offline backup/restore tooling exists, but scheduled encrypted off-host backups, restore drills and immutable edit history were not verified. Compromised editors are allowed to edit within their club, so detection and restoration matter even when tenant checks work.
 - **Keys and server compromise:** account/catalogue/ledger files are not application-encrypted, and the session key ring is persisted to disk without an explicit wrapping/encryption provider (`EntryPoint.cs:36–38`). Microsoft notes that explicit file-system key persistence disables automatic at-rest key encryption unless separately configured. Hosting disk encryption and actual filesystem permissions were not checked. Restrict backup/key access and encrypt off-host backups/keys appropriately. [Microsoft key-storage documentation](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/implementation/key-storage-providers?view=aspnetcore-10.0).
 - **Deployment:** Dockerfile has no explicit non-root user. Live TLS/HSTS, trusted proxy/IP rate-limit behaviour, hosting-account MFA, WAF limits, disk permissions, secrets and monitoring remain unverified. Do not infer they are absent solely because application code does not configure them. The package scan found no currently reported vulnerable NuGet dependencies; it does not scan the deployed .NET runtime, container OS or custom-code vulnerabilities.
 
-## Verification performed
+## Original audit verification
 
-- Read-only review of current application and relevant old integration source; no source mutations or live attack traffic.
+- Read-only review of the current application; no application-source mutations or live attack traffic. Out-of-scope reference-service observations were separated after user clarification.
 - Redacted secret-pattern scan of 42 browser text files: no matches.
 - `dotnet list Trophy.Catalogue.csproj package --vulnerable --include-transitive`: no reported vulnerable packages from current NuGet sources.
 - Bounded calculations/reflection with fictional fixtures: unchecked XLSX allocation size (no allocation), accepted secondary-name length, harmless CSV formula, legacy-password survival.
 - Isolated loopback 5197 app with fictional data and no AI key: mixed-case verification bypass observed; test server stopped.
 - Reviewed existing tenant/session/publication protections and prior regression coverage. No confirmed anonymous private-cabinet access, cross-club read/edit bypass or stored-XSS exploit found in the new app during this limited audit. That does not constitute a penetration-test certification.
 
-## Remediation order
+## Original remediation priorities and remaining launch work
 
-1. Verify/restrict the old service's CMS publishing and trophy mutations; remove shared-browser-key access to private directories before any reuse.
+1. Keep the plugin read-only with a narrowly scoped read-data contract; keep archive administration and its credentials within the authenticated service.
 2. Close the new service's resource-exhaustion paths, anonymous lock-cache growth and AI verification bypass.
 3. Safely retire the independent legacy login credential while preserving and verifying original-account access.
 4. Decide public versus member-restricted data delivery; review static artwork separately.
 5. Add export protection, owner account hardening, edit recovery/audit and verified off-host backups; tighten browser/server settings.
 6. Re-test the actual deployed build and edge configuration with isolated test clubs, including attempts to read and mutate another club's objects. Obtain an independent targeted penetration test before treating launch readiness as complete.
+
+
+## Remediation verification — 6 September 2026
+
+- Full Release regression suite: **150 passed, zero failed**. New coverage includes bounded imports/ZIP/XML parsing, storage/concurrent writes and cancellation rollback, original illustration preservation, current-password legacy login, metadata-based workload limits, CSV protection, publication retention/failure and over-quota withdrawal.
+- Isolated HTTP/browser checks passed for route casing/trailing slashes, verification, fixed-length/chunked oversized requests, private access and tenant isolation, publication/withdrawal, password reset and revoked sessions. No JavaScript errors occurred on the tested desktop/mobile pages under the stricter CSP.
+- All four homepage gallery illustrations remain; only their visible name captions and identifying alt text were removed. One regional guide link is selected, using a signed-in club country first and browser language/timezone fallback; explicit UK/US guide URLs remain usable.
+- The three original data files still match the preservation manifest byte for byte. No original account, catalogue record or illustration was altered during remediation testing.
+- No production deployment, live penetration test, MFA implementation, hosting configuration or backup scheduling is included in these results. Public records remain copyable; the protected Intelligent Golf delivery mechanism remains subject to its documented release gate.

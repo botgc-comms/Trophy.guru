@@ -65,7 +65,7 @@ public static class EntryPoint
             options.AddPolicy("authentication", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            EndpointSecurity.ConfigureLimits(options);
         });
         builder.Services.AddSingleton<IPasswordHasher<AccountRecord>, PasswordHasher<AccountRecord>>();
         builder.Services.AddSingleton<ClubContextAccessor>();
@@ -123,8 +123,14 @@ public static class EntryPoint
             var isHonoursDemo = context.Request.Path.Equals("/honours.html", StringComparison.OrdinalIgnoreCase) &&
                 context.Request.Query["demo"] == "1";
             var frameAncestors = isHonoursDemo ? "'self'" : "'none'";
+            var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24));
+            context.Items["csp-nonce"] = nonce;
+            var privatePage = context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
+                context.Request.Path.Equals("/account-security.html", StringComparison.OrdinalIgnoreCase) || context.Request.Path.StartsWithSegments("/api");
+            var scriptSources = privatePage ? "'self'" : $"'self' 'nonce-{nonce}' https://www.googletagmanager.com";
+            var connections = privatePage ? "'self'" : "'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com";
             context.Response.Headers["Content-Security-Policy"] =
-                $"default-src 'self'; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-ancestors {frameAncestors}; base-uri 'self'; form-action 'self'";
+                $"default-src 'self'; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src {scriptSources}; connect-src {connections}; object-src 'none'; frame-ancestors {frameAncestors}; base-uri 'self'; form-action 'self'";
             if (context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
                 context.Request.Path.StartsWithSegments("/honours") || isHonoursDemo)
             {
@@ -152,7 +158,8 @@ public static class EntryPoint
             if (marketingDocuments.TryGetValue(path, out var marketingDocumentPath))
             {
                 var document = (await File.ReadAllTextAsync(marketingDocumentPath, context.RequestAborted))
-                    .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal);
+                    .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal)
+                    .Replace("<script type=\"application/ld+json\">", $"<script type=\"application/ld+json\" nonce=\"{context.Items["csp-nonce"]}\">", StringComparison.Ordinal);
                 var canonicalUrl = path == "/" ? $"{publicSiteUrl}/" : $"{publicSiteUrl}{path}";
                 context.Response.ContentType = "text/html; charset=utf-8";
                 context.Response.Headers.CacheControl = "no-cache";
@@ -235,8 +242,13 @@ public static class EntryPoint
             }
             await next();
         });
-        app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseRateLimiter();
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api") && !await EndpointSecurity.ApplyBodyLimitAsync(context)) return;
+            await next();
+        });
 
         app.Use(async (context, next) =>
         {
@@ -268,13 +280,10 @@ public static class EntryPoint
                 return;
             }
             context.Items["account"] = account;
-            var path = context.Request.Path.Value ?? "";
-            var startsAiWork = HttpMethods.IsPost(context.Request.Method) && path.StartsWith("/api/trophies/", StringComparison.OrdinalIgnoreCase) &&
-                (path.EndsWith("/images") || path.EndsWith("/analyse") || path.EndsWith("/illustration") || path.EndsWith("/illustration/background"));
-            if (startsAiWork && !AccountSecurity.IsEmailVerified(account))
+            if (EndpointSecurity.IsVerifiedOperation(context) && !AccountSecurity.IsEmailVerified(account))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsJsonAsync(new { error = "email_verification_required", message = "Verify your email before starting AI work. Your saved archive remains available." });
+                await context.Response.WriteAsJsonAsync(new { error = "email_verification_required", message = "Verify your email before uploading files, importing members or starting AI work. Your saved archive remains available." });
                 return;
             }
             var club = await accounts.GetClubForAccountAsync(accountId, context.RequestAborted);
@@ -427,13 +436,13 @@ public static class EntryPoint
         {
             if (!legacyAccess.IsAvailable)
                 return Results.NotFound(new { error = "original_archive_unavailable", message = "No original archive is available on this installation." });
-            if (!legacyAccess.PasswordMatches(input.Password))
+            var account = await accounts.AuthenticateOriginalArchiveAsync(input.Password, cancellationToken);
+            if (account is null)
             {
                 await Task.Delay(Random.Shared.Next(350, 750), cancellationToken);
-                return Results.Json(new { error = "incorrect_password", message = "That is not the original archive password." }, statusCode: 401);
+                return Results.Json(new { error = "incorrect_password", message = "That is not the current archive password." }, statusCode: 401);
             }
 
-            var account = await accounts.OpenLegacyArchiveAsync(input.Password ?? string.Empty, cancellationToken);
             var club = await accounts.GetClubForAccountAsync(account.Id, cancellationToken);
             await SignInAccountAsync(context, account);
             return Results.Ok(AuthPayload(account, club, accounts, reader, illustrator, legacyAccess, billing));
@@ -487,7 +496,7 @@ public static class EntryPoint
             {
                 return Results.BadRequest(new { error = exception.Code, message = exception.Message });
             }
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().WithMetadata(new RequestBodyLimit(6 * 1024 * 1024));
 
         app.MapGet("/api/club/logo", async (HttpContext context, AccountStore accounts, CancellationToken cancellationToken) =>
         {
@@ -538,7 +547,7 @@ public static class EntryPoint
             var trophy = await matching.RefreshTrophyAsync(id, cancellationToken)
                 ?? await store.GetTrophyAsync(id, cancellationToken);
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
-        });
+        }).ResourceOperation();
 
         app.MapPut("/api/trophies/{id}/timeline", async (string id, TimelineInput input, CatalogueStore store, CancellationToken cancellationToken) =>
         {
@@ -558,7 +567,7 @@ public static class EntryPoint
             if (trophy is null) return Results.NotFound();
             trophy = await matching.RefreshTrophyAsync(id, cancellationToken) ?? trophy;
             return Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
-        });
+        }).ResourceOperation();
 
         app.MapPut("/api/trophies/{id}/award-format", async (
             string id,
@@ -651,7 +660,7 @@ public static class EntryPoint
                 addedEvidence,
                 analysis
             });
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().VerifiedOperation(62914560);
 
         app.MapPost("/api/trophies/{id}/analyse", async (string id, CatalogueStore store, OpenAiEngravingReader reader, BackgroundAnalysisQueue queue, CancellationToken cancellationToken) =>
         {
@@ -660,7 +669,7 @@ public static class EntryPoint
             if (trophy.Evidence.Count == 0) return Results.BadRequest(new { error = "Add at least one image first." });
             if (!reader.IsAvailable) return Results.Json(new { error = "analysis_failed", message = "Add OPENAI_API_KEY to enable the winner-record reader." }, statusCode: 503);
             return Results.Accepted($"/api/trophies/{id}/analysis-status", new { analysis = queue.EnqueueNow(id, trophy.Evidence.Count) });
-        });
+        }).VerifiedOperation();
 
         app.MapGet("/api/trophies/{id}/analysis-status", async (string id, CatalogueStore store, BackgroundAnalysisQueue queue, CancellationToken cancellationToken) =>
             await store.GetTrophyAsync(id, cancellationToken) is null ? Results.NotFound() : Results.Ok(new { analysis = queue.GetStatus(id) }));
@@ -712,7 +721,7 @@ public static class EntryPoint
 
             trophy = await store.GetTrophyAsync(id, cancellationToken);
             return Results.Ok(new { trophy, addedPhotos });
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().VerifiedOperation(62914560);
 
         app.MapGet("/api/trophies/{id}/trophy-photos/{photoId}", async (string id, string photoId, CatalogueStore store, CancellationToken cancellationToken) =>
         {
@@ -750,7 +759,7 @@ public static class EntryPoint
             await store.SetIllustrationStatusAsync(id, IllustrationStates.Processing, "Illustration queued. The trophy is ready to use while it is generated.", cancellationToken);
             trophy = await store.GetTrophyAsync(id, cancellationToken);
             return Results.Accepted($"/api/trophies/{id}/illustration/status", new { trophy, illustration = job });
-        });
+        }).VerifiedOperation();
 
         app.MapGet("/api/trophies/{id}/illustration/status", async (
             string id,
@@ -772,7 +781,7 @@ public static class EntryPoint
             if (!illustrator.IsAvailable) return Results.Json(new { error = "illustration_unavailable", message = "Trophy illustration is not configured." }, statusCode: 503);
             var job = queue.Enqueue(id);
             return Results.Accepted($"/api/trophies/{id}/illustration/status", new { trophy, illustration = job });
-        });
+        }).VerifiedOperation();
 
         app.MapGet("/api/trophies/{id}/illustration", async (string id, CatalogueStore store, CancellationToken cancellationToken) =>
         {
@@ -803,13 +812,13 @@ public static class EntryPoint
                 return Results.Ok(new { result, directory = await directory.GetSummaryAsync(cancellationToken) });
             }
             catch (MemberImportException exception) { return Results.BadRequest(new { error = exception.Message }); }
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().VerifiedOperation(16777216);
 
         app.MapPost("/api/members/rematch/{trophyId}", async (string trophyId, MemberMatchingCoordinator matching, CancellationToken cancellationToken) =>
         {
             var trophy = await matching.RefreshTrophyAsync(trophyId, cancellationToken);
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
-        });
+        }).VerifiedOperation();
 
         app.MapGet("/api/trophies/{trophyId}/winners/{winnerId}/member-candidates", async (
             string trophyId,
@@ -819,7 +828,7 @@ public static class EntryPoint
         {
             var candidates = await matching.GetCandidatesAsync(trophyId, winnerId, cancellationToken);
             return candidates is null ? Results.NotFound() : Results.Ok(new { candidates });
-        });
+        }).ResourceOperation();
 
         app.MapPut("/api/trophies/{trophyId}/winners/{winnerId}/member-match", async (
             string trophyId,
@@ -892,7 +901,7 @@ public static class EntryPoint
             var trophy = await matching.RefreshTrophyAsync(id, cancellationToken);
             var matched = trophy?.Winners.FirstOrDefault(item => item.Id == winner.Id) ?? winner;
             return Results.Created($"/api/trophies/{id}/winners/{winner.Id}", matched);
-        });
+        }).ResourceOperation();
 
         app.MapPut("/api/trophies/{id}/winners/{winnerId}", async (string id, string winnerId, WinnerInput input, CatalogueStore store, MemberMatchingCoordinator matching, CancellationToken cancellationToken) =>
         {
@@ -902,7 +911,7 @@ public static class EntryPoint
             if (winner is null) return Results.NotFound();
             var trophy = await matching.RefreshTrophyAsync(id, cancellationToken);
             return Results.Ok(trophy?.Winners.FirstOrDefault(item => item.Id == winnerId) ?? winner);
-        });
+        }).ResourceOperation();
 
         app.MapDelete("/api/trophies/{id}/winners/{winnerId}", async (string id, string winnerId, CatalogueStore store, CancellationToken cancellationToken) =>
             await store.DeleteWinnerAsync(id, winnerId, cancellationToken) ? Results.NoContent() : Results.NotFound());
@@ -910,14 +919,16 @@ public static class EntryPoint
 
     private static void MapExports(WebApplication app)
     {
-        app.MapGet("/api/export.csv", async (CatalogueStore store, CancellationToken cancellationToken) =>
+        app.MapGet("/api/export.csv", async (bool? completedOnly, CatalogueStore store, CancellationToken cancellationToken) =>
         {
             var summaries = await store.GetSummariesAsync(cancellationToken);
             var csv = new StringBuilder("Trophy code,Trophy name,Year,Winner,Description,AI reading notes,Review status,Source,Matched member,Membership number,Birth year,Joining year,Match confidence,Match reason\r\n");
             foreach (var summary in summaries)
             {
                 var trophy = await store.GetTrophyAsync(summary.Id, cancellationToken);
-                if (trophy is null) continue;
+                if (trophy is null || (completedOnly == true && trophy.Status != TrophyStatuses.Complete)) continue;
+                if (completedOnly == true && trophy.Winners.Count == 0)
+                    csv.AppendLine(string.Join(',', new[] { Csv(trophy.Id), Csv(trophy.Name) }.Concat(Enumerable.Repeat(string.Empty, 12))));
                 foreach (var winner in trophy.Winners.OrderBy(item => item.Year).ThenBy(item => item.Name))
                 {
                     csv.AppendLine(string.Join(',', new[]
@@ -933,7 +944,7 @@ public static class EntryPoint
                     }));
                 }
             }
-            return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"trophy-archive-{DateTime.UtcNow:yyyy-MM-dd}.csv");
+            return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"trophy-archive-{(completedOnly == true ? "completed-" : string.Empty)}{DateTime.UtcNow:yyyy-MM-dd}.csv");
         });
     }
 
@@ -988,6 +999,7 @@ public static class EntryPoint
     {
         if (string.IsNullOrWhiteSpace(input.Name) || input.Name.Trim().Length < 2) return "Enter the trophy name.";
         if (input.Name.Trim().Length > 160) return "Keep the trophy name under 160 characters.";
+        if (input.SecondaryName?.Trim().Length > 200) return "Keep the secondary trophy name under 200 characters.";
         if (!string.IsNullOrWhiteSpace(input.Code) && input.Code.Trim().Length > 24) return "Keep the trophy code under 24 characters.";
         if (!string.IsNullOrWhiteSpace(input.Category) && input.Category.Trim().Length > 80) return "Keep the category under 80 characters.";
         return null;
@@ -1008,5 +1020,5 @@ public static class EntryPoint
         return !input.StartYear.HasValue || !input.EndYear.HasValue || (input.StartYear <= input.EndYear && input.EndYear - input.StartYear <= 250);
     }
 
-    private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
+    private static string Csv(string value) => SpreadsheetExport.Cell(value);
 }

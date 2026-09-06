@@ -97,6 +97,7 @@
     }
     mount.append(node('p', 'One credit covers a trophy’s first successful AI job. Work reserves the credit while processing. Additional attempts are included within the published allowance; manual review and access to your saved records do not spend credits.', 'billing-explanation'));
     mount.append(node('p', 'First trophy: up to 12 saved photos, 3 readings and 2 illustrations. Paid clubs: up to 40 photos, 12 readings and 3 illustrations per trophy. Contact support for larger jobs.'));
+    mount.append(node('p', 'Archive storage is limited to keep the service reliable. The standard allowance is 256 MiB for a free archive and 2 GiB for a paid archive; contact support for larger collections. Existing records remain available when an allowance is reached.'));
     if (state.purchases.length) {
       mount.append(node('h3', 'Recent purchases'));
       const history = node('ul', undefined, 'billing-history');
