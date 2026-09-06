@@ -320,7 +320,7 @@
   }
 
   function trophyVisual(trophy) {
-    const illustrationClass = /\/illustration(?:[?#]|$)/i.test(trophy.imageUrl || '') ? ' is-illustration' : '';
+    const illustrationClass = /(?:\/illustration|\/catalogue\/[A-Z][0-9]{2}\.(?:png|jpg))(?:[?#]|$)/i.test(trophy.imageUrl || '') ? ' is-illustration' : '';
     const fallback = `<span class="trophy-placeholder" aria-hidden="true"><b>✦</b><small>${escapeHtml(trophy.name.charAt(0))}</small></span>`;
     return trophy.imageUrl
       ? `<span class="trophy-visual${illustrationClass}"><img src="${escapeAttribute(trophy.imageUrl)}" alt="${escapeAttribute(trophy.name)}" loading="lazy">${fallback}</span>`

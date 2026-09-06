@@ -94,6 +94,7 @@ main { min-height: calc(100vh - 160px); }
 .trophy-visual { position: relative; width: 100%; height: 100%; min-height: 180px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 37%, #fff, #e5dfd2 70%); }
 .trophy-visual img { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; object-position: center; }
 .trophy-placeholder { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 7px; color: #887954; }
+.trophy-visual:not(.is-placeholder) .trophy-placeholder { display: none; }
 .trophy-placeholder b { font-size: 1rem; }
 .trophy-placeholder small { font-family: var(--serif); font-size: 3.5rem; }
 .year-honour-copy { padding: 25px; display: flex; flex-direction: column; align-items: flex-start; }

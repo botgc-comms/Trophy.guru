@@ -188,6 +188,21 @@ public static class EntryPoint
             await next();
         });
 
+        // Older saved catalogues still refer to JPEG copies of the transparent artwork.
+        var catalogueImageRedirects = Directory.GetFiles(Path.Combine(webRootPath, "catalogue"), "*.png")
+            .ToDictionary(file => $"/catalogue/{Path.GetFileNameWithoutExtension(file)}.jpg",
+                file => $"/catalogue/{Path.GetFileName(file)}", StringComparer.OrdinalIgnoreCase);
+        app.Use(async (context, next) =>
+        {
+            if ((HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)) &&
+                catalogueImageRedirects.TryGetValue(context.Request.Path.Value ?? "", out var transparentImage))
+            {
+                context.Response.Redirect(transparentImage);
+                return;
+            }
+            await next();
+        });
+
         app.UseDefaultFiles();
         app.UseStaticFiles(new StaticFileOptions
         {
