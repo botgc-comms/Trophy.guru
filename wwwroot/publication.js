@@ -5,11 +5,9 @@
   let data = null;
   let preview = null;
   let selected = new Set();
-  let page = 0;
   let loading = false;
   let previewRevision = 0;
   let previewReady = false;
-  const pageSize = 80;
   root.classList.add('publication-panel');
   root.innerHTML = `
     <div class="publication-heading"><div><p class="publication-eyebrow">Your public honours board</p><h2>Your honours board.</h2>
@@ -17,27 +15,20 @@
     <p id="publication-summary">Loading publication settings…</p>
     <p id="publication-feedback" role="status" aria-live="polite"></p>
     <p id="publication-ready-summary"></p>
-    <details id="publication-controls"><summary>Board settings &amp; exclusions</summary>
-      <p>These names are already confirmed. Only change the selection if you want to leave records off the public board.</p>
+    <details id="publication-controls"><summary>Board settings</summary>
       <div class="publication-settings">
-        <label>Names on the public board<select id="publication-name-policy"><option value="inscription">Names as inscribed</option><option value="approved-identities">Use manually approved identities where available</option></select></label>
         <label class="publication-check"><input id="publication-descriptions" type="checkbox"> Include winner descriptions in the public board</label>
-        <label class="publication-check"><input id="publication-juniors" type="checkbox"> Allow junior trophies in the selection</label>
-        <p class="publication-help">AI member suggestions are never published as identities. Descriptions and junior trophies start excluded; review any personal information before including them.</p>
+        <label class="publication-check"><input id="publication-juniors" type="checkbox"> Include junior trophies</label>
+        <p class="publication-help">Junior trophies and winner descriptions are optional.</p>
         <label>Websites allowed to embed this public board<textarea id="publication-origins" rows="2" placeholder="https://www.yourclub.co.uk"></textarea></label>
         <p class="publication-help">One HTTPS website origin per line. Include www only if your website uses it. This controls where the board may be embedded; the published board and its records are still public.</p>
       </div>
-      <div class="publication-record-tools"><label>Find a confirmed record<input id="publication-search" type="search" placeholder="Trophy, year or name"></label>
-        <div><button id="publication-select-visible" type="button">Select these results</button><button id="publication-clear-visible" type="button">Clear these results</button><button id="publication-refresh" type="button">Refresh records</button></div></div>
-      <p id="publication-selection-count"></p>
-      <div class="publication-table-wrap"><table><thead><tr><th scope="col">Include</th><th scope="col">Trophy / year</th><th scope="col">Public name</th></tr></thead><tbody id="publication-candidates"></tbody></table></div>
-      <div class="publication-pagination"><button id="publication-previous" type="button">Previous</button><span id="publication-page"></span><button id="publication-next" type="button">Next</button></div>
     </details>
       <div class="publication-actions"><button id="publication-preview-button" type="button" class="publication-primary" disabled>Preview honours board</button><button id="publication-withdraw" type="button" class="publication-danger" hidden>Withdraw public board</button></div>
       <div id="publication-preview-area" hidden>
         <div class="publication-preview-toolbar"><div><h3>Your honours board</h3><p id="publication-preview-summary"></p></div><button id="publication-publish" type="button" class="publication-primary" disabled>Publish honours board</button></div>
         <p class="publication-approval">Publish to make this board public and get your share link. Only publish records you’re authorised to share for your club.</p>
-        <iframe id="publication-preview-frame" title="Private preview of selected honours board records"></iframe>
+        <iframe id="publication-preview-frame" title="Honours board preview"></iframe>
       </div>
       <div id="publication-sharing" hidden><h3>Share your published board</h3>
         <label>Public board link<input id="publication-link" readonly></label><a id="publication-open-link" target="_blank" rel="noopener">Open public board ↗</a><button type="button" data-copy="publication-link">Copy link</button>
@@ -49,6 +40,7 @@
       </div>`;
   const el = id => root.querySelector(`#${id}`);
   root.insertBefore(el('publication-sharing'), el('publication-controls'));
+  root.append(el('publication-controls'));
   const feedback = message => { el('publication-feedback').textContent = message; };
   const request = async (url, body) => {
     const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store',
@@ -65,15 +57,10 @@
     try {
       data = await request('/api/publication');
       const options = data.publication.options;
-      el('publication-name-policy').value = options.namePolicy;
       el('publication-descriptions').checked = options.includeDescriptions;
       el('publication-juniors').checked = options.includeJuniorTrophies;
       el('publication-origins').value = options.allowedEmbedOrigins.join('\n');
-      selected = new Set(options.selectedWinnerKeys.length ? options.selectedWinnerKeys :
-        data.candidates.filter(item => item.division !== 'junior').map(item => item.key));
-      const validKeys = new Set(data.candidates.map(item => item.key));
-      selected = new Set([...selected].filter(key => validKeys.has(key)));
-      page = 0;
+      selectConfirmedWinners();
       invalidatePreview();
       renderStatus();
       renderCandidates();
@@ -101,33 +88,20 @@
     el('publication-script-code').value = `<script src="${location.origin}/embed/v1.js" data-club="${club}" defer><\/script>`;
   }
 
-  function filteredCandidates() {
-    const search = el('publication-search').value.trim().toLocaleLowerCase('en-GB');
-    return data.candidates.filter(item => (el('publication-juniors').checked || item.division !== 'junior') &&
-      (!search || `${item.trophyName} ${item.year} ${item.inscriptionName} ${item.approvedIdentityName || ''}`.toLocaleLowerCase('en-GB').includes(search)));
+  function selectConfirmedWinners() {
+    selected = new Set(data.candidates.filter(item => el('publication-juniors').checked || item.division !== 'junior').map(item => item.key));
   }
-
   function renderCandidates() {
     if (!data) return;
-    const filtered = filteredCandidates();
-    const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
-    page = Math.max(0, Math.min(page, pages - 1));
-    const shown = filtered.slice(page * pageSize, (page + 1) * pageSize);
-    const approvedNames = el('publication-name-policy').value === 'approved-identities';
-    el('publication-candidates').innerHTML = shown.map(item => {
-      const name = approvedNames && item.approvedIdentityName ? item.approvedIdentityName : item.inscriptionName;
-      return `<tr><td><input type="checkbox" data-key="${escapeHtml(item.key)}" aria-label="Publish ${escapeHtml(item.trophyName)} ${item.year}: ${escapeHtml(name)}" ${selected.has(item.key) ? 'checked' : ''}></td><td><strong>${escapeHtml(item.trophyName)}</strong><small>${item.year}${item.division === 'junior' ? ' · Junior' : ''}</small></td><td>${escapeHtml(name)}${approvedNames && item.approvedIdentityName ? '<small>Manually approved identity</small>' : ''}${el('publication-descriptions').checked && item.description ? `<small>${escapeHtml(item.description)}</small>` : ''}</td></tr>`;
-    }).join('') || '<tr><td colspan="3">No confirmed winners match this selection.</td></tr>';
-    el('publication-ready-summary').textContent = `${selected.size.toLocaleString('en-GB')} confirmed ${selected.size === 1 ? 'record' : 'records'} included.`;
-    el('publication-selection-count').textContent = `${selected.size.toLocaleString('en-GB')} confirmed ${selected.size === 1 ? 'record' : 'records'} selected · ${filtered.length.toLocaleString('en-GB')} matching results`;
-    el('publication-page').textContent = `Page ${page + 1} of ${pages}`;
-    el('publication-previous').disabled = page === 0;
-    el('publication-next').disabled = page + 1 >= pages;
+    selectConfirmedWinners();
+    el('publication-ready-summary').textContent = selected.size
+      ? `${selected.size.toLocaleString('en-GB')} confirmed ${selected.size === 1 ? 'winner' : 'winners'} included automatically.`
+      : 'No confirmed winners yet. Confirm your trophy records in the archive to create your board.';
     el('publication-preview-button').disabled = selected.size === 0;
   }
 
   function options() {
-    return { namePolicy: el('publication-name-policy').value, includeDescriptions: el('publication-descriptions').checked,
+    return { namePolicy: data.publication.options.namePolicy || 'inscription', includeDescriptions: el('publication-descriptions').checked,
       includeJuniorTrophies: el('publication-juniors').checked, selectedWinnerKeys: [...selected],
       allowedEmbedOrigins: el('publication-origins').value.split(/[\n,]+/).map(value => value.trim()).filter(Boolean) };
   }
@@ -199,21 +173,11 @@
     finally { el('publication-withdraw').disabled = false; }
   });
   root.addEventListener('change', event => {
-    if (event.target.matches('[data-key]')) {
-      event.target.checked ? selected.add(event.target.dataset.key) : selected.delete(event.target.dataset.key);
-      invalidatePreview(); renderCandidates();
-    } else if (['publication-name-policy', 'publication-descriptions', 'publication-juniors', 'publication-origins'].includes(event.target.id)) {
-      if (!el('publication-juniors').checked) data?.candidates.filter(item => item.division === 'junior').forEach(item => selected.delete(item.key));
+    if (['publication-descriptions', 'publication-juniors', 'publication-origins'].includes(event.target.id)) {
       invalidatePreview(); renderCandidates();
     }
   });
   el('publication-origins').addEventListener('input', invalidatePreview);
-  el('publication-search').addEventListener('input', () => { page = 0; renderCandidates(); });
-  el('publication-select-visible').addEventListener('click', () => { filteredCandidates().forEach(item => selected.add(item.key)); invalidatePreview(); renderCandidates(); });
-  el('publication-clear-visible').addEventListener('click', () => { filteredCandidates().forEach(item => selected.delete(item.key)); invalidatePreview(); renderCandidates(); });
-  el('publication-refresh').addEventListener('click', refresh);
-  el('publication-previous').addEventListener('click', () => { page--; renderCandidates(); });
-  el('publication-next').addEventListener('click', () => { page++; renderCandidates(); });
   root.addEventListener('click', async event => {
     const button = event.target.closest('[data-copy]');
     if (!button) return;

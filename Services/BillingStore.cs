@@ -136,17 +136,20 @@ public sealed class BillingStore
     public BillingQuote Quote(string clubId, string packCode, string? upgradeFrom) => Write((db, tx) => Quote(db, tx, clubId, packCode, upgradeFrom));
     public BillingPurchase CreatePurchase(string clubId, BillingCheckoutInput input) => Write((db, tx) =>
     {
+        var requestedPack = TrophyCreditPack.Find(input.PackCode, input.Credits);
+        if (input.Credits is not null && input.UpgradeFrom is not null)
+            throw new BillingException("invalid_upgrade", "Choose a listed pack upgrade or buy a separate volume order.", 400);
         if (!Guid.TryParse(input.RequestId, out _)) throw new BillingException("invalid_request", "A valid checkout request identifier is required.", 400);
         using (var existingCommand = Command(db, tx, "SELECT * FROM billing_purchases WHERE club_id=$club AND request_id=$request", ("$club", clubId), ("$request", input.RequestId)))
         using (var existingReader = existingCommand.ExecuteReader())
             if (existingReader.Read())
             {
                 var existing = Purchase(existingReader);
-                if (existing.PackCode != input.PackCode || existing.UpgradeFrom != input.UpgradeFrom) throw new BillingException("request_conflict", "This checkout identifier was already used for another selection.");
+                if (existing.PackCode != input.PackCode || existing.UpgradeFrom != input.UpgradeFrom || (input.UpgradeFrom is null && existing.Credits != requestedPack.Credits)) throw new BillingException("request_conflict", "This checkout identifier was already used for another selection.");
                 return existing;
             }
         if (Balance(db, tx, clubId).OnHold) throw new BillingException("billing_review", "Billing is awaiting review. Contact support before making another purchase.");
-        var quote = Quote(db, tx, clubId, input.PackCode, input.UpgradeFrom);
+        var quote = Quote(db, tx, clubId, input.PackCode, input.UpgradeFrom, input.Credits);
         var id = Guid.NewGuid().ToString("N");
         Execute(db, tx, "INSERT INTO billing_purchases(id,club_id,request_id,pack_code,credits,amount_pence,state,upgrade_from) VALUES($id,$club,$request,$pack,$credits,$amount,'pending',$parent)",
             ("$id", id), ("$club", clubId), ("$request", input.RequestId), ("$pack", quote.PackCode), ("$credits", quote.Credits), ("$amount", quote.AmountPence), ("$parent", quote.UpgradeFrom));
@@ -309,9 +312,9 @@ public sealed class BillingStore
         return 0;
     });
 
-    private static BillingQuote Quote(SqliteConnection db, SqliteTransaction tx, string clubId, string packCode, string? upgradeFrom)
+    private static BillingQuote Quote(SqliteConnection db, SqliteTransaction tx, string clubId, string packCode, string? upgradeFrom, int? credits = null)
     {
-        var pack = TrophyCreditPack.Find(packCode);
+        var pack = TrophyCreditPack.Find(packCode, credits);
         if (upgradeFrom is null) return new(pack.Code, pack.Credits, pack.AmountPence, "gbp", null);
         var previous = FindPurchase(db, tx, upgradeFrom);
         if (previous is null || previous.ClubId != clubId || previous.State != "paid") throw new BillingException("invalid_upgrade", "Choose a paid pack belonging to this club.");

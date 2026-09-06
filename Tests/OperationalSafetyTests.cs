@@ -63,5 +63,21 @@ public sealed class OperationalSafetyTests : IDisposable
         var context = new DefaultHttpContext(); context.Request.Method = "POST"; context.Request.Path = "/api/billing/webhook";
         Assert.True(RequestSecurity.IsSameOriginMutation(context.Request, new ConfigurationBuilder().Build()));
     }
+    [Theory]
+    [InlineData("https://trophy.guru", "same-origin", true)]
+    [InlineData("https://attacker.example", "same-origin", false)]
+    [InlineData("https://trophy.guru", "cross-site", false)]
+    [InlineData("https://trophy.guru", "same-site", false)]
+    [InlineData("https://trophy.guru", "", false)]
+    [InlineData("https://trophy.guru:444", "same-origin", false)]
+    public void RenderCustomDomainAcceptsOnlyItsOwnBrowserOrigin(string origin, string fetchSite, bool allowed)
+    {
+        var context = new DefaultHttpContext(); context.Request.Method = "POST"; context.Request.Path = "/api/publication/preview";
+        context.Request.Scheme = "http"; context.Request.Host = new HostString("trophy.guru");
+        context.Request.Headers.Origin = origin; context.Request.Headers["Sec-Fetch-Site"] = fetchSite;
+        context.Request.Headers["X-Forwarded-Host"] = "attacker.example";
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["RENDER_EXTERNAL_URL"] = "https://archive.onrender.com" }).Build();
+        Assert.Equal(allowed, RequestSecurity.IsSameOriginMutation(context.Request, config));
+    }
     public void Dispose() { Directory.Delete(root, recursive: true); }
 }

@@ -12,6 +12,11 @@ public static class RequestSecurity
         if (string.IsNullOrWhiteSpace(source)) source = request.Headers.Referer.ToString();
         if (!Uri.TryCreate(source, UriKind.Absolute, out var origin) || origin.Scheme is not ("https" or "http") || !string.IsNullOrEmpty(origin.UserInfo)) return false;
         var expected = configuration["PUBLIC_SITE_URL"] ?? configuration["RENDER_EXTERNAL_URL"] ?? $"{request.Scheme}://{request.Host}";
-        return Uri.TryCreate(expected, UriKind.Absolute, out var site) && string.Equals(origin.GetLeftPart(UriPartial.Authority), site.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+        if (Uri.TryCreate(expected, UriKind.Absolute, out var site) && string.Equals(origin.GetLeftPart(UriPartial.Authority), site.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase)) return true;
+        // A hosted service can have a custom HTTPS domain in addition to its Render URL.
+        // Require the browser's same-origin signal AND the actual request host; never trust forwarded host headers.
+        return request.Headers["Sec-Fetch-Site"] == "same-origin" && origin.Scheme == "https"
+            && Uri.TryCreate($"https://{request.Host}", UriKind.Absolute, out var servedSite)
+            && string.Equals(origin.GetLeftPart(UriPartial.Authority), servedSite.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
     }
 }

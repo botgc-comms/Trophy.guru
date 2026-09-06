@@ -12,11 +12,11 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260906-completed-export-1">
+  <link rel="stylesheet" href="/styles.css?v=20260906-dashboard-fix-3">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
-  <link rel="stylesheet" href="/publication.css?v=20260906-board-flow-2">
+  <link rel="stylesheet" href="/publication.css?v=20260906-dashboard-fix-3">
   <link rel="stylesheet" href="/integration-offer.css?v=20260906-1">
-  <link rel="stylesheet" href="/billing.css?v=20260906-1">
+  <link rel="stylesheet" href="/billing.css?v=20260906-dashboard-fix-3">
   <link rel="stylesheet" href="/account-security.css?v=20260906-1">
 </head>
 <body>
@@ -34,18 +34,19 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>
           <span>Honours board</span>
         </a>
+
+        <a class="export-link" href="/api/export.csv" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
+          <span>Export all</span>
+        </a>
         <button id="header-plan-button" class="header-plan-button" type="button" aria-haspopup="dialog" aria-label="View current plan and trophy capacity">
           <span><small>Current plan</small><strong id="header-plan-name">Loading…</strong></span>
           <em id="header-plan-balance">—</em>
         </button>
-        <a class="export-link" href="/api/export.csv" download>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
-          <span>Export</span>
-        </a>
         <details class="archive-account-menu">
           <summary aria-label="Open account menu">
             <span id="archive-account-initial">A</span>
-            <span><strong id="archive-account-name">Account</strong><small>Account</small></span>
+            <span id="archive-account-name" class="sr-only">Account</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
           </summary>
           <div>
             <p><strong id="archive-menu-name">Account</strong><small id="archive-menu-email"></small></p>
@@ -62,13 +63,16 @@
           <p class="eyebrow">Club collection</p>
           <h1>Choose a trophy</h1>
           <p class="intro">Photograph or upload its winner records and build a verified list.</p>
-          <a id="export-completed-button" class="completed-export-button" href="/api/export.csv?completedOnly=true" download title="Export all completed trophies as CSV">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
-            <span>Export completed</span>
-          </a>
+
         </div>
         <div class="collection-progress" aria-label="Archive progress">
           <strong id="complete-count">—</strong><span>of <b id="total-count">—</b><br>catalogued</span>
+        </div>
+        <div class="catalogue-actions">
+          <a id="export-completed-button" class="completed-export-button" href="/api/export.csv?completedOnly=true" download title="Export all completed trophies as CSV">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 21h14"/></svg>
+            <span><strong>Export completed</strong><small>Download confirmed trophies as CSV</small></span>
+          </a>
         </div>
       </section>
 
@@ -193,6 +197,12 @@
         </section>
       </div>
     </main>
+    <footer class="dashboard-footer">
+      <a href="/" class="dashboard-footer-brand">Trophy.guru</a>
+      <p>Turn trophy photographs into a searchable record of your club’s winners.</p>
+      <nav aria-label="Footer navigation"><a href="/">Home</a><a href="/#how-it-works">How it works</a><a href="/#pricing">Pricing</a><a href="/uk/how-to-catalogue-trophy-winners/">Trophy guide</a><a href="/privacy.html">Privacy &amp; cookies</a></nav>
+      <small>© 2026 Trophy.guru</small>
+    </footer>
   </div>
 
   <section id="login-screen" class="login-screen" hidden aria-labelledby="auth-title">
@@ -352,10 +362,10 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260906-board-flow-2" defer></script>
+  <script src="/app.js?v=20260906-dashboard-fix-3" defer></script>
   <script src="/missing-years.js?v=20260905-co-winner-1" defer></script>
-  <script src="/publication.js?v=20260906-board-flow-2" defer></script>
-  <script src="/billing.js?v=20260906-1" defer></script>
+  <script src="/publication.js?v=20260906-dashboard-fix-3" defer></script>
+  <script src="/billing.js?v=20260906-dashboard-fix-3" defer></script>
   <script src="/account-security.js?v=20260906-1" defer></script>
 </body>
 </html>

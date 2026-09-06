@@ -11,10 +11,10 @@
     return result;
   }
   function message(text) { const target = document.querySelector('#billing-message'); if (target) target.textContent = text; }
-  async function checkout(packCode, upgradeFrom) {
-    const key = `trophy-checkout:${state.clubId}:${packCode}:${upgradeFrom || 'new'}`;
+  async function checkout(packCode, upgradeFrom, credits) {
+    const key = `trophy-checkout:volume-20260906:${state.clubId}:${packCode}:${credits || 'default'}:${upgradeFrom || 'new'}`;
     let requestId = sessionStorage.getItem(key); if (!requestId) { requestId = crypto.randomUUID(); sessionStorage.setItem(key, requestId); }
-    await redirect('/api/billing/checkout', { packCode, requestId, upgradeFrom: upgradeFrom || null });
+    await redirect('/api/billing/checkout', { packCode, requestId, upgradeFrom: upgradeFrom || null, credits: credits ?? null });
   }
   async function redirect(path, body) {
     document.querySelectorAll('#billing-panel button').forEach(button => { button.disabled = true; });
@@ -81,6 +81,19 @@
     const packs = node('div', undefined, 'billing-packs');
     for (const pack of state.packs) {
       const card = node('article', undefined, 'billing-pack');
+      if (pack.code === 'complete') {
+        const quantity = node('input'); quantity.type = 'number'; quantity.min = '250'; quantity.step = '1'; quantity.value = '250'; quantity.id = 'volume-trophy-quantity';
+        const label = node('label', 'Number of trophies'); label.htmlFor = quantity.id;
+        const total = node('strong', money(pack.amountPence)); total.id = 'volume-trophy-total';
+        const buy = button('Buy credits', () => { if (quantity.reportValidity()) checkout(pack.code, null, Number(quantity.value)); }, enabled);
+        quantity.addEventListener('input', () => {
+          const count = Number(quantity.value); const valid = Number.isInteger(count) && count >= 250 && count <= 2147483647;
+          total.textContent = valid ? money(count * pack.amountPence / pack.credits) : 'Enter 250 or more'; buy.disabled = !enabled || !valid;
+        });
+        quantity.required = true; quantity.max = '2147483647';
+        card.append(node('h3', '250 or more trophies'), node('p', '£2.50 per trophy'), label, quantity, total, node('p', 'One-off purchase. Credits do not expire.'), buy);
+        packs.append(card); continue;
+      }
       card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', 'One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
       packs.append(card);
     }
@@ -132,7 +145,7 @@
         if (sessionStorage.getItem(key) === purchase.requestId) sessionStorage.removeItem(key);
       }
       const name = document.querySelector('#header-plan-name'); const balance = document.querySelector('#header-plan-balance');
-      if (name) name.textContent = state.balance.unlimited ? 'Unlimited' : 'Trophy credits';
+      if (name) name.textContent = state.balance.unlimited ? 'Unlimited' : `${state.balance.available} ${state.balance.available === 1 ? 'credit' : 'credits'}`;
       if (balance) balance.textContent = state.balance.unlimited ? 'No limit' : `${state.balance.available} left`;
       render();
       if (!integrationIntentHandled && new URLSearchParams(location.search).get('addon') === 'intelligent-golf') {

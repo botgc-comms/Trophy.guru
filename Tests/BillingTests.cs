@@ -119,6 +119,38 @@ public sealed class BillingTests : IDisposable
         config["STRIPE_SECRET_KEY"] = "sk_live_fixture"; config["BILLING_LIVE_APPROVED"] = "true"; Assert.False(stripe.Enabled);
         config["BILLING_LEGAL_READY"] = "true"; Assert.True(stripe.Enabled); Assert.False(stripe.IntegrationAvailable);
     }
+    [Theory]
+    [InlineData(250, 62500)]
+    [InlineData(251, 62750)]
+    [InlineData(300, 75000)]
+    [InlineData(500, 125000)]
+    public void VolumeOrdersChargeTwoFiftyAndCreditExactQuantity(int credits, long amount)
+    {
+        var input = new BillingCheckoutInput("complete", Guid.NewGuid().ToString(), Credits: credits);
+        var purchase = store.CreatePurchase("club-a", input);
+        Assert.Equal(amount, purchase.AmountPence); Assert.Equal(credits, purchase.Credits);
+        Assert.Equal(purchase.Id, store.CreatePurchase("club-a", input).Id);
+        Assert.Equal("request_conflict", Assert.Throws<BillingException>(() => store.CreatePurchase("club-a", input with { Credits = credits + 1 })).Code);
+        store.FulfilPayment("evt-volume", purchase.Id, "cs-volume", "pi-volume", amount, "gbp", "cus-a");
+        Assert.Equal(credits + 1, store.Balance("club-a").Available);
+    }
+    [Theory]
+    [InlineData("complete", 249)]
+    [InlineData("complete", 0)]
+    [InlineData("complete", -1)]
+    [InlineData("club", 300)]
+    public void InvalidVolumeQuantitiesCannotCreateAnOrder(string code, int credits)
+    {
+        Assert.Equal("invalid_quantity", Assert.Throws<BillingException>(() => store.CreatePurchase("club-a", new(code, Guid.NewGuid().ToString(), Credits: credits))).Code);
+        Assert.Empty(store.Purchases("club-a"));
+    }
+    [Fact] public void CabinetDefaultAndUpgradeUseTheNewPrice()
+    {
+        Assert.Equal(62500, store.Quote("club-a", "complete", null).AmountPence);
+        var previous = Buy("collection");
+        var quote = store.Quote("club-a", "complete", previous.Id);
+        Assert.Equal(40000, quote.AmountPence); Assert.Equal(200, quote.Credits);
+    }
     private static IConfigurationRoot Config() => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["BILLING_MODE"] = "test", ["STRIPE_SECRET_KEY"] = "sk_test_fixture", ["STRIPE_WEBHOOK_SECRET"] = "whsec_fixture", ["PUBLIC_SITE_URL"] = "http://127.0.0.1:5192" }).Build();
     private static string Sign(byte[] body, long stamp) => $"t={stamp},v1={Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes("whsec_fixture"), Encoding.UTF8.GetBytes(stamp + ".").Concat(body).ToArray())).ToLowerInvariant()}";
     private sealed class FixtureHandler(string payload) : HttpMessageHandler
