@@ -1,0 +1,44 @@
+.publication-panel { margin: 22px 0; padding: 26px; border: 1px solid #dcd8ca; border-radius: 14px; background: #faf9f3; color: #17392e; }
+.publication-panel [hidden] { display: none !important; }
+.publication-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.publication-heading h2 { margin: 4px 0 8px; font-family: Georgia, serif; font-size: clamp(1.4rem, 2.5vw, 1.9rem); font-weight: 500; }
+.publication-heading p { margin: 6px 0; }
+.publication-eyebrow { color: #7b6129; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.publication-state { padding: 7px 13px; border-radius: 20px; background: #e9e6dc; color: #4d5146; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.publication-state.is-public { background: #daebdd; color: #145229; }
+.publication-panel summary { cursor: pointer; font-weight: 700; padding: 14px 0; border-top: 1px solid #dfddd2; }
+.publication-panel p { line-height: 1.55; font-size: .9rem; }
+.publication-panel label { display: grid; gap: 7px; font-size: .85rem; font-weight: 600; }
+.publication-panel input:not([type=checkbox]), .publication-panel select, .publication-panel textarea { width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px 12px; border: 1px solid #c7cbbd; border-radius: 6px; background: #fff; color: #17392e; font: inherit; }
+.publication-panel textarea { resize: vertical; }
+.publication-panel .publication-check { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
+.publication-check input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 3px; accent-color: #17392e; }
+.publication-settings { display: grid; gap: 16px; padding: 15px 0 22px; max-width: 850px; }
+.publication-panel .publication-help { color: #636b5e; font-size: .8rem; margin: 0; }
+.publication-record-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 15px; }
+.publication-record-tools > label { flex: 1 1 230px; }
+.publication-record-tools > div { display: flex; gap: 8px; flex-wrap: wrap; }
+.publication-panel button { border: 1px solid #bfc8b8; border-radius: 5px; background: #fff; color: #17392e; padding: 10px 14px; min-height: 42px; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600; }
+.publication-panel button:hover { border-color: #17392e; }
+.publication-panel button:focus-visible, .publication-panel input:focus-visible, .publication-panel textarea:focus-visible, .publication-panel select:focus-visible, .publication-panel summary:focus-visible { outline: 3px solid #b18c35; outline-offset: 3px; }
+.publication-panel button:disabled { cursor: default; opacity: .5; }
+.publication-panel .publication-primary { background: #17392e; color: white; border-color: #17392e; }
+.publication-panel .publication-danger { color: #8b3024; border-color: #c89c94; }
+.publication-table-wrap { max-height: 420px; overflow: auto; border: 1px solid #dcded3; border-radius: 7px; background: #fff; }
+.publication-panel table { width: 100%; border-collapse: collapse; font-size: .85rem; text-align: left; }
+.publication-panel th { position: sticky; top: 0; padding: 12px; background: #eceee5; z-index: 1; }
+.publication-panel td { border-top: 1px solid #e9ebe3; padding: 11px 12px; vertical-align: top; }
+.publication-panel td:first-child { width: 65px; }
+.publication-panel td input { width: 18px; height: 18px; accent-color: #17392e; }
+.publication-panel td small { display: block; color: #63725e; margin-top: 4px; line-height: 1.5; }
+.publication-pagination { display: flex; justify-content: flex-end; align-items: center; gap: 14px; padding: 12px 0; font-size: .8rem; }
+.publication-actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 15px 0 20px; }
+#publication-feedback { color: #76561c; font-weight: 600; }
+#publication-feedback:empty { display: none; }
+#publication-preview-area { border-top: 1px solid #d8dccf; padding-top: 16px; }
+#publication-preview-frame { width: 100%; height: 700px; border: 1px solid #d4d9cd; background: #fff; border-radius: 7px; }
+.publication-approval { margin: 20px 0; max-width: 850px; }
+#publication-sharing { display: grid; gap: 10px; margin-top: 24px; border-top: 1px solid #d8dccf; padding-top: 12px; }
+#publication-sharing button { justify-self: start; margin-bottom: 10px; }
+#publication-sharing textarea { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; }
+@media (max-width: 600px) { .publication-panel { padding: 17px; } .publication-heading { gap: 8px; } .publication-panel th, .publication-panel td { padding: 10px 7px; } #publication-preview-frame { height: 650px; } }

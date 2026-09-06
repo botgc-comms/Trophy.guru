@@ -154,7 +154,7 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("OpenAI winner-record analysis failed with {StatusCode}: {Response}", (int)response.StatusCode, responseBody);
+            logger.LogWarning("OpenAI winner-record analysis failed with {StatusCode}", (int)response.StatusCode);
             throw new OpenAiUnavailableException($"The AI reader could not analyse these images ({(int)response.StatusCode}). They are safely stored; try again shortly.");
         }
 
@@ -163,9 +163,9 @@ public sealed class OpenAiEngravingReader(IHttpClientFactory httpClientFactory, 
         {
             return JsonSerializer.Deserialize<AiExtraction>(outputText, jsonOptions) ?? new AiExtraction();
         }
-        catch (JsonException exception)
+        catch (JsonException)
         {
-            logger.LogWarning(exception, "OpenAI returned an unreadable winner-record analysis payload: {OutputText}", outputText);
+            logger.LogWarning("OpenAI returned an unreadable winner-record analysis payload.");
             throw new OpenAiUnavailableException("The AI reader returned an unexpected result. The images are safely stored; try the analysis again.");
         }
     }

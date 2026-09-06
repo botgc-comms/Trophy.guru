@@ -6,6 +6,18 @@
   const isDemo = location.pathname.toLowerCase() === '/honours.html' &&
     new URLSearchParams(location.search).get('demo') === '1';
 
+  const isEmbedded = location.pathname.startsWith('/embed/');
+  const isPrivatePreview = location.pathname === '/honours-preview';
+  let embedParentOrigin = null;
+  if (isEmbedded) {
+    document.body.classList.add('is-embedded');
+    try {
+      const candidate = new URL(new URLSearchParams(location.search).get('parentOrigin'));
+      if (candidate.protocol === 'https:' || candidate.protocol === 'http:') embedParentOrigin = candidate.origin;
+    } catch { /* A plain iframe needs no parent messaging. */ }
+  }
+  if (isPrivatePreview) document.body.classList.add('is-private-preview');
+
   const elements = {
     browser: document.querySelector('#browser-view'),
     browserEyebrow: document.querySelector('#browser-eyebrow'),
@@ -45,6 +57,23 @@
 
   async function initialise() {
     bindEvents();
+    if (isPrivatePreview) {
+      elements.share.hidden = true;
+      window.addEventListener('message', event => {
+        if (event.origin !== location.origin || event.source !== window.parent ||
+            event.data?.type !== 'trophy-archive:publication-preview' || !event.data.snapshot?.club) return;
+        state.data = event.data.snapshot;
+        state.clubId = state.data.club.id;
+        state.year = state.data.summary.latestYear;
+        applyClubIdentity();
+        elements.empty.hidden = Boolean(state.data.trophies.length);
+        elements.browser.hidden = !state.data.trophies.length;
+        elements.navigation.hidden = !state.data.trophies.length;
+        renderFromLocation();
+      });
+      window.parent.postMessage({ type: 'trophy-archive:publication-preview-ready' }, location.origin);
+      return;
+    }
     if (!state.clubId && !isDemo) return showError();
 
     try {
@@ -52,6 +81,7 @@
         `/api/public/clubs/${encodeURIComponent(state.clubId)}/honours`;
       const response = await fetch(dataUrl, {
         credentials: 'omit',
+        cache: 'no-store',
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) throw new Error('Honours board unavailable');
@@ -128,7 +158,7 @@
 
   function readClubId() {
     const parts = location.pathname.split('/').filter(Boolean);
-    return parts.length === 2 && parts[0].toLowerCase() === 'honours' ? decodeURIComponent(parts[1]) : '';
+    return parts.length === 2 && ['honours', 'embed'].includes(parts[0].toLowerCase()) ? decodeURIComponent(parts[1]) : '';
   }
 
   function applyClubIdentity() {
@@ -140,7 +170,7 @@
     elements.title.textContent = `${club.name} honours`;
     elements.introduction.textContent = isDemo
       ? 'Explore the real honours board with fictional club and winner names.'
-      : `Explore ${club.name}'s confirmed trophy winners by year, trophy and person.`;
+      : `Explore ${club.name}'s published trophy winners by year, trophy and person.`;
     elements.clubMonogram.textContent = club.name.trim().charAt(0).toUpperCase() || 'C';
     if (club.logoUrl) elements.clubLogo.src = club.logoUrl;
     elements.clubLogo.alt = `${club.name} logo`;
@@ -394,7 +424,46 @@
     elements.empty.hidden = true;
     elements.error.hidden = false;
     elements.share.hidden = true;
+    state.data = null;
+    elements.results.innerHTML = '';
+    elements.detailContent.innerHTML = '';
+    elements.clubLogo.hidden = true;
+    elements.detail.hidden = true;
+    elements.title.textContent = 'Honours board unavailable';
+    elements.introduction.textContent = '';
     notifyPreview('error');
+  }
+
+  if (isEmbedded && window.parent !== window && embedParentOrigin) {
+    const reportSize = () => window.parent.postMessage({ type: 'trophy-archive:embed-size',
+      clubId: state.clubId, height: Math.ceil(document.body.scrollHeight) }, embedParentOrigin);
+    new ResizeObserver(reportSize).observe(document.body);
+    window.addEventListener('load', reportSize);
+  }
+
+  // A withdrawn board also disappears from an already-open tab at its next check.
+  // Data previously copied by a visitor cannot be recalled by the service.
+  if (!isDemo && !isPrivatePreview) {
+    const checkPublication = async () => {
+      if (!state.data || document.hidden) return;
+      try {
+        const response = await fetch(`/api/public/clubs/${encodeURIComponent(state.clubId)}/honours`,
+          { credentials: 'omit', cache: 'no-store', headers: { Accept: 'application/json' } });
+        if (response.status === 404) { showError(); return; }
+        if (response.ok) {
+          const latest = await response.json();
+          if (JSON.stringify(latest) !== JSON.stringify(state.data)) {
+            state.data = latest;
+            if (!allYears().includes(state.year)) state.year = latest.summary.latestYear;
+            applyClubIdentity();
+            renderFromLocation();
+          }
+        }
+      } catch { /* Temporary connectivity loss does not invent a publication change. */ }
+    };
+    window.setInterval(checkPublication, 60000);
+    window.addEventListener('pageshow', checkPublication);
+    document.addEventListener('visibilitychange', checkPublication);
   }
 
   function notifyPreview(status) {

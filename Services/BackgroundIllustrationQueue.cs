@@ -1,112 +1,76 @@
-using System.Collections.Concurrent;
-using System.Threading.Channels;
 using Trophy.Catalogue.Domain;
 
 namespace Trophy.Catalogue.Services;
 
 public sealed record IllustrationJobSnapshot(string Status, string Message, DateTimeOffset UpdatedAt);
-internal sealed record IllustrationQueueRequest(string ClubId, string TrophyId);
 
 public sealed class BackgroundIllustrationQueue(
     CatalogueStore store,
     OpenAiTrophyIllustrator illustrator,
     AccountStore accounts,
     ClubContextAccessor clubContext,
+    BillingStore billing,
     ILogger<BackgroundIllustrationQueue> logger) : BackgroundService
 {
-    private readonly Channel<IllustrationQueueRequest> queue = Channel.CreateUnbounded<IllustrationQueueRequest>(new UnboundedChannelOptions
-    {
-        SingleReader = true,
-        SingleWriter = false
-    });
-    private readonly ConcurrentDictionary<string, IllustrationJobSnapshot> jobs = new(StringComparer.OrdinalIgnoreCase);
-
     public IllustrationJobSnapshot Enqueue(string trophyId)
     {
         var clubId = clubContext.RequireClubId();
-        var key = JobKey(clubId, trophyId);
-        var snapshot = new IllustrationJobSnapshot(
-            "queued",
-            "Photographs saved. The catalogue illustration will be created in the background.",
-            DateTimeOffset.UtcNow);
-        jobs[key] = snapshot;
-        queue.Writer.TryWrite(new IllustrationQueueRequest(clubId, trophyId));
-        return snapshot;
+        billing.EnsureClub(clubId, clubId == "legacy" && accounts.LegacyArchiveExists);
+        return Snapshot(billing.ScheduleJob(clubId, trophyId, "illustration", 0, DateTimeOffset.UtcNow));
     }
-
     public IllustrationJobSnapshot GetStatus(string trophyId)
     {
-        var key = JobKey(clubContext.RequireClubId(), trophyId);
-        return jobs.TryGetValue(key, out var snapshot)
-            ? snapshot
-            : new IllustrationJobSnapshot("idle", "No illustration is queued.", DateTimeOffset.UtcNow);
+        var job = billing.JobStatus(clubContext.RequireClubId(), trophyId, "illustration");
+        return job is null ? new("idle", "No illustration is queued.", DateTimeOffset.UtcNow) : Snapshot(job);
     }
+    private static IllustrationJobSnapshot Snapshot(DurableBillableJob job) => new(job.State == "running" ? "processing" : job.State, job.Message, job.UpdatedAt);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await RequeueInterruptedWorkAsync(stoppingToken);
-        await foreach (var request in queue.Reader.ReadAllAsync(stoppingToken))
-            await ProcessAsync(request, stoppingToken);
-    }
-
-    private async Task ProcessAsync(IllustrationQueueRequest request, CancellationToken cancellationToken)
-    {
-        var key = JobKey(request.ClubId, request.TrophyId);
-        using var clubScope = clubContext.Push(request.ClubId);
-        var trophy = await store.GetTrophyAsync(request.TrophyId, cancellationToken);
-        if (trophy is null)
+        while (!stoppingToken.IsCancellationRequested)
         {
-            jobs[key] = new IllustrationJobSnapshot("failed", "The trophy record no longer exists.", DateTimeOffset.UtcNow);
-            return;
-        }
-
-        var references = await store.GetTrophyPhotoFilesAsync(request.TrophyId, cancellationToken);
-        if (references.Count == 0)
-        {
-            const string message = "Add at least one trophy reference photograph before creating an illustration.";
-            await store.SetIllustrationStatusAsync(request.TrophyId, IllustrationStates.Failed, message, cancellationToken);
-            jobs[key] = new IllustrationJobSnapshot("failed", message, DateTimeOffset.UtcNow);
-            return;
-        }
-
-        jobs[key] = new IllustrationJobSnapshot("processing", "Creating the catalogue illustration from the saved angles…", DateTimeOffset.UtcNow);
-        await store.SetIllustrationStatusAsync(request.TrophyId, IllustrationStates.Processing, "Creating the catalogue illustration in the background…", cancellationToken);
-        try
-        {
-            var image = await illustrator.GenerateAsync(trophy.Name, references, cancellationToken);
-            await store.SaveIllustrationAsync(request.TrophyId, image, cancellationToken);
-            jobs[key] = new IllustrationJobSnapshot("complete", "Catalogue illustration created.", DateTimeOffset.UtcNow);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception exception) when (exception is OpenAiUnavailableException or HttpRequestException or TaskCanceledException)
-        {
-            logger.LogWarning(exception, "Background illustration failed for club {ClubId}, trophy {TrophyId}", request.ClubId, request.TrophyId);
-            await store.SetIllustrationStatusAsync(request.TrophyId, IllustrationStates.Failed, exception.Message, cancellationToken);
-            jobs[key] = new IllustrationJobSnapshot("failed", exception.Message, DateTimeOffset.UtcNow);
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Unexpected background illustration failure for club {ClubId}, trophy {TrophyId}", request.ClubId, request.TrophyId);
-            const string message = "The illustration could not be completed. Your trophy and photographs are safe.";
-            await store.SetIllustrationStatusAsync(request.TrophyId, IllustrationStates.Failed, message, cancellationToken);
-            jobs[key] = new IllustrationJobSnapshot("failed", message, DateTimeOffset.UtcNow);
-        }
-    }
-
-    private async Task RequeueInterruptedWorkAsync(CancellationToken cancellationToken)
-    {
-        if (!illustrator.IsAvailable) return;
-        foreach (var clubId in await accounts.GetClubIdsAsync(cancellationToken))
-        {
-            using var clubScope = clubContext.Push(clubId);
-            foreach (var summary in await store.GetSummariesAsync(cancellationToken))
+            try
             {
-                var trophy = await store.GetTrophyAsync(summary.Id, cancellationToken);
-                if (trophy?.IllustrationState == IllustrationStates.Processing)
-                    queue.Writer.TryWrite(new IllustrationQueueRequest(clubId, trophy.Id));
+                var job = billing.NextJob("illustration");
+                if (job != null) { await ProcessAsync(job, stoppingToken); continue; }
+                await Task.Delay(1000, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Could not poll the durable illustration queue.");
+                await Task.Delay(5000, stoppingToken);
             }
         }
     }
 
-    private static string JobKey(string clubId, string trophyId) => $"{clubId}:{trophyId}";
+    private async Task ProcessAsync(DurableBillableJob job, CancellationToken cancellationToken)
+    {
+        using var scope = clubContext.Push(job.ClubId);
+        var started = false;
+        try
+        {
+            var trophy = await store.GetTrophyAsync(job.TrophyId, cancellationToken);
+            var references = await store.GetTrophyPhotoFilesAsync(job.TrophyId, cancellationToken);
+            if (trophy is null || references.Count == 0 || !illustrator.IsAvailable)
+            {
+                billing.FailJob(job, trophy is null ? "The trophy no longer exists." : references.Count == 0 ? "Add a trophy reference photograph first." : "The illustration generator is not configured. Your photographs are saved.", false);
+                return;
+            }
+            await store.SetIllustrationStatusAsync(job.TrophyId, IllustrationStates.Processing, "Creating the catalogue illustration from the saved photographs…", cancellationToken);
+            started = billing.BeginProviderAttempt(job, trophy.TrophyPhotos.Count + trophy.Evidence.Count);
+            if (!started) return;
+            var image = await illustrator.GenerateAsync(trophy.Name, references, cancellationToken);
+            await store.SaveIllustrationAsync(job.TrophyId, image, cancellationToken);
+            billing.CompleteJob(job, "Catalogue illustration created.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Illustration job {JobId} stopped for club {ClubId}, trophy {TrophyId}", job.Id, job.ClubId, job.TrophyId);
+            var message = started ? "The provider outcome needs review before another attempt. Your trophy and photographs are safe; contact support." : exception is BillingException billingException ? billingException.Message : "This illustration could not start. Your photographs are safe.";
+            billing.FailJob(job, message, started);
+            try { await store.SetIllustrationStatusAsync(job.TrophyId, IllustrationStates.Failed, message, CancellationToken.None); } catch (Exception updateException) { logger.LogWarning(updateException, "Could not save illustration job status for {JobId}", job.Id); }
+            if (cancellationToken.IsCancellationRequested) throw;
+        }
+    }
 }

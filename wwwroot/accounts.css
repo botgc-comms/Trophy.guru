@@ -50,3 +50,9 @@
   .club-setup-card { margin: 12px 0; padding: 28px 20px; border-radius: 20px; }
   .setup-form-grid { grid-template-columns: 1fr; }
 }
+
+#publication-dialog { width: min(1180px, calc(100vw - 24px)); max-width: none; }
+#publication-dialog > section { padding: clamp(18px, 3vw, 36px); }
+
+#publication-dialog { max-height: calc(100dvh - 28px); overflow-y: auto; }
+#publication-dialog input[type=checkbox] { min-height: 18px; height: 18px; padding: 0; border-radius: 2px; }

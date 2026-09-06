@@ -276,9 +276,9 @@ function renderReaderNote() {
     note.innerHTML = `<span class="reader-spark" aria-hidden="true">✦</span><span><strong>Reading all ${analysis.evidenceCount || evidence.length} images in the background</strong><small>${escapeHtml(analysis.message)}</small></span>`;
     return;
   }
-  if (analysis?.status === 'failed') {
+  if (['failed', 'needs_review'].includes(analysis?.status)) {
     note.className = 'reader-note is-warning';
-    note.innerHTML = `<span class="reader-spark" aria-hidden="true">!</span><span><strong>Images saved; reading needs another try</strong><small>${escapeHtml(analysis.message || 'Use “Read all images again” when ready.')}</small></span>`;
+    note.innerHTML = `<span class="reader-spark" aria-hidden="true">!</span><span><strong>Images saved; reading needs attention</strong><small>${escapeHtml(analysis.message || 'Use “Read all images again” when ready.')}</small></span>`;
     return;
   }
   if (analysis?.status === 'complete') {
@@ -296,7 +296,7 @@ function renderReaderNote() {
   const latest = evidence[evidence.length - 1];
   if (latest.processingState === 'failed') {
     note.className = 'reader-note is-warning';
-    note.innerHTML = `<span class="reader-spark" aria-hidden="true">!</span><span><strong>Images saved; reading needs another try</strong><small>${escapeHtml(latest.processingMessage || 'Use “Read all images again” when ready.')}</small></span>`;
+    note.innerHTML = `<span class="reader-spark" aria-hidden="true">!</span><span><strong>Images saved; reading needs attention</strong><small>${escapeHtml(latest.processingMessage || 'Use “Read all images again” when ready.')}</small></span>`;
     return;
   }
   const reviewCount = state.current.winners.filter(winner => winner.reviewState !== 'confirmed').length;
@@ -419,7 +419,7 @@ function renderEmptyWinners(winnerCount = state.current?.winners?.length || 0) {
   const evidence = state.current?.evidence || [];
   const evidenceIsBeingRead = evidence.some(image => ['pending', 'queued', 'processing'].includes(image.processingState));
   const analysisIsActive = ['queued', 'processing'].includes(analysis?.status) || (!analysis && evidenceIsBeingRead);
-  empty.className = `empty-winners${analysisIsActive ? ' is-reading' : ''}${analysis?.status === 'failed' ? ' is-warning' : ''}`;
+  empty.className = `empty-winners${analysisIsActive ? ' is-reading' : ''}${['failed', 'needs_review'].includes(analysis?.status) ? ' is-warning' : ''}`;
 
   if (analysisIsActive) {
     const imageCount = analysis?.evidenceCount || evidence.length;
@@ -435,7 +435,7 @@ function renderEmptyWinners(winnerCount = state.current?.winners?.length || 0) {
     return;
   }
 
-  if (analysis?.status === 'failed') {
+  if (['failed', 'needs_review'].includes(analysis?.status)) {
     empty.innerHTML = '<span aria-hidden="true">!</span><strong>The images could not be read</strong><p>Try reading all images again or enter a winner manually.</p>';
     return;
   }
@@ -653,7 +653,7 @@ async function pollAnalysisStatus() {
       return;
     }
 
-    if (['complete', 'failed'].includes(data.analysis.status)) {
+    if (['complete', 'failed', 'needs_review'].includes(data.analysis.status)) {
       await refreshCurrent();
       await loadCatalogue();
       const noticeKey = `${data.analysis.status}:${data.analysis.updatedAt}`;
@@ -665,8 +665,8 @@ async function pollAnalysisStatus() {
               ? 'Several names may belong to one winning team. Please answer the team trophy question.'
               : 'Background reading finished. Check the proposed winners below.'
             : data.analysis.message,
-          data.analysis.status === 'failed',
-          data.analysis.status === 'failed' ? 6500 : 4500,
+          ['failed', 'needs_review'].includes(data.analysis.status),
+          ['failed', 'needs_review'].includes(data.analysis.status) ? 6500 : 4500,
         );
       }
     }

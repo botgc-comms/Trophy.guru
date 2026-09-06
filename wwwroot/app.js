@@ -4,16 +4,6 @@
   const clubForm = document.querySelector('#club-setup-form');
   const loginPassword = document.querySelector('#login-password');
   const passwordToggle = document.querySelector('#toggle-login-password');
-  const trophyPlans = [
-    { code: 'free', name: 'Free', allowance: 1, price: 0, description: 'Try the complete workflow with one trophy.' },
-    { code: 'club-10', name: 'Club 10', allowance: 10, price: 60, description: '£6 per trophy · save 20%' },
-    { code: 'heritage-50', name: 'Heritage 50', allowance: 50, price: 225, description: '£4.50 per trophy · save 40%' },
-    { code: 'cabinet-250', name: 'Cabinet 250', allowance: 250, price: 875, description: '£3.50 per trophy · save 53%' },
-  ];
-  const singleTrophyPrice = 7.5;
-  let preferredPlanCode = null;
-  let selectedPurchase = null;
-
   loginForm?.addEventListener('submit', event => {
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -37,33 +27,15 @@
   document.querySelector('#setup-signout-button')?.addEventListener('click', accountSignOut);
   document.querySelector('#account-settings-button')?.addEventListener('click', openAccountSettings);
   document.querySelector('#header-plan-button')?.addEventListener('click', openPlanDialog);
+  document.querySelector('#honours-board-link')?.addEventListener('click', event => {
+    event.preventDefault();
+    document.querySelector('#publication-dialog').showModal();
+    window.trophyPublication?.refresh();
+  });
+  document.querySelector('#publication-dialog .commercial-dialog-close')?.addEventListener('click', () => document.querySelector('#publication-dialog').close());
+  document.querySelector('#publication-dialog')?.addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
   document.querySelector('#plan-dialog .commercial-dialog-close')?.addEventListener('click', () => document.querySelector('#plan-dialog').close());
   document.querySelector('#plan-dialog')?.addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
-  document.querySelector('#plan-quote-form')?.addEventListener('submit', event => event.preventDefault());
-  document.querySelector('#additional-trophies')?.addEventListener('input', () => {
-    preferredPlanCode = null;
-    renderPlanDialog();
-  });
-  document.querySelector('#plan-tier-list')?.addEventListener('click', event => {
-    const choice = event.target.closest('[data-plan-code]');
-    if (!choice) return;
-    const current = currentPlanContext();
-    const plan = trophyPlans.find(item => item.code === choice.dataset.planCode);
-    if (!plan || current.unlimited || plan.allowance <= current.allowance) return;
-    preferredPlanCode = plan.code;
-    selectedPurchase = { kind: 'upgrade', planCode: plan.code };
-    document.querySelector('#additional-trophies').value = String(plan.allowance - current.allowance);
-    renderPlanDialog();
-    document.querySelector('#plan-quote-results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  });
-  document.querySelector('#plan-quote-results')?.addEventListener('click', event => {
-    const choice = event.target.closest('[data-purchase-kind]');
-    if (!choice) return;
-    selectedPurchase = choice.dataset.purchaseKind === 'upgrade'
-      ? { kind: 'upgrade', planCode: choice.dataset.planCode }
-      : { kind: 'topup' };
-    renderPlanDialog();
-  });
   document.querySelector('#account-settings-dialog .commercial-dialog-close')?.addEventListener('click', () => document.querySelector('#account-settings-dialog').close());
   document.querySelector('#account-settings-dialog')?.addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
   document.querySelector('#account-club-form')?.addEventListener('submit', saveAccountSettings);
@@ -92,6 +64,7 @@
     try {
       const auth = await api('/api/auth/status');
       state.auth = auth;
+      window.dispatchEvent(new CustomEvent('trophy-account-changed'));
       state.aiConfigured = auth.aiConfigured;
       if (!auth.authenticated) {
         showAuthTab(location.hash === '#signup' ? 'signup' : 'login');
@@ -119,10 +92,11 @@
         method: 'POST',
         body: JSON.stringify({
           email: document.querySelector('#login-email').value.trim(),
-          password: loginPassword.value.trim(),
+          password: loginPassword.value,
         }),
       });
       state.auth = auth;
+      window.dispatchEvent(new CustomEvent('trophy-account-changed'));
       state.aiConfigured = auth.aiConfigured;
       window.trophyAnalytics?.track('login', { method: 'password' });
       loginPassword.value = '';
@@ -153,10 +127,12 @@
         }),
       });
       state.auth = auth;
+      window.dispatchEvent(new CustomEvent('trophy-account-changed'));
       state.aiConfigured = auth.aiConfigured;
       window.trophyAnalytics?.track('sign_up', { method: 'password' });
       form.reset();
       showClubSetup(auth);
+      if (auth.notice) showToast(auth.notice, true, 9000);
     } catch (exception) {
       showAccountError('#signup-error', exception.message);
     } finally {
@@ -191,6 +167,7 @@
       const auth = await api('/api/auth/status');
       if (auth.onboardingRequired) throw new Error('The club setup is incomplete. Check the details and logo, then try again.');
       state.auth = auth;
+      window.dispatchEvent(new CustomEvent('trophy-account-changed'));
       state.aiConfigured = auth.aiConfigured;
       await enterArchive(auth);
       showToast(`${auth.club.name} is ready. Add the first trophy whenever you’re ready.`);
@@ -204,13 +181,15 @@
 
   async function enterArchive(auth) {
     state.auth = auth;
+    window.dispatchEvent(new CustomEvent('trophy-account-changed'));
     applyAccountIdentity(auth.user);
     applyClubBranding(auth.club);
     document.querySelector('#login-screen').hidden = true;
     document.querySelector('#club-setup-screen').hidden = true;
     if (['#signup', '#login', ''].includes(location.hash)) history.replaceState({}, '', '#catalogue');
     await loadCatalogue();
-    renderPlanSummary(auth.balance);
+    renderPlanSummary();
+    window.trophyPublication?.refresh();
     const trophyId = trophyIdFromHash();
     if (trophyId) await openTrophy(trophyId, false);
     else closeTrophy(false);
@@ -263,6 +242,8 @@
     document.querySelector('#settings-club-website').value = auth.club.website || '';
     renderSettingsLogo(auth.club.logoUrl, auth.club.name);
     document.querySelector('#account-settings-error').hidden = true;
+    const owner = auth.user?.role !== 'editor';
+    document.querySelectorAll('#account-club-form input, #account-club-form button').forEach(element => { element.disabled = !owner; });
     document.querySelector('#account-settings-dialog').showModal();
   }
 
@@ -276,9 +257,11 @@
 
   function renderSettingsLogo(url, name) {
     const preview = document.querySelector('#settings-logo-preview');
-    preview.innerHTML = url
-      ? `<img src="${url}" alt="${name || 'Club'} logo"><small>Choose a different logo</small>`
-      : '<b>+</b><small>Choose a club logo</small>';
+    preview.replaceChildren();
+    if (url) {
+      const image = document.createElement('img'); image.src = url; image.alt = `${name || 'Club'} logo`; preview.append(image);
+    } else { const add = document.createElement('b'); add.textContent = '+'; preview.append(add); }
+    const hint = document.createElement('small'); hint.textContent = url ? 'Choose a different logo' : 'Choose a club logo'; preview.append(hint);
   }
 
   async function saveAccountSettings(event) {
@@ -306,6 +289,7 @@
       }
       const auth = await api('/api/auth/status');
       state.auth = auth;
+      window.dispatchEvent(new CustomEvent('trophy-account-changed'));
       state.aiConfigured = auth.aiConfigured;
       applyClubBranding(auth.club);
       document.querySelector('#settings-logo-input').value = '';
@@ -329,122 +313,11 @@
     renderPlanSummary(state.auth?.balance);
   }
 
-  function currentPlanContext() {
-    const balance = state.auth?.balance || {};
-    const unlimited = Boolean(balance.unlimited) || balance.planCode === 'unlimited';
-    const plan = trophyPlans.find(item => item.code === balance.planCode) || trophyPlans[0];
-    const used = Number(state.totals?.all ?? state.trophies?.length ?? 0);
-    const credits = unlimited ? null : Math.max(0, Number(balance.trophyCredits || 0));
-    return {
-      ...plan,
-      name: unlimited ? 'Unlimited' : plan.name,
-      allowance: unlimited ? Number.POSITIVE_INFINITY : plan.allowance,
-      price: unlimited ? 0 : plan.price,
-      unlimited,
-      used,
-      credits,
-    };
-  }
-
-  function renderPlanSummary(balance = state.auth?.balance) {
-    if (balance && state.auth) state.auth.balance = balance;
-    const current = currentPlanContext();
-    const name = document.querySelector('#header-plan-name');
-    const remaining = document.querySelector('#header-plan-balance');
-    if (name) name.textContent = current.name;
-    if (remaining) remaining.textContent = current.unlimited ? 'No limit' : `${current.credits} left`;
-    document.querySelector('#header-plan-button')?.setAttribute('aria-label', current.unlimited
-      ? 'Current plan: Unlimited. View plans and trophy capacity.'
-      : `Current plan: ${current.name}. ${current.credits} trophy ${current.credits === 1 ? 'credit' : 'credits'} available. View plans.`);
-  }
-
+  function renderPlanSummary() { window.TrophyBilling?.refresh(); }
   function openPlanDialog() {
     document.querySelector('.archive-account-menu')?.removeAttribute('open');
-    preferredPlanCode = null;
-    selectedPurchase = null;
-    document.querySelector('#additional-trophies').value = '1';
-    renderPlanDialog();
-    document.querySelector('#plan-dialog').showModal();
+    window.TrophyBilling?.open();
   }
-
-  function renderPlanDialog() {
-    const current = currentPlanContext();
-    const currentName = document.querySelector('#plan-current-name');
-    const currentUsage = document.querySelector('#plan-current-usage');
-    const input = document.querySelector('#additional-trophies');
-    currentName.textContent = current.name;
-    currentUsage.textContent = current.unlimited
-      ? `${current.used} catalogued · no trophy limit`
-      : `${current.used} catalogued · ${current.credits} ${current.credits === 1 ? 'credit' : 'credits'} available`;
-    input.disabled = current.unlimited;
-    renderPlanTiers(current);
-    renderPlanQuote(current);
-  }
-
-  function renderPlanTiers(current) {
-    const list = document.querySelector('#plan-tier-list');
-    list.innerHTML = trophyPlans.map(plan => {
-      const isCurrent = !current.unlimited && plan.code === current.code;
-      const unavailable = current.unlimited || plan.allowance <= current.allowance;
-      const upgradeCost = Math.max(0, plan.price - current.price);
-      const action = current.unlimited ? 'Already covered' : isCurrent ? 'Current plan' : unavailable ? 'Included' : `Compare ${formatMoney(upgradeCost)} upgrade`;
-      return `<article class="plan-tier ${isCurrent ? 'is-current' : ''}">
-        <span><small>${plan.allowance === 1 ? 'First trophy' : `${plan.allowance} trophies`}</small><strong>${plan.name}</strong></span>
-        <b>${formatMoney(plan.price)}</b>
-        <p>${plan.description}</p>
-        <button type="button" data-plan-code="${plan.code}" ${unavailable ? 'disabled' : ''}>${action}</button>
-      </article>`;
-    }).join('');
-  }
-
-  function renderPlanQuote(current) {
-    const results = document.querySelector('#plan-quote-results');
-    const selection = document.querySelector('#plan-selection');
-    if (current.unlimited) {
-      results.innerHTML = '<div class="unlimited-plan-note"><strong>No additional capacity is needed</strong><span>This account can catalogue any number of trophies.</span></div>';
-      selection.innerHTML = '';
-      return;
-    }
-
-    const input = document.querySelector('#additional-trophies');
-    const additional = Math.min(1000, Math.max(1, Math.round(Number(input.value) || 1)));
-    if (String(additional) !== input.value) input.value = String(additional);
-    const topupCost = additional * singleTrophyPrice;
-    const requestedAllowance = current.allowance + additional;
-    const preferred = trophyPlans.find(plan => plan.code === preferredPlanCode && plan.allowance > current.allowance);
-    const upgrade = preferred || trophyPlans.find(plan => plan.allowance >= requestedAllowance && plan.allowance > current.allowance);
-    const upgradeCost = upgrade ? Math.max(0, upgrade.price - current.price) : null;
-    const recommendUpgrade = upgrade && upgradeCost < topupCost;
-
-    if (!selectedPurchase || (selectedPurchase.kind === 'upgrade' && selectedPurchase.planCode !== upgrade?.code)) {
-      selectedPurchase = recommendUpgrade
-        ? { kind: 'upgrade', planCode: upgrade.code }
-        : { kind: 'topup' };
-    }
-
-    const topupSelected = selectedPurchase.kind === 'topup';
-    const upgradeSelected = selectedPurchase.kind === 'upgrade' && selectedPurchase.planCode === upgrade?.code;
-    results.innerHTML = `<button class="plan-quote-option ${topupSelected ? 'is-selected' : ''}" type="button" data-purchase-kind="topup">
-        <span><small>Pay as you go${!recommendUpgrade ? ' · best price' : ''}</small><strong>${additional} additional ${additional === 1 ? 'trophy' : 'trophies'}</strong><em>£7.50 per trophy</em></span><b>${formatMoney(topupCost)}</b>
-      </button>${upgrade ? `<button class="plan-quote-option ${upgradeSelected ? 'is-selected' : ''}" type="button" data-purchase-kind="upgrade" data-plan-code="${upgrade.code}">
-        <span><small>${recommendUpgrade ? 'Recommended · lower price' : 'Plan upgrade'}</small><strong>Upgrade to ${upgrade.name}</strong><em>${upgrade.allowance - current.allowance} more trophies in your plan</em></span><b>${formatMoney(upgradeCost)}</b>
-      </button>` : '<div class="plan-quote-limit"><strong>More than 250 trophies?</strong><span>Use individual credits for the extra capacity while we prepare a larger collection plan.</span></div>'}`;
-
-    const selectedPlan = upgradeSelected ? upgrade : null;
-    const selectionName = selectedPlan ? `Upgrade to ${selectedPlan.name}` : `${additional} additional ${additional === 1 ? 'trophy' : 'trophies'}`;
-    const selectionCost = selectedPlan ? upgradeCost : topupCost;
-    selection.innerHTML = `<span><small>Selected option</small><strong>${selectionName} · ${formatMoney(selectionCost)}</strong></span><button type="button" disabled>Checkout not connected</button>`;
-  }
-
-  function formatMoney(value) {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }
-
   window.refreshPlanSummary = renderPlanSummary;
 
   function applyClubBranding(club) {
@@ -453,7 +326,7 @@
     document.querySelector('#club-subtitle').textContent = `${club.sport} · Trophy Archive`;
     const honoursLink = document.querySelector('#honours-board-link');
     if (honoursLink && club.id && club.complete) {
-      honoursLink.href = `/honours/${encodeURIComponent(club.id)}`;
+      honoursLink.href = '#publication';
       honoursLink.hidden = false;
     }
     const monogram = document.querySelector('#club-monogram');

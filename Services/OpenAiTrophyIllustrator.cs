@@ -54,7 +54,7 @@ public sealed class OpenAiTrophyIllustrator(
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("OpenAI trophy illustration failed with {StatusCode}: {Response}", (int)response.StatusCode, body);
+            logger.LogWarning("OpenAI trophy illustration failed with {StatusCode}", (int)response.StatusCode);
             throw new OpenAiUnavailableException($"The illustration could not be generated ({(int)response.StatusCode}). Your photographs are safely stored.");
         }
 
@@ -67,7 +67,7 @@ public sealed class OpenAiTrophyIllustrator(
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or FormatException or IndexOutOfRangeException)
         {
-            logger.LogWarning(exception, "OpenAI returned an unreadable illustration response.");
+            logger.LogWarning("OpenAI returned an unreadable illustration response.");
             throw new OpenAiUnavailableException("The image service returned an unreadable illustration. Your photographs are safely stored.");
         }
     }

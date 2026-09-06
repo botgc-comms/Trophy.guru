@@ -16,6 +16,9 @@
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
   <link rel="stylesheet" href="/analytics.css?v=20260906-1">
   <script src="/analytics.js?v=20260906-1" defer></script>
+  <link rel="stylesheet" href="/publication.css?v=20260906-1">
+  <link rel="stylesheet" href="/billing.css?v=20260906-1">
+  <link rel="stylesheet" href="/account-security.css?v=20260906-1">
 </head>
 <body>
   <div class="app-shell">
@@ -47,7 +50,7 @@
           </summary>
           <div>
             <p><strong id="archive-menu-name">Account</strong><small id="archive-menu-email"></small></p>
-            <button id="account-settings-button" type="button">Account &amp; billing</button>
+            <button id="account-settings-button" type="button">Club settings</button>
             <button id="logout-button" type="button">Log out</button>
           </div>
         </details>
@@ -282,24 +285,17 @@
     </section>
   </dialog>
 
-  <dialog id="plan-dialog" class="commercial-dialog plan-dialog">
+  <dialog id="plan-dialog" class="commercial-dialog plan-dialog" aria-label="Trophy credits and payments">
     <section>
-      <button class="commercial-dialog-close" type="button" aria-label="Close plans">×</button>
-      <p class="step-label">Plans &amp; trophy capacity</p>
-      <h2>Choose how many trophies you need</h2>
-      <p>Buy individual trophy credits or move to a larger plan. Every purchase is a one-off payment and credits do not expire.</p>
-      <div class="current-plan-summary">
-        <span><small>Current plan</small><strong id="plan-current-name">—</strong></span>
-        <span id="plan-current-usage">—</span>
-      </div>
-      <form id="plan-quote-form" class="plan-quote-form">
-        <label for="additional-trophies"><span>How many additional trophies do you need?</span><input id="additional-trophies" type="number" min="1" max="1000" step="1" value="1" inputmode="numeric"></label>
-        <div id="plan-quote-results" class="plan-quote-results" aria-live="polite"></div>
-      </form>
-      <div class="plan-tier-heading"><div><h3>Available plans</h3><p>Plan upgrades are calculated by deducting the price of your current plan.</p></div><small>Prices exclude VAT where applicable</small></div>
-      <div id="plan-tier-list" class="plan-tier-list"></div>
-      <div id="plan-selection" class="plan-selection" aria-live="polite"></div>
-      <p class="plan-checkout-note"><strong>Secure checkout is not connected yet.</strong> The costs and upgrade choices are ready, but this screen will not take payment until Stripe and its credit ledger are connected.</p>
+      <button class="commercial-dialog-close" type="button" aria-label="Close trophy credits">×</button>
+      <div id="billing-panel"></div>
+    </section>
+  </dialog>
+
+  <dialog id="publication-dialog" class="commercial-dialog publication-dialog" aria-label="Review and share your honours board">
+    <section>
+      <button class="commercial-dialog-close" type="button" aria-label="Close honours board settings">×</button>
+      <section id="publication-panel"></section>
     </section>
   </dialog>
 
@@ -353,7 +349,10 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260905-co-winner-1" defer></script>
+  <script src="/app.js?v=20260906-production-1" defer></script>
   <script src="/missing-years.js?v=20260905-co-winner-1" defer></script>
+  <script src="/publication.js?v=20260906-1" defer></script>
+  <script src="/billing.js?v=20260906-1" defer></script>
+  <script src="/account-security.js?v=20260906-1" defer></script>
 </body>
 </html>

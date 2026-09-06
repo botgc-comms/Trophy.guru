@@ -182,7 +182,8 @@
             state.current = data.trophy;
             renderDetail();
           }
-          if (data.trophy.illustrationState === 'complete') {
+          if (data.illustration?.status === 'needs_review') { showToast(data.illustration.message + ' Open trophy credits to review the interrupted job.', true, 9000); return; }
+        if (data.trophy.illustrationState === 'complete') {
             await loadCatalogue();
             showToast('The catalogue illustration is ready.');
             return;

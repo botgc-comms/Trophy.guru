@@ -6,19 +6,16 @@ using Trophy.Catalogue.Domain;
 
 namespace Trophy.Catalogue.Services;
 
-public sealed class AccountStore(
+public sealed partial class AccountStore(
     IWebHostEnvironment environment,
     IConfiguration configuration,
     IPasswordHasher<AccountRecord> passwordHasher)
 {
     private readonly SemaphoreSlim gate = new(1, 1);
-    private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
+    private readonly JsonSerializerOptions jsonOptions = CreateStorageJsonOptions();
     private readonly string dataRoot = AppDataPath.Resolve(environment, configuration);
     private IdentityState state = new();
+    private IdentityState committedState = new();
 
     private string StatePath => Path.Combine(dataRoot, "identity.json");
     public bool LegacyArchiveExists => File.Exists(Path.Combine(dataRoot, "catalogue-state.json"));
@@ -33,6 +30,7 @@ public sealed class AccountStore(
             {
                 await using var stream = File.OpenRead(StatePath);
                 state = await JsonSerializer.DeserializeAsync<IdentityState>(stream, jsonOptions, cancellationToken) ?? new();
+                committedState = Clone(state);
             }
         }
         finally { gate.Release(); }
@@ -80,7 +78,7 @@ public sealed class AccountStore(
         try
         {
             var account = state.Accounts.FirstOrDefault(item => item.NormalizedEmail == email);
-            if (account is null) return null;
+            if (account is null || string.IsNullOrEmpty(input.Password) || input.Password.Length > 128) return null;
             var result = passwordHasher.VerifyHashedPassword(account, account.PasswordHash, input.Password);
             if (result == PasswordVerificationResult.Failed) return null;
             if (result == PasswordVerificationResult.SuccessRehashNeeded)
@@ -113,8 +111,7 @@ public sealed class AccountStore(
 
             var configuredEmail = configuration["LEGACY_ARCHIVE_EMAIL"] ?? "archive@botgc.test";
             var normalizedEmail = NormalizeEmail(configuredEmail);
-            var account = state.Accounts.FirstOrDefault(item => string.Equals(item.ClubId, "legacy", StringComparison.OrdinalIgnoreCase))
-                ?? state.Accounts.FirstOrDefault(item => item.NormalizedEmail == normalizedEmail);
+            var account = state.Accounts.FirstOrDefault(item => string.Equals(item.ClubId, "legacy", StringComparison.OrdinalIgnoreCase) && item.Role == AccountRoles.Owner);
             if (account is null)
             {
                 account = new AccountRecord
@@ -125,19 +122,15 @@ public sealed class AccountStore(
                     NormalizedEmail = normalizedEmail,
                     ClubId = "legacy"
                 };
+                if (state.Accounts.Any(item => item.NormalizedEmail == normalizedEmail))
+                    throw new AccountStoreException("legacy_account_conflict", "The original archive account requires administrator review.");
                 var passwordMaterial = string.IsNullOrEmpty(credential) ? Guid.NewGuid().ToString("N") : credential;
                 account.PasswordHash = passwordHasher.HashPassword(account, passwordMaterial);
                 state.Accounts.Add(account);
             }
-            else
-            {
-                account.DisplayName = configuration["LEGACY_ARCHIVE_DISPLAY_NAME"] ?? "Trophy archive administrator";
-                account.Email = configuredEmail;
-                account.NormalizedEmail = normalizedEmail;
-                account.ClubId = "legacy";
-                if (!string.IsNullOrEmpty(credential))
-                    account.PasswordHash = passwordHasher.HashPassword(account, credential);
-            }
+            // Opening the original archive never reassigns another account or replaces
+            // its saved name, email, password, role or club. The legacy password remains
+            // an independently checked login path in LegacyArchiveAccess.
 
             account.HasUnlimitedTrophyCredits = true;
             account.PlanCode = "unlimited";
@@ -209,7 +202,10 @@ public sealed class AccountStore(
                 };
                 state.Clubs.Add(club);
                 account.ClubId = club.Id;
+                account.Role = AccountRoles.Owner;
             }
+            if (!AccountSecurity.IsOwner(account))
+                throw new AccountStoreException("owner_required", "Only the club owner can change club settings.");
             club.Name = name;
             club.Sport = sport;
             club.Country = country;
@@ -234,6 +230,8 @@ public sealed class AccountStore(
                 ?? throw new AccountStoreException("account_missing", "Your account could not be found.");
             var club = account.ClubId is null ? null : state.Clubs.FirstOrDefault(item => item.Id == account.ClubId);
             if (club is null) throw new AccountStoreException("club_missing", "Save the club details before uploading its logo.");
+            if (!AccountSecurity.IsOwner(account))
+                throw new AccountStoreException("owner_required", "Only the club owner can change club settings.");
 
             var extension = contentType.ToLowerInvariant() switch
             {
@@ -314,15 +312,36 @@ public sealed class AccountStore(
     {
         state.UpdatedAt = DateTimeOffset.UtcNow;
         var temporaryPath = $"{StatePath}.{Guid.NewGuid():N}.tmp";
-        await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-            await JsonSerializer.SerializeAsync(stream, state, jsonOptions, cancellationToken);
-        File.Move(temporaryPath, StatePath, true);
+        try
+        {
+            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                await JsonSerializer.SerializeAsync(stream, state, jsonOptions, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(temporaryPath, StatePath, true);
+            committedState = Clone(state);
+        }
+        catch
+        {
+            // A failed disk write must not leave a password, role or token change
+            // active only in memory and silently undo it on the next restart.
+            state = Clone(committedState);
+            throw;
+        }
+        finally
+        {
+            try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
-
     private static string NormalizeEmail(string value)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(value) || value.Trim().Length > 254) throw new FormatException();
             var address = new MailAddress(value.Trim());
             if (!address.Address.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase)) throw new FormatException();
             return address.Address.ToUpperInvariant();
@@ -332,7 +351,7 @@ public sealed class AccountStore(
 
     private static void ValidatePassword(string password)
     {
-        if (password.Length is < 10 or > 128)
+        if (password is null || password.Length is < 10 or > 128)
             throw new AccountStoreException("invalid_password", "Use a password between 10 and 128 characters.");
         if (!password.Any(char.IsLetter) || !password.Any(char.IsDigit))
             throw new AccountStoreException("invalid_password", "Include at least one letter and one number in the password.");

@@ -1,0 +1,5 @@
+body.is-embedded .honours-header { display: none; }
+body.is-embedded .honours-intro { padding-top: 32px; }
+body.is-embedded .honours-footer { margin-top: 30px; }
+body.is-private-preview .honours-header { display: none; }
+body.is-private-preview .honours-intro::before { content: 'Private publication preview'; display: block; color: #7a6129; font-size: .8rem; font-weight: 700; grid-column: 1 / -1; }

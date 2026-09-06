@@ -8,6 +8,8 @@ public sealed class IdentityState
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<AccountRecord> Accounts { get; set; } = [];
     public List<ClubRecord> Clubs { get; set; } = [];
+    public List<AccountActionToken> AccountActionTokens { get; set; } = [];
+    public List<ClubInvitation> ClubInvitations { get; set; } = [];
 }
 
 public sealed class AccountRecord
@@ -16,14 +18,51 @@ public sealed class AccountRecord
     public required string DisplayName { get; set; }
     public required string Email { get; set; }
     public required string NormalizedEmail { get; set; }
+    [JsonIgnore]
     public string PasswordHash { get; set; } = string.Empty;
     public string? ClubId { get; set; }
+    // Pre-existing accounts created their own club and retain their owner role.
+    public string Role { get; set; } = AccountRoles.Owner;
+    public DateTimeOffset? EmailVerifiedAt { get; set; }
+    [JsonIgnore]
+    public int SecurityVersion { get; set; } = 1;
     public int TrophyCreditBalance { get; set; } = 1;
     public string PlanCode { get; set; } = "free";
     public bool HasUnlimitedTrophyCredits { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public static class AccountRoles
+{
+    public const string Owner = "owner";
+    public const string Editor = "editor";
+}
+
+public sealed class AccountActionToken
+{
+    public required string Id { get; set; }
+    public required string AccountId { get; set; }
+    public required string Purpose { get; set; }
+    public required string TokenHash { get; set; }
+    public int SecurityVersion { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+}
+
+public sealed class ClubInvitation
+{
+    public required string Id { get; set; }
+    public required string ClubId { get; set; }
+    public required string InvitedByAccountId { get; set; }
+    public required string Email { get; set; }
+    public required string NormalizedEmail { get; set; }
+    public required string TokenHash { get; set; }
+    public string Role { get; set; } = AccountRoles.Editor;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? AcceptedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}
 public sealed class ClubRecord
 {
     public required string Id { get; set; }

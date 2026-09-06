@@ -10,3 +10,11 @@ wwwroot/preview-*
 README.md
 *.user
 *.suo
+
+# Private preservation copies, local secrets and test work never enter image builds.
+data-backups
+.env
+.env.*
+Tests
+**/bin
+**/obj

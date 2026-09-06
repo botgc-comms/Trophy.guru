@@ -8,3 +8,5 @@ data-store/
 wwwroot/uploads/
 *.user
 *.suo
+
+data-backups/

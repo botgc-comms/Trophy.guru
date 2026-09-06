@@ -1,8 +1,8 @@
 <Project>
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Trophy.Catalogue'">
     <StartupObject>Trophy.Catalogue.EntryPoint</StartupObject>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Trophy.Catalogue'">
     <Compile Remove="Program.cs" />
   </ItemGroup>
 </Project>

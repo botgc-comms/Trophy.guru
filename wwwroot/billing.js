@@ -1,0 +1,115 @@
+(() => {
+  'use strict';
+  let state;
+  const money = amount => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount / 100);
+  const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
+  async function api(path, body) {
+    const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...(body !== undefined ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Billing is temporarily unavailable. Please try again.');
+    return result;
+  }
+  function message(text) { const target = document.querySelector('#billing-message'); if (target) target.textContent = text; }
+  async function checkout(packCode, upgradeFrom) {
+    const key = `trophy-checkout:${state.clubId}:${packCode}:${upgradeFrom || 'new'}`;
+    let requestId = sessionStorage.getItem(key); if (!requestId) { requestId = crypto.randomUUID(); sessionStorage.setItem(key, requestId); }
+    await redirect('/api/billing/checkout', { packCode, requestId, upgradeFrom: upgradeFrom || null });
+  }
+  async function redirect(path, body) {
+    document.querySelectorAll('#billing-panel button').forEach(button => { button.disabled = true; });
+    message('Opening secure billing…');
+    try { const result = await api(path, body); location.assign(result.url); }
+    catch (error) { render(); message(error.message); }
+  }
+  function button(label, action, enabled = true) { const item = node('button', label); item.type = 'button'; item.disabled = !enabled; item.addEventListener('click', action); return item; }
+  function render() {
+    const mount = document.querySelector('#billing-panel'); if (!mount || !state) return;
+    mount.replaceChildren();
+    const { balance } = state;
+    const summary = node('div', undefined, 'billing-summary');
+    summary.append(node('strong', balance.unlimited ? 'Unlimited trophy credits' : `${balance.available} trophy ${balance.available === 1 ? 'credit' : 'credits'} available`));
+    summary.append(node('p', `${balance.used} trophies processed · ${balance.reserved} currently reserved`));
+    mount.append(summary);
+    const note = node('p', '', 'billing-message'); note.id = 'billing-message'; note.setAttribute('role', 'status'); mount.append(note);
+    if (balance.onHold) message('New AI work is paused while a billing issue is reviewed. Your records remain available. Contact support.');
+    else if (balance.unlimited) message('Your existing archive has unlimited trophy credits. No purchase is needed.');
+    else if (!state.owner) message('Your club owner manages credit purchases and subscriptions.');
+    else if (!state.emailVerified) message('Verify your email address before buying credits. You can still review your archive.');
+    else if (!state.paymentsEnabled) message('Payments are not enabled yet. Prices below are for reference; no payment can be taken.');
+    else if (state.mode === 'test') message('Payment testing is enabled. Checkout accepts Stripe test cards only; no real payment is taken.');
+    const enabled = state.paymentsEnabled && state.owner && state.emailVerified && !balance.unlimited && !balance.onHold;
+    const packs = node('div', undefined, 'billing-packs');
+    for (const pack of state.packs) {
+      const card = node('article', undefined, 'billing-pack');
+      card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', 'One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
+      packs.append(card);
+    }
+    mount.append(packs);
+    if (state.upgrades.length && !balance.unlimited) {
+      mount.append(node('h3', 'Upgrade a previous pack'));
+      const upgrades = node('div', undefined, 'billing-upgrades');
+      for (const quote of state.upgrades) {
+        const pack = state.packs.find(item => item.code === quote.packCode);
+        upgrades.append(button(`Upgrade to ${pack.credits}: add ${quote.credits} credits for ${money(quote.amountPence)}`, () => checkout(quote.packCode, quote.upgradeFrom), enabled));
+      }
+      mount.append(upgrades, node('p', 'Upgrades add only the extra credits. Credits you have already used stay used; your free first trophy is separate.'));
+    }
+    mount.append(node('p', 'One credit covers a trophy’s first successful AI job. Work reserves the credit while processing. Additional attempts are included within the published allowance; manual review and access to your saved records do not spend credits.', 'billing-explanation'));
+    mount.append(node('p', 'First trophy: up to 12 saved photos, 3 readings and 2 illustrations. Paid clubs: up to 40 photos, 12 readings and 3 illustrations per trophy. Contact support for larger jobs.'));
+    if (state.purchases.length) {
+      mount.append(node('h3', 'Recent purchases'));
+      const history = node('ul', undefined, 'billing-history');
+      for (const purchase of state.purchases.slice(0, 10)) history.append(node('li', `${purchase.credits} credits · ${money(purchase.amountPence)} · ${purchase.state}`));
+      mount.append(history);
+    }
+    if (state.reviewJobs?.length) {
+      mount.append(node('h3', 'Interrupted AI requests need your review'));
+      for (const job of state.reviewJobs) {
+        const card = node('article', undefined, 'billing-pack');
+        card.append(node('strong', `${job.kind === 'analysis' ? 'Winner reading' : 'Illustration'} for trophy ${job.trophyId}`), node('p', 'Check the trophy for a saved result first. The provider may have completed this request. Acknowledging this will allow a new request within your remaining allowance; it does not automatically retry.'));
+        const label = node('label'); const check = node('input'); check.type = 'checkbox';
+        label.append(check, document.createTextNode(' I checked the trophy and understand this attempt still counts.'));
+        const acknowledge = button('Acknowledge interrupted request', async () => {
+          acknowledge.disabled = true;
+          try { await api(`/api/billing/jobs/${encodeURIComponent(job.id)}/acknowledge`, { understandAttemptStillCounts: check.checked }); await refresh(); }
+          catch (error) { message(error.message); acknowledge.disabled = !check.checked; }
+        }, false);
+        check.addEventListener('change', () => { acknowledge.disabled = !check.checked || !state.owner || !state.emailVerified; });
+        card.append(label, acknowledge); mount.append(card);
+      }
+    }
+    if (state.portalAvailable) mount.append(button('Manage payments and subscriptions', () => redirect('/api/billing/portal', {}), state.owner && state.emailVerified));
+    if (state.integrationAvailable) mount.append(button('Set up managed Intelligent Golf integration', () => {
+      let id = sessionStorage.getItem('trophy-integration-checkout:' + state.clubId); if (!id) { id = crypto.randomUUID(); sessionStorage.setItem('trophy-integration-checkout:' + state.clubId, id); }
+      return redirect('/api/billing/integration-checkout', { requestId: id });
+    }, enabled));
+    else mount.append(node('p', 'Managed website integrations will be available separately when supported for your platform.'));
+  }
+  async function refresh() {
+    try {
+      state = await api('/api/billing');
+      for (const purchase of state.purchases) {
+        if (purchase.state === 'pending') continue;
+        const key = `trophy-checkout:${state.clubId}:${purchase.packCode}:${purchase.upgradeFrom || 'new'}`;
+        if (sessionStorage.getItem(key) === purchase.requestId) sessionStorage.removeItem(key);
+      }
+      const name = document.querySelector('#header-plan-name'); const balance = document.querySelector('#header-plan-balance');
+      if (name) name.textContent = state.balance.unlimited ? 'Unlimited' : 'Trophy credits';
+      if (balance) balance.textContent = state.balance.unlimited ? 'No limit' : `${state.balance.available} left`;
+      render(); return state;
+    } catch (error) { message(error.message); return null; }
+  }
+  async function open() {
+    const dialog = document.querySelector('#plan-dialog'); if (dialog && !dialog.open) dialog.showModal();
+    const mount = document.querySelector('#billing-panel'); if (mount) mount.replaceChildren(node('p', 'Loading your club balance…'));
+    await refresh();
+  }
+  window.TrophyBilling = { open, refresh };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  document.addEventListener('DOMContentLoaded', () => {
+    const returned = new URLSearchParams(location.search).get('billing');
+    if (returned) {
+      open().then(() => { if (returned === 'success') message('Checkout has returned. Your balance updates when Stripe confirms payment. Refresh if it is still pending.'); });
+    }
+  });
+})();

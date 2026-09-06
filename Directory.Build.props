@@ -1,5 +1,5 @@
 <Project>
-  <ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Trophy.Catalogue'">
     <Content Include="$(MSBuildThisFileDirectory)Data\trophies.json" Link="Data\trophies.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

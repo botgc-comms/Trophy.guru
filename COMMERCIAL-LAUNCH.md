@@ -1,5 +1,7 @@
 # Trophy Archive AI — commercial launch plan
 
+> Historical planning document. The current implementation and outstanding release gates are recorded in [LAUNCH-RUNBOOK.md](LAUNCH-RUNBOOK.md); its status takes precedence over prototype descriptions below.
+
 This document separates the product capabilities now present in this repository from the controls still required before charging public customers.
 
 ## Product and pricing
