@@ -1,6 +1,11 @@
 (() => {
   'use strict';
 
+  // The public example uses the real board renderer with static, fictional data.
+  // Club URLs always load their own published records, even if a demo query is added.
+  const isDemo = location.pathname.toLowerCase() === '/honours.html' &&
+    new URLSearchParams(location.search).get('demo') === '1';
+
   const elements = {
     browser: document.querySelector('#browser-view'),
     browserEyebrow: document.querySelector('#browser-eyebrow'),
@@ -40,10 +45,12 @@
 
   async function initialise() {
     bindEvents();
-    if (!state.clubId) return showError();
+    if (!state.clubId && !isDemo) return showError();
 
     try {
-      const response = await fetch(`/api/public/clubs/${encodeURIComponent(state.clubId)}/honours`, {
+      const dataUrl = isDemo ? '/marketing/honours-demo.json?v=20260906-1' :
+        `/api/public/clubs/${encodeURIComponent(state.clubId)}/honours`;
+      const response = await fetch(dataUrl, {
         credentials: 'omit',
         headers: { Accept: 'application/json' },
       });
@@ -60,6 +67,7 @@
       }
 
       renderFromLocation();
+      notifyPreview('ready');
     } catch {
       showError();
     }
@@ -101,6 +109,21 @@
 
     elements.share.addEventListener('click', shareBoard);
     window.addEventListener('hashchange', renderFromLocation);
+    if (isDemo && window.parent !== window) {
+      window.addEventListener('message', event => {
+        if (event.origin !== location.origin || event.source !== window.parent ||
+            event.data?.type !== 'trophy-archive:preview-view' ||
+            !['year', 'trophy', 'person'].includes(event.data.view) || !state.data) return;
+        state.division = 'all';
+        state.search = '';
+        elements.search.value = '';
+        const hash = event.data.view === 'year' ? `year/${state.data.summary.latestYear}` : event.data.view;
+        history.replaceState(null, '', `${location.pathname}${location.search}#${hash}`);
+        renderFromLocation();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        notifyPreview('view');
+      });
+    }
   }
 
   function readClubId() {
@@ -113,22 +136,25 @@
     const yearRange = summary.firstYear && summary.latestYear
       ? summary.firstYear === summary.latestYear ? `${summary.firstYear}` : `${summary.firstYear}–${summary.latestYear}`
       : 'Confirmed records';
-    elements.clubContext.textContent = `${club.sport} · ${yearRange}`;
+    elements.clubContext.textContent = `${isDemo ? 'Example club · ' : ''}${club.sport} · ${yearRange}`;
     elements.title.textContent = `${club.name} honours`;
-    elements.introduction.textContent = `Explore ${club.name}'s confirmed trophy winners by year, trophy and person.`;
+    elements.introduction.textContent = isDemo
+      ? 'Explore the real honours board with fictional club and winner names.'
+      : `Explore ${club.name}'s confirmed trophy winners by year, trophy and person.`;
     elements.clubMonogram.textContent = club.name.trim().charAt(0).toUpperCase() || 'C';
-    elements.clubLogo.src = club.logoUrl;
+    if (club.logoUrl) elements.clubLogo.src = club.logoUrl;
     elements.clubLogo.alt = `${club.name} logo`;
-    elements.clubLogo.hidden = false;
+    elements.clubLogo.hidden = !club.logoUrl;
     elements.clubLogo.addEventListener('error', () => {
       elements.clubLogo.hidden = true;
       elements.clubMonogram.hidden = false;
     }, { once: true });
-    elements.clubMonogram.hidden = true;
+    elements.clubMonogram.hidden = Boolean(club.logoUrl);
     elements.summaryTrophies.textContent = formatNumber(summary.trophies);
     elements.summaryHonours.textContent = formatNumber(summary.honours);
     elements.summaryYears.textContent = formatNumber(summary.years);
     document.title = `${club.name} honours board`;
+    if (isDemo) document.querySelector('.honours-footer > p').textContent = 'Example archive. Club and winner names are fictional.';
   }
 
   function renderFromLocation() {
@@ -343,7 +369,7 @@
   }
 
   async function shareBoard() {
-    const url = `${location.origin}${location.pathname}`;
+    const url = `${location.origin}${location.pathname}${isDemo ? '?demo=1' : ''}`;
     const share = { title: `${state.data?.club.name || 'Club'} honours board`, text: 'Explore our club trophy winners.', url };
     try {
       if (navigator.share) await navigator.share(share);
@@ -368,6 +394,13 @@
     elements.empty.hidden = true;
     elements.error.hidden = false;
     elements.share.hidden = true;
+    notifyPreview('error');
+  }
+
+  function notifyPreview(status) {
+    if (isDemo && window.parent !== window) {
+      window.parent.postMessage({ type: `trophy-archive:preview-${status}`, view: state.view }, location.origin);
+    }
   }
 
   function noResults(message) {

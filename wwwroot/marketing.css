@@ -566,3 +566,129 @@
 @media (max-width: 480px) {
   .marketing-home .hero h1 > span { white-space: normal; }
 }
+
+/* Final homepage composition: alternate the product story with clear, open galleries. */
+.marketing-home section[id] { scroll-margin-top: 28px; }
+.marketing-home .club-strip li > .club-strip__copy { width: auto; min-width: 0; border: 0; border-radius: 0; font-family: var(--sans); }
+.marketing-home .club-strip strong { font-size: 14px; }
+.marketing-home .club-strip small { font-size: 12px; line-height: 1.5; }
+.marketing-home .member-experience-band { background: #f2eee3; }
+.marketing-home .member-experience-band::before { background: radial-gradient(ellipse at 85% 45%, #e3d8ba, transparent 62%); }
+.marketing-home .member-experience-inner { width: min(1440px, calc(100% - 64px)); padding: 90px 0; grid-template-columns: minmax(300px, .8fr) minmax(0, 1.7fr); gap: 64px; }
+.marketing-home .member-experience-copy h2 { max-width: 430px; font-size: clamp(40px, 3.8vw, 58px); line-height: 1.02; }
+.marketing-home .member-experience-copy > p:not(.eyebrow) { font-size: 16px; line-height: 1.7; }
+.marketing-home .member-experience-copy ul { margin-block: 26px; }
+.marketing-home .member-experience-copy li { min-height: 76px; }
+.marketing-home .member-experience-copy li small { font-size: 13px; line-height: 1.5; }
+.marketing-home .member-experience-copy li strong { font-size: 21px; }
+.marketing-home .member-experience-actions a { font-size: 13px; }
+.marketing-home .member-experience-copy > small { font-size: 12px; line-height: 1.6; }
+.marketing-home .evidence-intro { font-size: 16px; }
+.marketing-home .feature-list p { font-size: 13px; line-height: 1.65; }
+.marketing-home .feature-list h3 { font-size: 21px; }
+.illustration-band { position: relative; background: #f7f4ed; color: var(--ink); overflow: hidden; }
+.illustration-inner { width: min(1440px, calc(100% - 64px)); margin: auto; padding: 86px 0 72px; }
+.illustration-heading { display: grid; grid-template-columns: 1.25fr 1fr; gap: 80px; align-items: end; }
+.illustration-heading h2 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: clamp(40px, 4vw, 60px); line-height: 1.02; letter-spacing: -.04em; }
+.illustration-heading > p { max-width: 500px; margin: 0 0 3px; color: var(--muted); font-size: 16px; line-height: 1.75; }
+.illustration-gallery { margin: 50px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 30px; }
+.illustration-gallery figure { margin: 0; min-width: 0; }
+.illustration-gallery figure > div { height: 330px; padding: 8px 22px 22px; display: flex; align-items: end; justify-content: center; }
+.illustration-gallery img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 15px 10px rgba(38, 31, 13, .13)); }
+.illustration-gallery figcaption { padding: 18px 0; display: flex; gap: 12px; align-items: baseline; border-top: 1px solid #d4ccb9; font-family: var(--serif); font-size: 21px; }
+.illustration-gallery figcaption span { color: #8d743f; font-family: var(--sans); font-size: 11px; font-weight: 700; }
+.illustration-details { margin-top: 30px; padding-top: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px; border-top: 1px solid #d4ccb9; }
+.illustration-details h3 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 24px; line-height: 1.2; }
+.illustration-details p { margin: 10px 0 0; font-size: 14px; color: var(--muted); line-height: 1.7; }
+.marketing-home .pricing-band { background: #092a21; color: #f8f4e9; }
+.marketing-home .pricing-inner { width: min(1440px, calc(100% - 64px)); padding: 80px 0 88px; display: block; }
+.marketing-home .pricing-intro { max-width: none; display: grid; grid-template-columns: 1fr 1fr; column-gap: 80px; margin-bottom: 40px; }
+.marketing-home .pricing-intro .eyebrow { grid-column: 1; color: var(--gold); }
+.marketing-home .pricing-intro h2 { grid-column: 1; grid-row: 2 / 4; margin: 0; font-family: var(--serif); font-size: clamp(40px, 3.8vw, 56px); line-height: 1.02; }
+.marketing-home .pricing-intro > p:not(.eyebrow) { grid-column: 2; grid-row: 2; margin: 0; color: #d0dcd4; font-size: 16px; line-height: 1.7; max-width: 510px; }
+.marketing-home .pricing-intro > small { grid-column: 2; grid-row: 3; margin-top: 12px; color: #b3c3ba; font-size: 12px; }
+.marketing-home .pricing-grid { gap: 16px; }
+.marketing-home .price-card { padding: 25px 21px 21px; min-height: 360px; border-color: #cdc9bc; border-radius: 8px; background: #f9f7f0; color: var(--ink); box-shadow: none; }
+.marketing-home .price-card > p { font-size: 12px; color: #766139; }
+.marketing-home .price-card h3 { font-size: 24px; }
+.marketing-home .price-card > strong { margin-block: 8px; font-size: 40px; font-weight: 500; }
+.marketing-home .price-card > small { font-size: 12px; }
+.marketing-home .price-card ul { margin: 24px 0; gap: 10px; }
+.marketing-home .price-card li { font-size: 13px; line-height: 1.45; }
+.marketing-home .price-card a { min-height: 46px; font-size: 13px; }
+.marketing-home .featured-price { background: #e7cd8c; border-color: #e7cd8c; transform: none; }
+.marketing-home .featured-price > p, .marketing-home .featured-price > small, .marketing-home .featured-price li { color: #384a36; }
+.marketing-home .featured-price li::before { color: #1c593d; }
+.marketing-home .featured-price a { background: #103c2d; border-color: #103c2d; color: #fff; }
+.marketing-home .popular-label { top: -14px; right: 17px; padding: 6px 11px; background: #f3e9cf; color: #13382b; font-size: 11px; border: 1px solid #d6be81; }
+.marketing-home .faq-inner { width: min(1440px, calc(100% - 64px)); padding: 76px 0 84px; gap: 64px; }
+.marketing-home .faq-grid { gap: 12px; }
+.marketing-home .faq-grid summary { min-height: 60px; align-items: center; font-size: 18px; line-height: 1.3; }
+.marketing-home .faq-grid p { font-size: 14px; line-height: 1.65; }
+.marketing-home .final-cta { padding-block: 64px; }
+.marketing-home .final-cta p:last-child { font-size: 15px; }
+.marketing-home .final-cta > a { padding-inline: 23px; font-size: 14px; }
+.marketing-home .site-footer nav { flex-wrap: wrap; }
+.marketing-home .site-footer nav a { font-size: 12px; }
+.marketing-home .site-footer > p { font-size: 12px; }
+.marketing-home .site-footer > small { font-size: 11px; }
+@media (max-width: 1180px) {
+  .marketing-home .member-experience-inner { grid-template-columns: minmax(280px, .85fr) minmax(0, 1.35fr); gap: 35px; }
+  .illustration-gallery { gap: 18px; }
+  .illustration-gallery figure > div { height: 280px; padding-inline: 8px; }
+  .marketing-home .price-card { padding: 23px 14px 17px; }
+  .marketing-home .price-card li { font-size: 12px; }
+  .marketing-home .faq-inner { grid-template-columns: 250px 1fr; gap: 35px; }
+}
+@media (max-width: 900px) {
+  .marketing-home .member-experience-inner { grid-template-columns: 1fr; gap: 40px; }
+  .marketing-home .member-experience-copy { max-width: none; }
+  .marketing-home .member-experience-copy h2 { max-width: 600px; }
+  .marketing-home .member-experience-copy ul { grid-template-columns: repeat(3, 1fr); border: 0; gap: 20px; }
+  .marketing-home .member-experience-copy li { border: 0; align-items: start; }
+  .marketing-home .member-experience-copy > small { max-width: 650px; }
+  .illustration-heading { gap: 35px; }
+  .illustration-gallery figure > div { height: 230px; }
+  .illustration-gallery figcaption { font-size: 18px; }
+  .illustration-details { gap: 25px; }
+  .marketing-home .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .marketing-home .free-card { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 25px; }
+  .marketing-home .free-card > p, .marketing-home .free-card h3, .marketing-home .free-card > strong, .marketing-home .free-card > small { grid-column: 1; }
+  .marketing-home .free-card ul { grid-column: 2; grid-row: 1 / 4; margin: 0; align-content: center; }
+  .marketing-home .free-card a { grid-column: 2; grid-row: 4; }
+  .marketing-home .price-card { padding: 25px; }
+  .marketing-home .price-card li { font-size: 13px; }
+  .marketing-home .faq-inner { grid-template-columns: 1fr; gap: 30px; }
+}
+@media (max-width: 620px) {
+  .marketing-home .member-experience-inner, .illustration-inner, .marketing-home .pricing-inner, .marketing-home .faq-inner { width: calc(100% - 36px); padding-block: 56px; }
+  .marketing-home .member-experience-copy h2 { font-size: 42px; }
+  .marketing-home .member-experience-copy ul { grid-template-columns: 1fr; gap: 0; border-block: 1px solid #d0c7b6; }
+  .marketing-home .member-experience-copy li + li { border-top: 1px solid #d0c7b6; }
+  .marketing-home .member-experience-copy li { align-items: center; }
+  .illustration-heading { grid-template-columns: 1fr; gap: 22px; }
+  .illustration-heading h2 { font-size: 42px; }
+  .illustration-gallery { margin-top: 32px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 18px; }
+  .illustration-gallery figure > div { height: 245px; }
+  .illustration-gallery figcaption { align-items: start; gap: 7px; font-size: 18px; line-height: 1.2; }
+  .illustration-details { grid-template-columns: 1fr; gap: 23px; margin-top: 20px; }
+  .illustration-details h3 { font-size: 23px; }
+  .illustration-details p { margin-top: 7px; }
+  .marketing-home .pricing-intro { display: block; margin-bottom: 30px; }
+  .marketing-home .pricing-intro > p:not(.eyebrow) { margin-top: 22px; }
+  .marketing-home .pricing-intro > small { display: block; }
+  .marketing-home .pricing-grid { gap: 20px 12px; }
+  .marketing-home .price-card { padding: 22px 15px 16px; min-height: 350px; }
+  .marketing-home .price-card h3 { font-size: 22px; }
+  .marketing-home .price-card > strong { font-size: 34px; }
+  .marketing-home .price-card li { font-size: 12px; }
+  .marketing-home .free-card { min-height: 0; }
+  .marketing-home .popular-label { right: 9px; font-size: 10px; }
+  .marketing-home .faq-grid { grid-template-columns: 1fr; }
+  .marketing-home .site-footer { padding-inline: 20px; }
+}
+@media (max-width: 380px) {
+  .illustration-gallery figure > div { height: 210px; }
+  .marketing-home .price-card { padding-inline: 11px; }
+  .marketing-home .free-card { column-gap: 14px; }
+}

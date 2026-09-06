@@ -33,10 +33,12 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/marketing.css?v=20260906-1">
+  <link rel="stylesheet" href="/marketing.css?v=20260906-3">
   <link rel="stylesheet" href="/analytics.css?v=20260906-1">
   <script src="/analytics.js?v=20260906-1" defer></script>
+  <link rel="stylesheet" href="/honours-preview.css?v=20260906-1">
   <script src="/marketing.js" defer></script>
+  <script src="/honours-preview.js?v=20260906-1" defer></script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -193,28 +195,12 @@
       </div>
     </section>
 
-    <section id="features" class="evidence-band">
-      <img class="evidence-backdrop" src="/marketing/evidence-archive-v2.jpg" width="1774" height="887" loading="lazy" decoding="async" alt="" aria-hidden="true">
-      <div class="evidence-inner">
-        <div class="evidence-copy">
-          <p class="eyebrow">Purpose-built, not generic OCR</p><h2>Preserve the evidence.<br>As well as the answer.</h2>
-          <p class="evidence-intro">Every proposed winner remains connected to the photographs that produced it. Whether the source is an engraving or an honours board, people stay in control.</p>
-          <div class="feature-list">
-            <article><span>01</span><div><h3>Multi-image analysis</h3><p>Compare several angles to handle reflections, wear and faint lettering.</p></div></article>
-            <article><span>02</span><div><h3>Missing-year checks</h3><p>Highlight gaps and let another club record provide the answer.</p></div></article>
-            <article><span>03</span><div><h3>Consistent trophy portraits</h3><p>Generate a clean catalogue image from separate reference photographs.</p></div></article>
-            <article><span>04</span><div><h3>Age-aware matching</h3><p>Compare recovered names with member data while rejecting impossible dates.</p></div></article>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <section id="member-experience" class="member-experience-band">
       <div class="member-experience-inner">
         <div class="member-experience-copy">
-          <p class="eyebrow">From record to club benefit</p>
-          <h2>Give every member<br>a window into<br>the club's history.</h2>
-          <p>The archive is not just a safer place to keep the record. Every club gets a polished, shareable honours board that stays in step with its confirmed winners.</p>
+          <p class="eyebrow">Your history, shared</p>
+          <h2>Give every member a window into the club’s history.</h2>
+          <p>Bring your confirmed records to life on a shareable honours board, with your club’s name and crest. Revisit a season, follow a trophy through the decades or discover everything a member has won.</p>
           <ul>
             <li><span>01</span><div><strong>Winners by year</strong><small>Revisit a season and see every recorded honour.</small></div></li>
             <li><span>02</span><div><strong>History by trophy</strong><small>Follow one competition through the decades.</small></div></li>
@@ -226,40 +212,70 @@
           </div>
           <small>Only club-confirmed names and public trophy details appear. Member matching data and source evidence stay private.</small>
         </div>
-        <div class="member-board-preview" aria-label="Example digital honours board">
-          <header><span>N</span><div><small>Northfield Golf Club</small><strong>Club honours</strong></div><em>Share</em></header>
-          <nav><b>By year</b><span>By trophy</span><span>By person</span></nav>
-          <div class="preview-season"><small>Season archive</small><strong>1968</strong><span>12 confirmed honours</span></div>
-          <ol>
-            <li><img src="/catalogue/D05.png" alt=""><span><small>Gentlemen's trophy</small><strong>Captain's Cup</strong><em>A. L. Gibson</em></span><b>→</b></li>
-            <li><img src="/catalogue/D19.png" alt=""><span><small>Open competition</small><strong>Founders' Salver</strong><em>M. J. Harrington</em></span><b>→</b></li>
-            <li><img src="/catalogue/D04.png" alt=""><span><small>Ladies' trophy</small><strong>Centenary Vase</strong><em>J. Wallace</em></span><b>→</b></li>
-          </ol>
+        <figure class="honours-preview" data-honours-preview aria-label="Explore the three honours board views">
+          <div class="honours-preview-controls">
+            <div class="honours-preview-views" role="group" aria-label="Preview a board view">
+              <button type="button" data-preview-view="year" aria-pressed="true">By year</button>
+              <button type="button" data-preview-view="trophy" aria-pressed="false">By trophy</button>
+              <button type="button" data-preview-view="person" aria-pressed="false">By person</button>
+            </div>
+            <button class="honours-preview-pause" type="button" data-preview-pause>Pause tour</button>
+          </div>
+          <div class="honours-preview-stage">
+            <p class="honours-preview-loading">Opening the example honours board…</p>
+            <iframe src="/honours.html?demo=1" title="Example honours board showing the actual product" loading="lazy" tabindex="-1" aria-hidden="true" inert></iframe>
+            <p class="honours-preview-error" hidden>The example could not load.<a href="/honours.html?demo=1">Open the example board →</a></p>
+          </div>
+          <figcaption><span>Example club and winners. Actual honours board.</span><a href="/honours.html?demo=1" target="_blank" rel="noopener">Explore the example board ↗</a></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="features" class="evidence-band">
+      <img class="evidence-backdrop" src="/marketing/evidence-archive-v2.jpg" width="1774" height="887" loading="lazy" decoding="async" alt="" aria-hidden="true">
+      <div class="evidence-inner">
+        <div class="evidence-copy">
+          <p class="eyebrow">Every name has a source</p><h2>Preserve the evidence.<br>As well as the answer.</h2>
+          <p class="evidence-intro">Keep the original photographs alongside the winners they reveal. When a name is faint or a year is missing, your club can return to the source and build a record it can trust.</p>
+          <div class="feature-list">
+            <article><span>01</span><div><h3>Multi-image analysis</h3><p>Compare several angles to handle reflections, wear and faint lettering.</p></div></article>
+            <article><span>02</span><div><h3>Missing-year checks</h3><p>Highlight gaps and let another club record provide the answer.</p></div></article>
+            <article><span>03</span><div><h3>Check every source</h3><p>Open the original photograph beside each proposed winner.</p></div></article>
+            <article><span>04</span><div><h3>Age-aware matching</h3><p>Compare recovered names with member data while rejecting impossible dates.</p></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="illustrations" class="illustration-band" aria-labelledby="illustration-heading">
+      <div class="illustration-inner">
+        <div class="illustration-heading">
+          <div><p class="eyebrow">From photograph to portrait</p><h2 id="illustration-heading">Your photographs.<br>Beautiful trophy illustrations.</h2></div>
+          <p>Add reference photographs and Trophy.guru automatically creates a high-resolution illustration of your trophy, ready to take its place in your archive and honours board.</p>
+        </div>
+        <div class="illustration-gallery" aria-label="Examples of trophy illustrations">
+          <figure><div><img src="/catalogue/D05.png" width="1024" height="1536" loading="lazy" decoding="async" alt="Detailed silver Challenge Bowl illustration with its original dark plinth"></div><figcaption><span>01</span> Challenge Bowl</figcaption></figure>
+          <figure><div><img src="/catalogue/D25.png" width="470" height="983" loading="lazy" decoding="async" alt="Cut-glass Lookers Vase illustration, with its engraved glass detail"></div><figcaption><span>02</span> Lookers Vase</figcaption></figure>
+          <figure><div><img src="/catalogue/D19.png" width="805" height="946" loading="lazy" decoding="async" alt="Silver Ladies Foursomes Salvers illustration with ornate decorative detail"></div><figcaption><span>03</span> Foursomes Salvers</figcaption></figure>
+          <figure><div><img src="/catalogue/D04.png" width="610" height="737" loading="lazy" decoding="async" alt="Ladies Committee Bowl illustration showing the patterned crystal and base"></div><figcaption><span>04</span> Committee Bowl</figcaption></figure>
+        </div>
+        <div class="illustration-details">
+          <div><h3>Created automatically</h3><p>Upload your trophy photographs. The illustration is created in the background.</p></div>
+          <div><h3>Every detail given its place</h3><p>A consistent illustration style for silver cups, crystal bowls and distinctive club trophies.</p></div>
+          <div><h3>A clean, transparent background</h3><p>Your trophy stands on its own, ready for your digital collection.</p></div>
         </div>
       </div>
     </section>
 
     <section id="pricing" class="pricing-band">
       <div class="pricing-inner">
-        <div class="pricing-intro"><p class="eyebrow">Simple, fair pricing</p><h2>Pay for trophies,<br>not software seats.</h2><p>Credits last forever. Use them when you need to. No per-user fees and no permanent subscription.</p><small>Every plan includes the complete archive workflow. Prices exclude VAT where applicable.</small></div>
+        <div class="pricing-intro"><p class="eyebrow">Simple, fair pricing</p><h2>Start with one.<br>Preserve the whole collection.</h2><p>Your first trophy is free. Add more with a one-time credit purchase, whenever your club is ready. No subscription or per-user fees.</p><small>Credits never expire. Prices exclude VAT where applicable.</small></div>
         <div class="pricing-grid">
           <article class="price-card free-card"><p>Try it properly</p><h3>First trophy</h3><strong>Free</strong><small>No card required</small><ul><li>Two trophy photographs</li><li>One trophy evaluation</li><li>Full feature access</li></ul><a href="/archive.html#signup">Try for free</a></article>
           <article class="price-card"><p>Pay as you go</p><h3>1 trophy</h3><strong>£7.50</strong><small>One-time payment</small><ul><li>All features included</li><li>No subscription</li><li>Credits never expire</li></ul><a href="/archive.html#signup">Get started</a></article>
-          <article class="price-card featured-price"><span class="popular-label">Most popular</span><p>Club collection</p><h3>10 trophies</h3><strong>£60</strong><small>£6 per trophy · save 20%</small><ul><li>Everything in a single credit</li><li>Shared member access</li><li>Exports and reports</li></ul><a href="/archive.html#signup">Get started</a></article>
-          <article class="price-card"><p>Heritage collection</p><h3>50 trophies</h3><strong>£225</strong><small>£4.50 per trophy · save 40%</small><ul><li>Built for larger collections</li><li>Credits never expire</li><li>Exports and reports</li></ul><a href="/archive.html#signup">Get started</a></article>
-          <article class="price-card"><p>Complete cabinet</p><h3>250 trophies</h3><strong>£875</strong><small>£3.50 per trophy · save 53%</small><ul><li>A realistic full-club archive</li><li>All features included</li><li>Priority support</li></ul><a href="/archive.html#signup">Get started</a></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="responsibility-band">
-      <div class="responsibility-inner">
-        <div class="responsibility-copy"><p class="eyebrow">Responsible by design</p><h2>A suggestion is never silently turned into a fact.</h2><p>Confidence stays visible, evidence stays attached and a person remains in control of every confirmed name.</p><a href="#questions">Read about accuracy</a></div>
-        <div class="cabinet-montage" aria-label="Examples of archived trophies"><img src="/catalogue/D25.png" alt=""><img src="/catalogue/B37.png" alt=""><img src="/catalogue/D04.png" alt=""><img src="/catalogue/D05.png" alt=""><img src="/catalogue/D19.png" alt=""><img src="/catalogue/Y04.png" alt=""></div>
-        <div class="privacy-points">
-          <article><span>01</span><div><strong>Human confirmation</strong><p>AI readings remain editable and visible until someone at the club confirms them.</p></div></article>
-          <article><span>02</span><div><strong>Minimised member data</strong><p>Birth and joining dates are reduced to year only. The original spreadsheet is not retained.</p></div></article>
-          <article><span>03</span><div><strong>Portable results</strong><p>Export the reconstructed archive as CSV whenever your club needs it.</p></div></article>
+          <article class="price-card featured-price"><span class="popular-label">Save 20%</span><p>Club collection</p><h3>10 trophies</h3><strong>£60</strong><small>£6 per trophy</small><ul><li>Everything in a single credit</li><li>Shared member access</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
+          <article class="price-card"><p>Heritage collection</p><h3>50 trophies</h3><strong>£225</strong><small>£4.50 per trophy · save 40%</small><ul><li>Built for larger collections</li><li>Credits never expire</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
+          <article class="price-card"><p>Complete cabinet</p><h3>250 trophies</h3><strong>£875</strong><small>£3.50 per trophy · save 53%</small><ul><li>For the whole collection</li><li>All features included</li><li>CSV archive export</li></ul><a href="/archive.html#signup">Get started</a></article>
         </div>
       </div>
     </section>
@@ -279,33 +295,9 @@
       </div>
     </section>
 
-    <section class="guide-links-band" aria-labelledby="guide-links-title">
-      <div class="guide-links-inner">
-        <div class="guide-links-heading">
-          <p class="eyebrow">Practical trophy archive guides</p>
-          <h2 id="guide-links-title">From trophy cabinet or honours board to a searchable winners record.</h2>
-          <p>Follow a region-specific guide for photographing inscriptions and supporting records, checking names and years, identifying gaps and exporting a trophy history your organisation can keep.</p>
-        </div>
-        <div class="guide-link-grid">
-          <a class="guide-link-card" href="/uk/how-to-catalogue-trophy-winners/">
-            <small>United Kingdom</small>
-            <strong>How to catalogue trophy winners</strong>
-            <span>A practical guide for golf, rugby, cricket, bowls and tennis clubs, schools, universities, associations and museums.</span>
-            <em>Read the UK guide →</em>
-          </a>
-          <a class="guide-link-card" href="/us/how-to-catalog-trophy-winners/">
-            <small>United States</small>
-            <strong>How to catalog trophy winners</strong>
-            <span>A practical guide for country clubs, athletic programs, schools, colleges, universities, museums and halls of fame.</span>
-            <em>Read the US guide →</em>
-          </a>
-        </div>
-      </div>
-    </section>
-
     <section class="final-cta">
-      <div><p class="eyebrow">Preserve the names. Honour the history.</p><h2>Start with the first trophy<br>in your cabinet.</h2><p>Create your club account, add its logo and begin with an empty archive built around your collection.</p></div>
-      <a href="/archive.html#signup">Start your archive</a><img src="/catalogue/D05.png" alt="" aria-hidden="true">
+      <div><p class="eyebrow">Preserve the names. Honour the history.</p><h2>Start with the first trophy<br>in your cabinet.</h2><p>One trophy is all it takes to begin. Your first is free, with no card required.</p></div>
+      <a href="/archive.html#signup">Try your first trophy free</a><img src="/catalogue/D05.png" alt="" aria-hidden="true">
     </section>
   </main>
 

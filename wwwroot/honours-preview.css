@@ -1,0 +1,26 @@
+/* A framed view of honours.html: its content uses the production board's own styles. */
+.honours-preview { min-width: 0; width: 100%; margin: 0; }
+.honours-preview-controls { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.honours-preview-views { padding: 4px; display: inline-flex; gap: 3px; border: 1px solid #cfc6b2; border-radius: 999px; background: rgba(255,255,255,.45); }
+.honours-preview button { min-height: 40px; padding: 0 17px; border: 0; border-radius: 999px; background: transparent; color: #42584b; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.honours-preview-views button[aria-pressed="true"] { background: #103b2e; color: #fff; box-shadow: 0 2px 5px #08261d18; }
+.honours-preview-views button:hover:not([aria-pressed="true"]) { background: #e5dece; }
+.honours-preview .honours-preview-pause { padding-inline: 10px; color: #4f6156; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
+.honours-preview button:focus-visible, .honours-preview a:focus-visible { outline: 3px solid #a97d2b; outline-offset: 3px; }
+.honours-preview-stage { --honours-demo-width: 1280; --honours-demo-height: 1140; position: relative; width: 100%; aspect-ratio: 1280 / 1140; overflow: hidden; border: 1px solid #c4bba8; border-radius: 11px; background: #f4f0e6; box-shadow: 0 28px 56px #20362928, 0 4px 9px #20362912; }
+.honours-preview-stage iframe { position: absolute; inset: 0; width: 1280px; height: 1140px; border: 0; transform-origin: top left; pointer-events: none; opacity: 0; transition: opacity .25s ease; }
+.honours-preview[data-ready="true"] iframe { opacity: 1; }
+.honours-preview-loading, .honours-preview-error { position: absolute; inset: 0; margin: 0; padding: 30px; display: grid; place-content: center; gap: 12px; color: #536559; font-size: 13px; line-height: 1.6; text-align: center; }
+.honours-preview[data-ready="true"] .honours-preview-loading { display: none; }
+.honours-preview-error a { color: #103b2e; font-weight: 700; }
+.honours-preview figcaption { margin-top: 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; color: #6c7064; font-size: 11px; line-height: 1.6; }
+.honours-preview figcaption span { max-width: 350px; }
+.honours-preview figcaption a { flex: 0 0 auto; color: #164934; font-size: 12px; font-weight: 700; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (max-width: 600px) {
+  .honours-preview-controls { gap: 6px; }
+  .honours-preview button { min-height: 39px; padding-inline: 11px; font-size: 11px; }
+  .honours-preview .honours-preview-pause { padding-inline: 5px; font-size: 10px; }
+  .honours-preview-stage { --honours-demo-width: 780; --honours-demo-height: 1320; aspect-ratio: 780 / 1320; border-radius: 8px; }
+  .honours-preview figcaption { flex-direction: column; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .honours-preview-stage iframe { transition: none; } }

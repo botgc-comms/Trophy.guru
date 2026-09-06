@@ -1,6 +1,10 @@
 (() => {
   'use strict';
 
+  // The embedded fictional board is part of its parent's page, which owns consent.
+  if (window.parent !== window && location.pathname.toLowerCase() === '/honours.html' &&
+      new URLSearchParams(location.search).get('demo') === '1') return;
+
   const measurementId = 'G-8GMHWE0WLH';
   const consentKey = 'trophyGuru.analyticsConsent.v1';
   const productionHost = location.protocol === 'https:' &&

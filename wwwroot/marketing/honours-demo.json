@@ -1,0 +1,287 @@
+{
+  "_example": "Fictional club, trophy names and winner records for the public product demonstration. Images are existing catalogue illustrations.",
+  "club": {
+    "name": "Northfield Golf Club",
+    "sport": "Golf",
+    "logoUrl": null
+  },
+  "summary": {
+    "trophies": 6,
+    "honours": 42,
+    "years": 7,
+    "firstYear": 1962,
+    "latestYear": 1968
+  },
+  "trophies": [
+    {
+      "id": "captains-cup",
+      "name": "Captain’s Cup",
+      "secondaryName": "Club championship",
+      "division": "gents",
+      "category": "Example trophy",
+      "imageUrl": "/catalogue/D05.png",
+      "winners": [
+        {
+          "year": 1962,
+          "name": "Alex Morgan",
+          "personId": "alex-morgan"
+        },
+        {
+          "year": 1963,
+          "name": "Elizabeth Harper",
+          "personId": "elizabeth-harper"
+        },
+        {
+          "year": 1964,
+          "name": "James Wallace",
+          "personId": "james-wallace"
+        },
+        {
+          "year": 1965,
+          "name": "Margaret Ellis",
+          "personId": "margaret-ellis"
+        },
+        {
+          "year": 1966,
+          "name": "Peter Bell",
+          "personId": "peter-bell"
+        },
+        {
+          "year": 1967,
+          "name": "Robert Fraser",
+          "personId": "robert-fraser"
+        },
+        {
+          "year": 1968,
+          "name": "Sarah Wilson",
+          "personId": "sarah-wilson"
+        }
+      ]
+    },
+    {
+      "id": "founders-salver",
+      "name": "Founders’ Salver",
+      "secondaryName": "Annual open competition",
+      "division": "mixed",
+      "category": "Example trophy",
+      "imageUrl": "/catalogue/D19.png",
+      "winners": [
+        {
+          "year": 1962,
+          "name": "James Wallace",
+          "personId": "james-wallace"
+        },
+        {
+          "year": 1963,
+          "name": "Margaret Ellis",
+          "personId": "margaret-ellis"
+        },
+        {
+          "year": 1964,
+          "name": "Peter Bell",
+          "personId": "peter-bell"
+        },
+        {
+          "year": 1965,
+          "name": "Robert Fraser",
+          "personId": "robert-fraser"
+        },
+        {
+          "year": 1966,
+          "name": "Sarah Wilson",
+          "personId": "sarah-wilson"
+        },
+        {
+          "year": 1967,
+          "name": "Thomas Reed",
+          "personId": "thomas-reed"
+        },
+        {
+          "year": 1968,
+          "name": "Alex Morgan",
+          "personId": "alex-morgan"
+        }
+      ]
+    },
+    {
+      "id": "centenary-vase",
+      "name": "Centenary Vase",
+      "secondaryName": "Ladies’ championship",
+      "division": "ladies",
+      "category": "Example trophy",
+      "imageUrl": "/catalogue/D04.png",
+      "winners": [
+        {
+          "year": 1962,
+          "name": "Peter Bell",
+          "personId": "peter-bell"
+        },
+        {
+          "year": 1963,
+          "name": "Robert Fraser",
+          "personId": "robert-fraser"
+        },
+        {
+          "year": 1964,
+          "name": "Sarah Wilson",
+          "personId": "sarah-wilson"
+        },
+        {
+          "year": 1965,
+          "name": "Thomas Reed",
+          "personId": "thomas-reed"
+        },
+        {
+          "year": 1966,
+          "name": "Alex Morgan",
+          "personId": "alex-morgan"
+        },
+        {
+          "year": 1967,
+          "name": "Elizabeth Harper",
+          "personId": "elizabeth-harper"
+        },
+        {
+          "year": 1968,
+          "name": "James Wallace",
+          "personId": "james-wallace"
+        }
+      ]
+    },
+    {
+      "id": "presidents-vase",
+      "name": "President’s Vase",
+      "secondaryName": "Summer competition",
+      "division": "mixed",
+      "category": "Example trophy",
+      "imageUrl": "/catalogue/D25.png",
+      "winners": [
+        {
+          "year": 1962,
+          "name": "Sarah Wilson",
+          "personId": "sarah-wilson"
+        },
+        {
+          "year": 1963,
+          "name": "Thomas Reed",
+          "personId": "thomas-reed"
+        },
+        {
+          "year": 1964,
+          "name": "Alex Morgan",
+          "personId": "alex-morgan"
+        },
+        {
+          "year": 1965,
+          "name": "Elizabeth Harper",
+          "personId": "elizabeth-harper"
+        },
+        {
+          "year": 1966,
+          "name": "James Wallace",
+          "personId": "james-wallace"
+        },
+        {
+          "year": 1967,
+          "name": "Margaret Ellis",
+          "personId": "margaret-ellis"
+        },
+        {
+          "year": 1968,
+          "name": "Peter Bell",
+          "personId": "peter-bell"
+        }
+      ]
+    },
+    {
+      "id": "crystal-cup",
+      "name": "Crystal Cup",
+      "secondaryName": "Junior championship",
+      "division": "junior",
+      "category": "Example trophy",
+      "imageUrl": "/catalogue/B37.png",
+      "winners": [
+        {
+          "year": 1962,
+          "name": "Alex Morgan",
+          "personId": "alex-morgan"
+        },
+        {
+          "year": 1963,
+          "name": "Elizabeth Harper",
+          "personId": "elizabeth-harper"
+        },
+        {
+          "year": 1964,
+          "name": "James Wallace",
+          "personId": "james-wallace"
+        },
+        {
+          "year": 1965,
+          "name": "Margaret Ellis",
+          "personId": "margaret-ellis"
+        },
+        {
+          "year": 1966,
+          "name": "Peter Bell",
+          "personId": "peter-bell"
+        },
+        {
+          "year": 1967,
+          "name": "Robert Fraser",
+          "personId": "robert-fraser"
+        },
+        {
+          "year": 1968,
+          "name": "Sarah Wilson",
+          "personId": "sarah-wilson"
+        }
+      ]
+    },
+    {
+      "id": "club-shield",
+      "name": "Club Shield",
+      "secondaryName": "Autumn competition",
+      "division": "mixed",
+      "category": "Example trophy",
+      "imageUrl": "/catalogue/Y04.png",
+      "winners": [
+        {
+          "year": 1962,
+          "name": "James Wallace",
+          "personId": "james-wallace"
+        },
+        {
+          "year": 1963,
+          "name": "Margaret Ellis",
+          "personId": "margaret-ellis"
+        },
+        {
+          "year": 1964,
+          "name": "Peter Bell",
+          "personId": "peter-bell"
+        },
+        {
+          "year": 1965,
+          "name": "Robert Fraser",
+          "personId": "robert-fraser"
+        },
+        {
+          "year": 1966,
+          "name": "Sarah Wilson",
+          "personId": "sarah-wilson"
+        },
+        {
+          "year": 1967,
+          "name": "Thomas Reed",
+          "personId": "thomas-reed"
+        },
+        {
+          "year": 1968,
+          "name": "Alex Morgan",
+          "personId": "alex-morgan"
+        }
+      ]
+    }
+  ]
+}

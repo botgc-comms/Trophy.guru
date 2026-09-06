@@ -112,10 +112,13 @@ public static class EntryPoint
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";
             context.Response.Headers["Referrer-Policy"] = "same-origin";
             context.Response.Headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()";
+            var isHonoursDemo = context.Request.Path.Equals("/honours.html", StringComparison.OrdinalIgnoreCase) &&
+                context.Request.Query["demo"] == "1";
+            var frameAncestors = isHonoursDemo ? "'self'" : "'none'";
             context.Response.Headers["Content-Security-Policy"] =
-                "default-src 'self'; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+                $"default-src 'self'; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-ancestors {frameAncestors}; base-uri 'self'; form-action 'self'";
             if (context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
-                context.Request.Path.StartsWithSegments("/honours"))
+                context.Request.Path.StartsWithSegments("/honours") || isHonoursDemo)
             {
                 context.Response.Headers["X-Robots-Tag"] = "noindex,nofollow,noarchive";
             }
