@@ -30,7 +30,7 @@
   document.querySelector('#honours-board-link')?.addEventListener('click', event => {
     event.preventDefault();
     document.querySelector('#publication-dialog').showModal();
-    window.trophyPublication?.refresh();
+    window.trophyPublication?.open();
   });
   document.querySelector('#publication-dialog .commercial-dialog-close')?.addEventListener('click', () => document.querySelector('#publication-dialog').close());
   document.querySelector('#publication-dialog')?.addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });

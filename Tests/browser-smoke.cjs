@@ -65,7 +65,7 @@ const ok = text => { checks.push(text); console.log('PASS ' + text); };
   await page.goto(base + '/archive.html'); await page.locator('#login-screen').waitFor({ state: 'hidden' });
   await page.locator('#honours-board-link').click(); await page.locator('#publication-state').filter({ hasText: 'Public' }).waitFor();
   assert(await page.locator('#publication-dialog').evaluate(element => element.getBoundingClientRect().width > 1000), 'Desktop publication preview has a usable width');
-  await page.locator('#publication-controls summary').click(); await page.locator('#publication-preview-button').click();
+  // Opening the board now prepares its preview automatically.
   await page.frameLocator('#publication-preview-frame').getByText('J. Fixture', { exact: true }).first().waitFor();
   await page.screenshot({ path: path.join(output, 'publication-desktop.png'), fullPage: true });
   await page.locator('#publication-dialog .commercial-dialog-close').click(); await page.locator('#header-plan-button').click();
@@ -74,7 +74,8 @@ const ok = text => { checks.push(text); console.log('PASS ' + text); };
   await page.goto(base + '/account-security.html#settings'); await page.getByRole('heading', { name: /security/i }).first().waitFor();
   await page.screenshot({ path: path.join(output, 'security-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto(base + '/archive.html'); await page.locator('#login-screen').waitFor({ state: 'hidden' });
-  await page.locator('#honours-board-link').click(); await page.locator('#publication-controls summary').click();
+  await page.locator('#honours-board-link').click();
+  await page.frameLocator('#publication-preview-frame').getByText('J. Fixture', { exact: true }).first().waitFor();
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'No mobile horizontal page overflow');
   await page.screenshot({ path: path.join(output, 'publication-mobile.png'), fullPage: true });
   assert.deepEqual(errors, []); ok('Desktop and mobile publication, private preview, billing and security screens have no JavaScript errors');

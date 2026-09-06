@@ -7,11 +7,13 @@
   let selected = new Set();
   let page = 0;
   let loading = false;
+  let previewRevision = 0;
+  let previewReady = false;
   const pageSize = 80;
   root.classList.add('publication-panel');
   root.innerHTML = `
-    <div class="publication-heading"><div><p class="publication-eyebrow">Your public honours board</p><h2>Share your club’s honours board.</h2>
-      <p>Use the winners you’ve already confirmed. Preview the board, then publish it for anyone to view.</p></div><span id="publication-state" class="publication-state">Private</span></div>
+    <div class="publication-heading"><div><p class="publication-eyebrow">Your public honours board</p><h2>Your honours board.</h2>
+      <p>Preview your confirmed winners, then publish a link to share.</p></div><span id="publication-state" class="publication-state">Private</span></div>
     <p id="publication-summary">Loading publication settings…</p>
     <p id="publication-feedback" role="status" aria-live="polite"></p>
     <p id="publication-ready-summary"></p>
@@ -33,13 +35,12 @@
     </details>
       <div class="publication-actions"><button id="publication-preview-button" type="button" class="publication-primary" disabled>Preview honours board</button><button id="publication-withdraw" type="button" class="publication-danger" hidden>Withdraw public board</button></div>
       <div id="publication-preview-area" hidden>
-        <h3>Your honours board preview</h3><p id="publication-preview-summary"></p>
-        <iframe id="publication-preview-frame" title="Private preview of selected honours board records" loading="lazy"></iframe>
-        <p class="publication-approval">Publishing makes this board public. By publishing, you confirm you’re authorised to share the included records on behalf of your club.</p>
-        <button id="publication-publish" type="button" class="publication-primary" disabled>Publish honours board</button>
+        <div class="publication-preview-toolbar"><div><h3>Your honours board</h3><p id="publication-preview-summary"></p></div><button id="publication-publish" type="button" class="publication-primary" disabled>Publish honours board</button></div>
+        <p class="publication-approval">Publish to make this board public and get your share link. Only publish records you’re authorised to share for your club.</p>
+        <iframe id="publication-preview-frame" title="Private preview of selected honours board records"></iframe>
       </div>
       <div id="publication-sharing" hidden><h3>Share your published board</h3>
-        <label>Public board link<input id="publication-link" readonly></label><button type="button" data-copy="publication-link">Copy link</button>
+        <label>Public board link<input id="publication-link" readonly></label><a id="publication-open-link" target="_blank" rel="noopener">Open public board ↗</a><button type="button" data-copy="publication-link">Copy link</button>
         <details><summary>Add to your club website</summary>
         <label>Embed without JavaScript<textarea id="publication-iframe-code" readonly rows="3"></textarea></label><button type="button" data-copy="publication-iframe-code">Copy iframe</button>
         <label>Embed with automatic height<textarea id="publication-script-code" readonly rows="2"></textarea></label><button type="button" data-copy="publication-script-code">Copy script</button>
@@ -47,6 +48,7 @@
         </details>
       </div>`;
   const el = id => root.querySelector(`#${id}`);
+  root.insertBefore(el('publication-sharing'), el('publication-controls'));
   const feedback = message => { el('publication-feedback').textContent = message; };
   const request = async (url, body) => {
     const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store',
@@ -57,7 +59,7 @@
     return result;
   };
 
-  async function refresh() {
+  async function refresh(showPreview = false) {
     if (loading) return;
     loading = true;
     try {
@@ -75,6 +77,7 @@
       invalidatePreview();
       renderStatus();
       renderCandidates();
+      if (showPreview === true && selected.size > 0) await preparePreview(false);
     } catch (error) { el('publication-summary').textContent = error.message; }
     finally { loading = false; }
   }
@@ -86,11 +89,13 @@
     el('publication-summary').textContent = publication.isPublic
       ? `${publication.summary.honours.toLocaleString('en-GB')} ${publication.summary.honours === 1 ? 'honour' : 'honours'} published on ${new Date(publication.publishedAt).toLocaleDateString('en-GB')}. Use Preview honours board to publish an updated version.`
       : 'Your board is private until you publish it.';
+    el('publication-summary').hidden = !publication.isPublic;
     el('publication-withdraw').hidden = !publication.isPublic || !data.canWithdraw;
     el('publication-sharing').hidden = !publication.isPublic;
     const board = new URL(data.publicUrl, location.origin).href;
     const embed = new URL(data.embedUrl, location.origin).href;
     el('publication-link').value = board;
+    el('publication-open-link').href = board;
     el('publication-iframe-code').value = `<iframe src="${embed}" title="Club honours board" width="100%" height="900" style="border:0" loading="lazy" referrerpolicy="no-referrer"></iframe>`;
     const club = data.publicUrl.split('/').pop();
     el('publication-script-code').value = `<script src="${location.origin}/embed/v1.js" data-club="${club}" defer><\/script>`;
@@ -113,7 +118,7 @@
       const name = approvedNames && item.approvedIdentityName ? item.approvedIdentityName : item.inscriptionName;
       return `<tr><td><input type="checkbox" data-key="${escapeHtml(item.key)}" aria-label="Publish ${escapeHtml(item.trophyName)} ${item.year}: ${escapeHtml(name)}" ${selected.has(item.key) ? 'checked' : ''}></td><td><strong>${escapeHtml(item.trophyName)}</strong><small>${item.year}${item.division === 'junior' ? ' · Junior' : ''}</small></td><td>${escapeHtml(name)}${approvedNames && item.approvedIdentityName ? '<small>Manually approved identity</small>' : ''}${el('publication-descriptions').checked && item.description ? `<small>${escapeHtml(item.description)}</small>` : ''}</td></tr>`;
     }).join('') || '<tr><td colspan="3">No confirmed winners match this selection.</td></tr>';
-    el('publication-ready-summary').textContent = `${selected.size.toLocaleString('en-GB')} confirmed records included. You don’t need to confirm the names again. Junior trophies and descriptions are optional in board settings.`;
+    el('publication-ready-summary').textContent = `${selected.size.toLocaleString('en-GB')} confirmed ${selected.size === 1 ? 'record' : 'records'} included.`;
     el('publication-selection-count').textContent = `${selected.size.toLocaleString('en-GB')} confirmed ${selected.size === 1 ? 'record' : 'records'} selected · ${filtered.length.toLocaleString('en-GB')} matching results`;
     el('publication-page').textContent = `Page ${page + 1} of ${pages}`;
     el('publication-previous').disabled = page === 0;
@@ -129,6 +134,9 @@
 
   function invalidatePreview() {
     preview = null;
+    previewReady = false;
+    previewRevision++;
+    el('publication-preview-button').hidden = false;
     el('publication-preview-area').hidden = true;
     el('publication-publish').disabled = true;
     el('publication-preview-frame').removeAttribute('src');
@@ -142,26 +150,37 @@
     el('publication-preview-frame').contentWindow?.postMessage({ type: 'trophy-archive:publication-preview', snapshot }, location.origin);
   }
 
-  el('publication-preview-button').addEventListener('click', async () => {
+  async function preparePreview(scroll = true) {
+    invalidatePreview();
+    const revision = previewRevision;
     el('publication-preview-button').disabled = true;
     feedback('Preparing your private preview…');
     try {
-      preview = await request('/api/publication/preview', options());
-      el('publication-preview-summary').textContent = `${preview.snapshot.summary.honours.toLocaleString('en-GB')} honours across ${preview.snapshot.summary.trophies} trophies. This preview is private. ${data.canPublish ? 'Publish below to get your public link.' : 'A club owner with a verified email address must approve publication.'}`;
+      const result = await request('/api/publication/preview', options());
+      if (revision !== previewRevision) return;
+      preview = result;
+      el('publication-preview-summary').textContent = `${preview.snapshot.summary.honours.toLocaleString('en-GB')} ${preview.snapshot.summary.honours === 1 ? 'honour' : 'honours'} across ${preview.snapshot.summary.trophies} ${preview.snapshot.summary.trophies === 1 ? 'trophy' : 'trophies'}. ${data.canPublish ? '' : 'A club owner with a verified email address must publish this board.'}`;
       el('publication-preview-area').hidden = false;
-      el('publication-publish').disabled = !data.canPublish;
+      el('publication-publish').disabled = true;
+      el('publication-publish').textContent = data.publication.isPublic ? 'Publish updates' : 'Publish honours board';
+      el('publication-preview-button').hidden = true;
       el('publication-preview-frame').src = '/honours-preview';
-      feedback('Preview ready below. Publish the board to get a public link you can share.');
-      el('publication-preview-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (error) { feedback(error.message); }
-    finally { el('publication-preview-button').disabled = selected.size === 0; }
-  });
+      feedback('');
+      if (scroll) el('publication-preview-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) { if (revision === previewRevision) feedback(error.message); }
+    finally { if (revision === previewRevision) el('publication-preview-button').disabled = selected.size === 0; }
+  }
+  el('publication-preview-button').addEventListener('click', () => preparePreview());
   window.addEventListener('message', event => {
     if (event.origin === location.origin && event.source === el('publication-preview-frame').contentWindow &&
-        event.data?.type === 'trophy-archive:publication-preview-ready') sendPreview();
+        event.data?.type === 'trophy-archive:publication-preview-ready' && preview) {
+      sendPreview();
+      previewReady = true;
+      el('publication-publish').disabled = !data.canPublish;
+    }
   });
   el('publication-publish').addEventListener('click', async () => {
-    if (!preview || !data.canPublish) return;
+    if (!preview || !previewReady || !data.canPublish) return;
     el('publication-publish').disabled = true;
     try {
       await request('/api/publication/publish', { options: preview.options, previewFingerprint: preview.fingerprint, publicationApproved: true });
@@ -204,7 +223,9 @@
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
   }
-  window.trophyPublication = Object.freeze({ refresh });
-  window.addEventListener('trophy-app-ready', refresh);
-  refresh();
+  window.trophyPublication = Object.freeze({ refresh, open: () => {
+    el('publication-controls').open = false;
+    feedback('');
+    return refresh(true);
+  } });
 })();

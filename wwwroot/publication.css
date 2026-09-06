@@ -42,3 +42,9 @@
 #publication-sharing button { justify-self: start; margin-bottom: 10px; }
 #publication-sharing textarea { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; }
 @media (max-width: 600px) { .publication-panel { padding: 17px; } .publication-heading { gap: 8px; } .publication-panel th, .publication-panel td { padding: 10px 7px; } #publication-preview-frame { height: 650px; } }
+
+.publication-preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.publication-preview-toolbar h3 { margin: 0; }
+.publication-preview-toolbar button { flex-shrink: 0; }
+.publication-preview-toolbar + .publication-approval { margin: 8px 0 18px; color: #636b5e; font-size: .8rem; }
+@media (max-width: 600px) { .publication-preview-toolbar { align-items: stretch; flex-direction: column; gap: 8px; } }
