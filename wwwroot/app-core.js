@@ -503,6 +503,7 @@ async function saveWinner(row) {
     } else {
       await api(`/api/trophies/${encodeURIComponent(state.current.id)}/winners/${encodeURIComponent(id)}`, { method: 'PUT', body: payload });
     }
+    window.trophyAnalytics?.track('winner_confirmed', { entry_type: id === 'new' ? 'new' : 'existing' });
     await refreshCurrent();
     await loadCatalogue();
     showToast(id === 'new' ? 'Winner added.' : 'Winner confirmed.');
@@ -563,6 +564,7 @@ async function uploadFiles(files, kind) {
     form.append('kind', kind);
     setBusy(true, `Saving ${plural(preparedFiles.length, 'image')}…`, 'You can keep working as soon as the upload finishes.');
     const data = await api(`/api/trophies/${encodeURIComponent(trophyId)}/images`, { method: 'POST', body: form });
+    window.trophyAnalytics?.track('evidence_uploaded', { item_count: preparedFiles.length });
     if (state.current?.id !== trophyId) return;
     state.current = data.trophy;
     state.missingYears = data.missingYears || [];
@@ -681,6 +683,7 @@ async function markComplete() {
   if (warnings.length && !confirm(`Save this list as complete?\n\n${warnings.join(' and ')}.`)) return;
   try {
     const data = await api(`/api/trophies/${encodeURIComponent(state.current.id)}/complete`, { method: 'POST', body: '{}' });
+    window.trophyAnalytics?.track('honours_published');
     state.current = data.trophy;
     state.missingYears = data.missingYears || [];
     renderDetail();

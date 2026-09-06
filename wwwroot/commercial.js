@@ -133,6 +133,7 @@
           }),
         });
         createdId = created.trophy.id;
+        window.trophyAnalytics?.track('trophy_created');
 
         setBusy(true, `Uploading ${plural(prepared.length, 'photograph')}…`, 'Saving every angle to the club archive.');
         const upload = new FormData();

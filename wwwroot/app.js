@@ -124,6 +124,7 @@
       });
       state.auth = auth;
       state.aiConfigured = auth.aiConfigured;
+      window.trophyAnalytics?.track('login', { method: 'password' });
       loginPassword.value = '';
       if (auth.onboardingRequired) {
         showClubSetup(auth);
@@ -153,6 +154,7 @@
       });
       state.auth = auth;
       state.aiConfigured = auth.aiConfigured;
+      window.trophyAnalytics?.track('sign_up', { method: 'password' });
       form.reset();
       showClubSetup(auth);
     } catch (exception) {

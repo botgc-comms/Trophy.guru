@@ -80,6 +80,7 @@
           division: values.get('division') || 'mixed',
         }),
       });
+      window.trophyAnalytics?.track('trophy_created');
       document.querySelector('#new-trophy-dialog').close();
       form.reset();
       await loadCatalogue();
