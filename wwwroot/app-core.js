@@ -960,10 +960,6 @@ elements.winnerList.addEventListener('click', event => {
     renderEmptyWinners();
   }
 });
-document.querySelector('.club-mark').addEventListener('click', event => {
-  event.preventDefault();
-  closeTrophy();
-});
 document.querySelector('#back-button').addEventListener('click', () => closeTrophy());
 document.querySelector('#photo-input').addEventListener('change', event => uploadFiles([...event.target.files], 'photo'));
 document.querySelector('#photo-library-input').addEventListener('change', event => uploadFiles([...event.target.files], 'photo'));
