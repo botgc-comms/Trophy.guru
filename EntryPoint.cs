@@ -148,17 +148,35 @@ public static class EntryPoint
             }
 
             var path = context.Request.Path.Value ?? "/";
+            var publicSiteUrl = configuredPublicSiteUrl ?? ResolveRequestSiteUrl(context);
+            // Consolidate public URLs without redirecting private APIs or health checks.
+            // Render terminates TLS, so do not infer the public scheme from Kestrel.
+            var marketingPath = marketingDocuments.Keys.FirstOrDefault(key => key.Equals(path, StringComparison.OrdinalIgnoreCase));
+            var redirectPath = marketingRedirects.GetValueOrDefault(path);
+            var discoveryDocument = path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase) || path.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase);
+            var canonicalHost = configuredPublicSiteUrl is null ? null : new Uri(configuredPublicSiteUrl).Authority;
+            if ((marketingPath is not null || redirectPath is not null || discoveryDocument) &&
+                canonicalHost is not null && !string.Equals(context.Request.Host.Value, canonicalHost, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Redirect($"{publicSiteUrl}{redirectPath ?? marketingPath ?? path.ToLowerInvariant()}{context.Request.QueryString}", permanent: true);
+                return;
+            }
+            if (marketingPath is not null && !path.Equals(marketingPath, StringComparison.Ordinal))
+            {
+                context.Response.Redirect($"{marketingPath}{context.Request.QueryString}", permanent: true);
+                return;
+            }
             if (marketingRedirects.TryGetValue(path, out var cleanPath))
             {
-                context.Response.Redirect(cleanPath, permanent: true);
+                context.Response.Redirect($"{cleanPath}{context.Request.QueryString}", permanent: true);
                 return;
             }
 
-            var publicSiteUrl = configuredPublicSiteUrl ?? ResolveRequestSiteUrl(context);
             if (marketingDocuments.TryGetValue(path, out var marketingDocumentPath))
             {
                 var document = (await File.ReadAllTextAsync(marketingDocumentPath, context.RequestAborted))
                     .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal)
+                    .Replace("</head>", SearchDiscovery.VerificationTags(builder.Configuration) + "</head>", StringComparison.Ordinal)
                     .Replace("<script type=\"application/ld+json\">", $"<script type=\"application/ld+json\" nonce=\"{context.Items["csp-nonce"]}\">", StringComparison.Ordinal);
                 var canonicalUrl = path == "/" ? $"{publicSiteUrl}/" : $"{publicSiteUrl}{path}";
                 context.Response.ContentType = "text/html; charset=utf-8";
@@ -173,7 +191,8 @@ public static class EntryPoint
 
             if (path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase))
             {
-                var robots = $"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {publicSiteUrl}/sitemap.xml\n";
+                var robots = (await File.ReadAllTextAsync(Path.Combine(webRootPath, "robots.txt"), context.RequestAborted))
+                    .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal);
                 context.Response.ContentType = "text/plain; charset=utf-8";
                 context.Response.Headers.CacheControl = "public,max-age=3600";
                 if (!HttpMethods.IsHead(context.Request.Method))
@@ -189,9 +208,8 @@ public static class EntryPoint
                 foreach (var page in marketingDocuments)
                 {
                     var location = page.Key == "/" ? $"{publicSiteUrl}/" : $"{publicSiteUrl}{page.Key}";
-                    var lastModified = File.GetLastWriteTimeUtc(page.Value).ToString("yyyy-MM-dd");
-                    var priority = page.Key == "/" ? "1.0" : "0.8";
-                    sitemap.Append($"  <url>\n    <loc>{location}</loc>\n    <lastmod>{lastModified}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>{priority}</priority>\n  </url>\n");
+                    // Container builds reset file timestamps; those are not content-change dates.
+                    sitemap.Append($"  <url>\n    <loc>{System.Net.WebUtility.HtmlEncode(location)}</loc>\n  </url>\n");
                 }
                 sitemap.Append("</urlset>\n");
                 context.Response.ContentType = "application/xml; charset=utf-8";

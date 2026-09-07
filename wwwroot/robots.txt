@@ -1,3 +1,8 @@
+# Public pages and assets are available to search and AI discovery crawlers.
+# The wildcard includes Googlebot, Bingbot, OAI-SearchBot, Claude-SearchBot
+# and PerplexityBot. One group keeps the API exclusion applicable to all.
 User-agent: *
 Allow: /
 Disallow: /api/
+
+Sitemap: {{PUBLIC_SITE_URL}}/sitemap.xml
