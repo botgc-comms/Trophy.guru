@@ -33,6 +33,13 @@
     };
     window.addEventListener('trophy-account-changed', refreshBanner);
     window.addEventListener('focus', refreshBanner);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshBanner();
+    });
+    // Verification may complete in another browser or device while this page stays open.
+    window.setInterval(() => {
+      if (!document.hidden && document.querySelector('#security-verification-banner')) refreshBanner();
+    }, 15000);
     refreshBanner();
     return;
   }

@@ -32,6 +32,6 @@
 .security-footer { max-width:720px; margin:auto; padding:0 24px 48px; font-size:13px; }
 .security-inline-link { display:block; margin-top:12px; color:#235241; font-size:13px; text-underline-offset:3px; }
 .archive-account-menu .security-inline-link { padding:10px 12px; margin:0; font-size:13px; text-decoration:none; }
-.security-verification-banner { margin:0 0 20px; padding:15px 18px; background:#f4ecd0; border:1px solid #ddd1a7; border-radius:5px; color:#3f452d; font-size:14px; }
+.security-verification-banner { margin:20px 0; padding:15px 18px; background:#f4ecd0; border:1px solid #ddd1a7; border-radius:5px; color:#3f452d; font-size:14px; }
 .security-verification-banner a { color:inherit; font-weight:650; }
 @media(max-width:540px) { .security-header { padding:18px 20px; }.security-header a { font-size:12px; }.security-shell { padding-top:36px; }.security-card { padding:20px; }.security-member { align-items:flex-start; }.security-actions button { width:100%; } }
