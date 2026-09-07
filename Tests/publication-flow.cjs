@@ -104,7 +104,7 @@ const ok = text => { checks.push(text); console.log('PASS ' + text); };
   await page.locator('#publication-dialog .commercial-dialog-close').click();
   await page.screenshot({ path: path.join(output, 'dashboard-mobile.png'), fullPage: true });
   await page.goto(base + '/');
-  assert((await page.locator('h1').textContent()).includes('Record your'));
+  assert((await page.locator('h1').textContent()).includes('Preserve every'));
   assert((await page.locator('.hero-intro').textContent()).includes('Photograph your trophies'));
   assert.equal(await page.locator('.price-card').filter({ hasText: '250+ trophies' }).locator('strong').textContent(), 'From £625');
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
