@@ -321,7 +321,7 @@
   }
 
   async function watchIllustration(id) {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
       await new Promise(resolve => window.setTimeout(resolve, 3000));
       try {
         const data = await api(`/api/trophies/${encodeURIComponent(id)}/illustration/status`);
@@ -340,7 +340,7 @@
           showToast(data.trophy.illustrationMessage || 'The illustration could not be completed. Your reference photos are safe.', true, 7000);
           return;
         }
-      } catch { return; }
+      } catch { continue; }
     }
   }
 

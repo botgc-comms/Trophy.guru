@@ -182,7 +182,7 @@
     }
 
     async function watchIllustration(id) {
-      for (let attempt = 0; attempt < 100; attempt += 1) {
+      for (let attempt = 0; attempt < 120; attempt += 1) {
         await new Promise(resolve => window.setTimeout(resolve, 3000));
         try {
           const data = await api(`/api/trophies/${encodeURIComponent(id)}/illustration/status`);
@@ -201,7 +201,7 @@
             return;
           }
         } catch {
-          return;
+          continue;
         }
       }
     }

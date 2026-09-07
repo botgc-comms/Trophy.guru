@@ -45,6 +45,24 @@ public sealed class BackgroundIllustrationQueue(
         var job = billing.JobStatus(clubContext.RequireClubId(), trophyId, "illustration");
         return job is null ? new("idle", "No illustration is queued.", DateTimeOffset.UtcNow) : Snapshot(job);
     }
+
+    public async Task<TrophyRecord?> ReconcileAsync(TrophyRecord? trophy, CancellationToken cancellationToken = default)
+    {
+        if (trophy is null || trophy.IllustrationState != IllustrationStates.Processing) return trophy;
+        var job = GetStatus(trophy.Id);
+        if (job.Status is "queued" or "processing") return trophy;
+
+        var message = job.Status switch
+        {
+            "failed" when !string.IsNullOrWhiteSpace(job.Message) => job.Message,
+            "cancelled" => "The previous image request was interrupted. Your photographs are saved; generate the trophy image again.",
+            "complete" => "Image generation finished but its saved result is unavailable. Generate the trophy image again.",
+            _ => "Image generation was interrupted. Your photographs are saved; generate the trophy image again."
+        };
+        await store.SetIllustrationStatusAsync(trophy.Id, IllustrationStates.Failed, message, cancellationToken);
+        return await store.GetTrophyAsync(trophy.Id, cancellationToken);
+    }
+
     private static IllustrationJobSnapshot Snapshot(DurableBillableJob job) => new(job.State == "running" ? "processing" : job.State, job.Message, job.UpdatedAt);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -82,7 +100,14 @@ public sealed class BackgroundIllustrationQueue(
             var references = await store.GetTrophyPhotoFilesAsync(job.TrophyId, cancellationToken);
             if (trophy is null || references.Count == 0 || !illustrator.IsAvailable)
             {
-                billing.FailJob(job, trophy is null ? "The trophy no longer exists." : references.Count == 0 ? "Add a trophy reference photograph first." : "The illustration generator is not configured. Your photographs are saved.", false);
+                var message = trophy is null
+                    ? "The trophy no longer exists."
+                    : references.Count == 0
+                        ? "Add a trophy reference photograph first."
+                        : "The illustration generator is not configured. Your photographs are saved.";
+                billing.FailJob(job, message, false);
+                if (trophy is not null)
+                    await store.SetIllustrationStatusAsync(job.TrophyId, IllustrationStates.Failed, message, CancellationToken.None);
                 return;
             }
             await store.SetIllustrationStatusAsync(job.TrophyId, IllustrationStates.Processing, "Creating the catalogue illustration from the saved photographs…", cancellationToken);

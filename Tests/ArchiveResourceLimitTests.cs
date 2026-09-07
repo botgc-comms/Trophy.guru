@@ -313,6 +313,60 @@ public sealed class ArchiveResourceLimitTests
             Assert.Single((await fixture.Store.GetTrophyAsync(trophy.Id))!.TrophyPhotos);
         } finally { await queue.StopAsync(default); }
     }
+
+    [Fact]
+    public async Task InterruptedIllustrationJobIsPersistedAsFailedWhenTrophyIsRead()
+    {
+        using var fixture = await Fixture.CreateAsync();
+        using var scope = fixture.Context.Push("club-a");
+        var trophy = await fixture.CreateTrophyAsync();
+        await fixture.Store.SetIllustrationStatusAsync(trophy.Id, IllustrationStates.Processing, "Generating trophy image…");
+        var job = fixture.Billing.ScheduleJob("club-a", trophy.Id, "illustration", 0, DateTimeOffset.UtcNow);
+        const string interruption = "Processing was interrupted. Your photos are saved. Please try again.";
+        fixture.Billing.FailJob(job, interruption, false);
+
+        var generator = new OpenAiTrophyIllustrator(new ImageClients(new BlockingImageHandler()), fixture.Configuration, Microsoft.Extensions.Logging.Abstractions.NullLogger<OpenAiTrophyIllustrator>.Instance);
+        var accounts = new AccountStore(new TestEnvironment(fixture.Root), fixture.Configuration, new Microsoft.AspNetCore.Identity.PasswordHasher<AccountRecord>());
+        using var queue = new BackgroundIllustrationQueue(fixture.Store, generator, accounts, fixture.Context, fixture.Billing, Microsoft.Extensions.Logging.Abstractions.NullLogger<BackgroundIllustrationQueue>.Instance);
+
+        var reconciled = await queue.ReconcileAsync(await fixture.Store.GetTrophyAsync(trophy.Id));
+
+        Assert.NotNull(reconciled);
+        Assert.Equal(IllustrationStates.Failed, reconciled.IllustrationState);
+        Assert.Equal(interruption, reconciled.IllustrationMessage);
+        var persisted = await fixture.Store.GetTrophyAsync(trophy.Id);
+        Assert.Equal(IllustrationStates.Failed, persisted!.IllustrationState);
+        Assert.Equal(interruption, persisted.IllustrationMessage);
+    }
+
+    [Fact]
+    public async Task IllustrationJobThatCannotStartPersistsItsFailureOnTheTrophy()
+    {
+        using var fixture = await Fixture.CreateAsync(new() { ["OPENAI_API_KEY"] = "fixture" });
+        using var scope = fixture.Context.Push("club-a");
+        var trophy = await fixture.CreateTrophyAsync();
+        var generator = new OpenAiTrophyIllustrator(new ImageClients(new BlockingImageHandler()), fixture.Configuration, Microsoft.Extensions.Logging.Abstractions.NullLogger<OpenAiTrophyIllustrator>.Instance);
+        var accounts = new AccountStore(new TestEnvironment(fixture.Root), fixture.Configuration, new Microsoft.AspNetCore.Identity.PasswordHasher<AccountRecord>());
+        using var queue = new BackgroundIllustrationQueue(fixture.Store, generator, accounts, fixture.Context, fixture.Billing, Microsoft.Extensions.Logging.Abstractions.NullLogger<BackgroundIllustrationQueue>.Instance);
+        await fixture.Store.SetIllustrationStatusAsync(trophy.Id, IllustrationStates.Processing, "Generating trophy image…");
+        queue.Enqueue(trophy.Id);
+        await queue.StartAsync(default);
+        try
+        {
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+            TrophyRecord? updated;
+            do
+            {
+                updated = await fixture.Store.GetTrophyAsync(trophy.Id);
+                if (updated?.IllustrationState == IllustrationStates.Failed) break;
+                await Task.Delay(25);
+            } while (DateTimeOffset.UtcNow < deadline);
+
+            Assert.Equal(IllustrationStates.Failed, updated!.IllustrationState);
+            Assert.Equal("Add a trophy reference photograph first.", updated.IllustrationMessage);
+        }
+        finally { await queue.StopAsync(default); }
+    }
     private sealed class ImageClients(HttpMessageHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, false);

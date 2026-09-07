@@ -561,10 +561,12 @@ public static class EntryPoint
             string id,
             CatalogueStore store,
             MemberMatchingCoordinator matching,
+            BackgroundIllustrationQueue illustrationQueue,
             CancellationToken cancellationToken) =>
         {
             var trophy = await matching.RefreshTrophyAsync(id, cancellationToken)
                 ?? await store.GetTrophyAsync(id, cancellationToken);
+            trophy = await illustrationQueue.ReconcileAsync(trophy, cancellationToken);
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         }).ResourceOperation();
 
@@ -803,13 +805,9 @@ public static class EntryPoint
             BackgroundIllustrationQueue queue,
             CancellationToken cancellationToken) =>
         {
-            var trophy = await store.GetTrophyAsync(id, cancellationToken);
+            var trophy = await queue.ReconcileAsync(await store.GetTrophyAsync(id, cancellationToken), cancellationToken);
             if (trophy is null) return Results.NotFound();
             var illustration = queue.GetStatus(id);
-            if (illustration.Status == "failed") {
-                trophy.IllustrationState = IllustrationStates.Failed;
-                trophy.IllustrationMessage = illustration.Message;
-            }
             return Results.Ok(new { trophy, illustration });
         });
 
@@ -822,6 +820,8 @@ public static class EntryPoint
             if (trophy.TrophyPhotos.Count == 0) return Results.BadRequest(new { error = "Add at least one clear photograph of the trophy first." });
             if (!illustrator.IsAvailable) return Results.Json(new { error = "illustration_unavailable", message = "Trophy illustration is not configured." }, statusCode: 503);
             var job = queue.Enqueue(id);
+            await store.SetIllustrationStatusAsync(id, IllustrationStates.Processing, "Illustration queued. The trophy is ready to use while it is generated.", cancellationToken);
+            trophy = await store.GetTrophyAsync(id, cancellationToken);
             return Results.Accepted($"/api/trophies/{id}/illustration/status", new { trophy, illustration = job });
         }).VerifiedOperation();
 
