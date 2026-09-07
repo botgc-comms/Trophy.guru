@@ -2,15 +2,15 @@ namespace Trophy.Catalogue.Domain;
 
 public sealed record TrophyCreditPack(string Code, int Credits, long AmountPence)
 {
-    public static IReadOnlyList<TrophyCreditPack> All { get; } = [new("single", 1, 750), new("club", 10, 6000), new("collection", 50, 17500), new("complete", 150, 37500)];
+    public static IReadOnlyList<TrophyCreditPack> All { get; } = [new("single", 1, 750), new("club", 10, 6000), new("collection", 50, 25000), new("complete", 150, 52500)];
     public static TrophyCreditPack Find(string code, int? credits = null)
     {
         var pack = All.FirstOrDefault(x => x.Code == code)
             ?? throw new BillingException("invalid_pack", "Choose an available trophy credit pack.");
         if (credits is null || credits == pack.Credits) return pack;
         if (code != "complete" || credits < 150)
-            throw new BillingException("invalid_quantity", "Choose at least 150 trophies for the £2.50 volume rate.", 400);
-        return pack with { Credits = credits.Value, AmountPence = credits.Value * 250L };
+            throw new BillingException("invalid_quantity", "Choose at least 150 trophies for the £3.50 volume rate.", 400);
+        return pack with { Credits = credits.Value, AmountPence = credits.Value * 350L };
     }
 }
 

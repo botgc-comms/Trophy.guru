@@ -86,7 +86,7 @@
       const basis = state.upgradeBasis;
       const pending = state.purchases.find(p => p.state === 'pending' && p.packCode === pack.code && p.upgradeFrom?.startsWith('balance:'));
       const quoteFor = count => {
-        const full = pack.code === 'complete' ? count * 250 : pack.amountPence;
+        const full = pack.code === 'complete' ? count * (pack.amountPence / pack.credits) : pack.amountPence;
         const upgrade = basis && !basis.pending && basis.credits > 0 && basis.credits < count;
         return { amount: upgrade ? (count - basis.credits) * (pack.amountPence / pack.credits) : full, credits: upgrade ? count - basis.credits : count, from: upgrade ? basis.upgradeFrom : null };
       };

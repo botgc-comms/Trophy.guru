@@ -692,3 +692,10 @@
   .marketing-home .price-card { padding-inline: 11px; }
   .marketing-home .free-card { column-gap: 14px; }
 }
+
+/* Trophy.guru wordmark: keep the generated artwork legible in the header. */
+.marketing-home .site-logo{display:block;flex:0 0 auto;border-radius:6px;overflow:hidden}
+.marketing-home .site-logo img{display:block;width:240px;height:64px;object-fit:cover}
+.marketing-home .site-logo:focus-visible{outline:2px solid #d9b75c;outline-offset:4px}
+@media(max-width:820px){.marketing-home .header-inner{gap:12px}.marketing-home .site-logo img{width:170px;height:52px}}
+@media(max-width:380px){.marketing-home .site-logo img{width:145px;height:48px}.marketing-home .signed-in-actions{gap:5px}}
