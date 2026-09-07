@@ -195,9 +195,15 @@
     const dialog = document.querySelector('#trophy-photos-dialog');
     const button = document.querySelector('#trophy-photo-button');
     if (!dialog || !button) return;
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       renderTrophyPhotos();
       dialog.showModal();
+      const id = state.current?.id;
+      try {
+        const data = await api('/api/trophies/' + encodeURIComponent(id) + '/illustration/status');
+        if (state.current?.id === id) { state.current = data.trophy; renderDetail(); renderTrophyPhotos(); }
+      } catch { }
+
     });
     dialog.querySelector('.commercial-dialog-close').addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
@@ -206,6 +212,21 @@
     dialog.querySelector('#trophy-photo-strip').addEventListener('click', event => {
       const remove = event.target.closest('[data-trophy-photo-id]');
       if (remove) deleteTrophyPhoto(remove.dataset.trophyPhotoId);
+    });
+    const retry = document.createElement('button');
+    retry.id = 'retry-trophy-illustration'; retry.type = 'button'; retry.className = 'commercial-submit';
+    retry.textContent = 'Generate trophy image';
+    document.querySelector('#reference-illustration-status').after(retry);
+    retry.addEventListener('click', async () => {
+      const id = state.current?.id;
+      if (!id) return;
+      retry.disabled = true;
+      try {
+        await api('/api/trophies/' + encodeURIComponent(id) + '/illustration/background', { method: 'POST', body: '{}' });
+        if (state.current?.id === id) { state.current.illustrationState = 'processing'; renderDetail(); renderTrophyPhotos(); }
+        watchIllustration(id);
+      } catch (error) { showToast(error.message, true); }
+      finally { renderTrophyPhotos(); }
     });
     const observer = new MutationObserver(renderTrophyPhotos);
     observer.observe(document.querySelector('#detail-title'), { childList: true, subtree: true });
@@ -226,8 +247,14 @@
           </span>`).join('')
       : '<span class="trophy-photo-empty">No reference photos yet. Add whole-trophy views here; winner-record evidence remains separate.</span>';
     strip.querySelectorAll('img').forEach(addImageFallback);
+    const retry = document.querySelector('#retry-trophy-illustration');
+    if (retry) {
+      retry.hidden = !photos.length || !commercial.illustrationConfigured;
+      retry.disabled = trophy?.illustrationState === 'processing';
+      retry.textContent = trophy?.illustrationState === 'failed' ? 'Retry trophy image — included in your credit' : 'Generate trophy image';
+    }
     if (!trophy) status.textContent = '';
-    else if (trophy.illustrationState === 'processing') status.textContent = '✦ The illustration is generating in the background. You can close this window and keep working.';
+    else if (trophy.illustrationState === 'processing') status.textContent = 'Generating trophy image… You can close this window and keep working.';
     else if (trophy.illustrationState === 'failed') status.textContent = trophy.illustrationMessage || 'The illustration needs another set of reference photos.';
     else if (!commercial.illustrationConfigured) status.textContent = 'Reference photos will be saved. Illustration generation is not configured on this service.';
     else if (photos.length) status.textContent = 'Uploading another reference photo will automatically refresh the illustration.';
@@ -295,7 +322,7 @@
           renderDetail();
           renderTrophyPhotos();
         }
-        if (data.illustration?.status === 'needs_review') { showToast(data.illustration.message + ' Open trophy credits to review the interrupted job.', true, 9000); return; }
+        if (data.illustration?.status === 'failed') { showToast(data.illustration.message, true, 7000); return; }
         if (data.trophy.illustrationState === 'complete') {
           await loadCatalogue();
           showToast('The catalogue illustration is ready.');

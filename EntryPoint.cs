@@ -768,7 +768,13 @@ public static class EntryPoint
             CancellationToken cancellationToken) =>
         {
             var trophy = await store.GetTrophyAsync(id, cancellationToken);
-            return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, illustration = queue.GetStatus(id) });
+            if (trophy is null) return Results.NotFound();
+            var illustration = queue.GetStatus(id);
+            if (illustration.Status == "failed") {
+                trophy.IllustrationState = IllustrationStates.Failed;
+                trophy.IllustrationMessage = illustration.Message;
+            }
+            return Results.Ok(new { trophy, illustration });
         });
 
         app.MapPost("/api/trophies/{id}/illustration", async (

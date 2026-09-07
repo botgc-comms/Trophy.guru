@@ -43,8 +43,16 @@ public sealed class BillingStore
         using (var reader = columns.ExecuteReader())
             while (reader.Read()) if (reader.GetString(1) == "stripe_status") hasProviderStatus = true;
         if (!hasProviderStatus) Execute(db, null, "ALTER TABLE integration_subscriptions ADD COLUMN stripe_status TEXT");
-        // A crash after sending a request has an unknown provider outcome. Never blindly replay it.
-        Execute(db, null, "UPDATE billable_jobs SET state='needs_review',message='This request was interrupted. Its provider outcome needs review before retrying.',updated_at=$now WHERE state='running'", ("$now", Now));
+        // Preserve a permanent, uniquely identified credit allocation for each trophy.
+        var hasCreditId = false;
+        using (var columns = Command(db, null, "PRAGMA table_info(trophy_allocations)"))
+        using (var reader = columns.ExecuteReader())
+            while (reader.Read()) if (reader.GetString(1) == "credit_id") hasCreditId = true;
+        if (!hasCreditId) Execute(db, null, "ALTER TABLE trophy_allocations ADD COLUMN credit_id TEXT");
+        Execute(db, null, "UPDATE trophy_allocations SET credit_id=lower(hex(randomblob(16))) WHERE credit_id IS NULL");
+        Execute(db, null, "CREATE UNIQUE INDEX IF NOT EXISTS trophy_credit_id ON trophy_allocations(credit_id)");
+        // Do not automatically replay provider calls. A direct retry is included in the trophy credit.
+        Execute(db, null, "UPDATE billable_jobs SET state='failed',message='Processing was interrupted. Your photos are saved. Please try again; no additional credit is needed.',updated_at=$now WHERE state IN ('running','needs_review')", ("$now", Now));
         return Task.CompletedTask;
     }
 
@@ -233,7 +241,6 @@ public sealed class BillingStore
         if (job.State == "review_acknowledged") return 0;
         if (job.State != "needs_review") throw new BillingException("review_unavailable", "Only an interrupted job can be acknowledged.");
         Execute(db, tx, "UPDATE billable_jobs SET state='review_acknowledged',message='Club owner reviewed the interrupted request. The attempt remains counted; a fresh request may be made within the allowance.',updated_at=$now WHERE id=$id", ("$id", jobId), ("$now", Now));
-        Execute(db, tx, "DELETE FROM trophy_allocations WHERE club_id=$club AND trophy_id=$trophy AND state='reserved' AND NOT EXISTS(SELECT 1 FROM billable_jobs WHERE club_id=$club AND trophy_id=$trophy AND state IN ('queued','running','needs_review'))", ("$club", clubId), ("$trophy", job.TrophyId));
         return 0;
     });
     public void CheckPhotoAllowance(string clubId, string trophyId, int totalPhotoCount)
@@ -307,8 +314,7 @@ public sealed class BillingStore
 
     public void FailJob(DurableBillableJob job, string message, bool providerOutcomeUnknown) => Write((db, tx) =>
     {
-        Execute(db, tx, "UPDATE billable_jobs SET state=$state,message=$message,updated_at=$now WHERE id=$id AND state IN ('queued','running')", ("$state", providerOutcomeUnknown ? "needs_review" : "failed"), ("$message", message), ("$now", Now), ("$id", job.Id));
-        if (!providerOutcomeUnknown) Execute(db, tx, "DELETE FROM trophy_allocations WHERE club_id=$club AND trophy_id=$trophy AND state='reserved' AND NOT EXISTS(SELECT 1 FROM billable_jobs WHERE club_id=$club AND trophy_id=$trophy AND state IN ('queued','running','needs_review'))", ("$club", job.ClubId), ("$trophy", job.TrophyId));
+        Execute(db, tx, "UPDATE billable_jobs SET state=$state,message=$message,updated_at=$now WHERE id=$id AND state IN ('queued','running')", ("$state", "failed"), ("$message", message), ("$now", Now), ("$id", job.Id));
         return 0;
     });
 
@@ -329,7 +335,7 @@ public sealed class BillingStore
         if (Scalar(db, tx, "SELECT COUNT(*) FROM trophy_allocations WHERE club_id=$club AND trophy_id=$trophy", ("$club", clubId), ("$trophy", trophyId)) > 0) return;
         var balance = Balance(db, tx, clubId);
         if (!balance.Unlimited && balance.Available < 1) throw new BillingException("credits_required", "Add trophy credits before processing another trophy.", 402);
-        Execute(db, tx, "INSERT INTO trophy_allocations(club_id,trophy_id,state) VALUES($club,$trophy,'reserved')", ("$club", clubId), ("$trophy", trophyId));
+        Execute(db, tx, "INSERT INTO trophy_allocations(club_id,trophy_id,state,credit_id) VALUES($club,$trophy,'reserved',lower(hex(randomblob(16))))", ("$club", clubId), ("$trophy", trophyId));
     }
 
     private static void CheckAllowance(SqliteConnection db, SqliteTransaction tx, string clubId, string trophyId, string kind, int evidenceCount)
@@ -340,10 +346,7 @@ public sealed class BillingStore
         var paid = Scalar(db, tx, "SELECT COUNT(*) FROM credit_ledger WHERE club_id=$club AND reason='Paid trophy credits' AND delta>0", ("$club", clubId)) > 0;
         var photoLimit = paid ? 40 : 12;
         if (evidenceCount > photoLimit) throw new BillingException("photo_limit", $"The current allowance is {photoLimit} saved photographs per trophy.", 402);
-        if (kind == "photo") return;
-        var limit = kind == "analysis" ? (paid ? 12 : 3) : (paid ? 3 : 2);
-        var attempts = Scalar(db, tx, "SELECT COUNT(*) FROM ai_attempts WHERE club_id=$club AND trophy_id=$trophy AND kind=$kind", ("$club", clubId), ("$trophy", trophyId), ("$kind", kind));
-        if (attempts >= limit) throw new BillingException("ai_allowance_used", $"This trophy has reached its {limit} {kind} attempts. Contact support for a review.", 402);
+        // Future readings and illustrations use the same trophy credit without attempt limits.
     }
 
     private static BillingBalance Balance(SqliteConnection db, SqliteTransaction tx, string clubId)

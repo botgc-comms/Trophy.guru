@@ -38,8 +38,8 @@ OpenAI prices `gpt-image-2` by input/output image tokens rather than a single fl
 ## Commercial safeguards
 
 - Limit the free proof to one verified organisation, two evidence images, one inscription analysis and one illustration.
-- Reserve a credit when a trophy is created; consume it on the first successful billable AI result, with idempotent release on provider failure.
-- Include one illustration generation per trophy. Price extra regenerations separately or include a very small support allowance.
+- Allocate a uniquely identified credit permanently when processing first starts for a trophy; settle it on the first successful result. Failures and retries keep that allocation.
+- All future edits, readings and illustration generations for that trophy are included in its credit. Existing photo and archive storage limits still apply.
 - Allow normal evidence volume, but place a documented fair-use cap and require confirmation before an unusually large rerun.
 - Put account-level daily limits and a project-level OpenAI budget alert above every server endpoint that can spend money.
 - Do not advertise uncapped assisted onboarding for the Cabinet pack. At £2.50 per trophy, human labour must be self-service, tightly bounded or sold as a separate service.

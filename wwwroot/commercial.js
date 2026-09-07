@@ -5,7 +5,7 @@
   document.head.append(stylesheet);
 
   const core = document.createElement('script');
-  core.src = '/commercial-core.js?v=20260907-club-sport-1';
+  core.src = '/commercial-core.js?v=20260907-trophy-credit-1';
   core.onload = installPhotoFirstWizard;
   document.head.append(core);
 
@@ -186,7 +186,7 @@
             state.current = data.trophy;
             renderDetail();
           }
-          if (data.illustration?.status === 'needs_review') { showToast(data.illustration.message + ' Open trophy credits to review the interrupted job.', true, 9000); return; }
+          if (data.illustration?.status === 'failed') { showToast(data.illustration.message, true, 7000); return; }
         if (data.trophy.illustrationState === 'complete') {
             await loadCatalogue();
             showToast('The catalogue illustration is ready.');

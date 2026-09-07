@@ -139,7 +139,7 @@ h2 { font-size: 28px; line-height: 1.05; }
 .detail-photo-wrap { width: 96px; height: 96px; flex: 0 0 auto; overflow: hidden; border-radius: 16px; background: var(--paper-deep); box-shadow: 0 6px 20px rgba(20,41,33,.12); }
 .detail-photo { width: 100%; height: 100%; object-fit: cover; }
 .detail-photo-wrap.is-generating { position: relative; }
-.detail-photo-wrap.is-generating::after { content: "✦"; position: absolute; right: 6px; bottom: 6px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--green-900); color: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.18); animation: pulse 1.5s ease-in-out infinite; }
+.detail-photo-wrap.is-generating::after { content: "↻"; position: absolute; right: 6px; bottom: 6px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--green-900); color: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.18); animation: generation-spin 1.2s linear infinite; }
 .secondary-name { margin: 7px 0 0; color: #81735d; font-family: var(--font-serif); font-size: 17px; font-style: italic; }
 .detail-summary { margin: 9px 0 0; color: var(--muted); font-size: 13px; }
 .workspace-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 18px; align-items: start; }
@@ -448,3 +448,9 @@ h2 { font-size: 28px; line-height: 1.05; }
 .catalogue-actions .completed-export-button span { display: grid; gap: 3px; text-align: left; }
 .catalogue-actions .completed-export-button strong { font-size: 13px; }
 .catalogue-actions .completed-export-button small { color: var(--muted); font-size: 10px; font-weight: 400; }
+
+.detail-generation-notice { display:flex; align-items:center; gap:8px; color:var(--green-900); font-size:14px; margin:8px 0; }
+.detail-generation-notice[hidden] { display:none; }
+.generation-arrows { display:inline-block; font-size:22px; animation:generation-spin 1.2s linear infinite; }
+@keyframes generation-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .generation-arrows, .detail-photo-wrap.is-generating::after { animation:none; } }

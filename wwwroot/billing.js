@@ -108,30 +108,13 @@
       }
       mount.append(upgrades, node('p', 'Upgrades add only the extra credits. Credits you have already used stay used; your free first trophy is separate.'));
     }
-    mount.append(node('p', 'One credit covers a trophy’s first successful AI job. Work reserves the credit while processing. Additional attempts are included within the published allowance; manual review and access to your saved records do not spend credits.', 'billing-explanation'));
-    mount.append(node('p', 'First trophy: up to 12 saved photos, 3 readings and 2 illustrations. Paid clubs: up to 40 photos, 12 readings and 3 illustrations per trophy. Contact support for larger jobs.'));
+    mount.append(node('p', 'One credit is permanently linked to one trophy. All future edits, photo readings and trophy illustrations are included. Retrying an interrupted request never uses another credit.', 'billing-explanation'));
     mount.append(node('p', 'Archive storage is limited to keep the service reliable. The standard allowance is 256 MiB for a free archive and 2 GiB for a paid archive; contact support for larger collections. Existing records remain available when an allowance is reached.'));
     if (state.purchases.length) {
       mount.append(node('h3', 'Recent purchases'));
       const history = node('ul', undefined, 'billing-history');
       for (const purchase of state.purchases.slice(0, 10)) history.append(node('li', `${purchase.credits} credits · ${money(purchase.amountPence)} · ${purchase.state}`));
       mount.append(history);
-    }
-    if (state.reviewJobs?.length) {
-      mount.append(node('h3', 'Interrupted AI requests need your review'));
-      for (const job of state.reviewJobs) {
-        const card = node('article', undefined, 'billing-pack');
-        card.append(node('strong', `${job.kind === 'analysis' ? 'Winner reading' : 'Illustration'} for trophy ${job.trophyId}`), node('p', 'Check the trophy for a saved result first. The provider may have completed this request. Acknowledging this will allow a new request within your remaining allowance; it does not automatically retry.'));
-        const label = node('label'); const check = node('input'); check.type = 'checkbox';
-        label.append(check, document.createTextNode(' I checked the trophy and understand this attempt still counts.'));
-        const acknowledge = button('Acknowledge interrupted request', async () => {
-          acknowledge.disabled = true;
-          try { await api(`/api/billing/jobs/${encodeURIComponent(job.id)}/acknowledge`, { understandAttemptStillCounts: check.checked }); await refresh(); }
-          catch (error) { message(error.message); acknowledge.disabled = !check.checked; }
-        }, false);
-        check.addEventListener('change', () => { acknowledge.disabled = !check.checked || !state.owner || !state.emailVerified; });
-        card.append(label, acknowledge); mount.append(card);
-      }
     }
     if (state.portalAvailable) mount.append(button('Manage payments and subscriptions', () => redirect('/api/billing/portal', {}), state.owner && state.emailVerified));
 

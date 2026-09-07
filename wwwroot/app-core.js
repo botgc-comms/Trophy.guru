@@ -112,7 +112,7 @@ function renderTrophies() {
       <button class="trophy-card" data-id="${escapeHtml(trophy.id)}">
         <span class="trophy-image-wrap">
           <img src="${escapeHtml(trophy.referenceImage || '/catalogue/fallback.svg')}" alt="${escapeHtml(trophy.name)}" loading="lazy">
-          ${trophy.illustrationState === 'processing' ? '<span class="illustration-holding">✦ Generating illustration</span>' : ''}
+          ${trophy.illustrationState === 'processing' ? '<span class="illustration-holding">↻ Generating trophy image…</span>' : ''}
           <span class="card-status status-${status.key}">${status.label}</span>
         </span>
         <span class="trophy-card-body">
@@ -175,6 +175,16 @@ function renderDetail() {
   detailPhoto.src = trophy.referenceImage || '/catalogue/fallback.svg';
   detailPhoto.alt = trophy.illustrationState === 'processing' ? `${trophy.name} illustration is being generated` : trophy.name;
   detailPhoto.closest('.detail-photo-wrap')?.classList.toggle('is-generating', trophy.illustrationState === 'processing');
+  let generationNotice = document.querySelector('#detail-generation-notice');
+  if (!generationNotice) {
+    generationNotice = document.createElement('p');
+    generationNotice.id = 'detail-generation-notice';
+    generationNotice.className = 'detail-generation-notice';
+    generationNotice.setAttribute('role', 'status');
+    generationNotice.innerHTML = '<span class="generation-arrows" aria-hidden="true">↻</span> Generating trophy image…';
+    document.querySelector('#detail-summary').after(generationNotice);
+  }
+  generationNotice.hidden = trophy.illustrationState !== 'processing';
   addImageFallback(detailPhoto);
   const statusElement = document.querySelector('#detail-status');
   statusElement.textContent = status.label;

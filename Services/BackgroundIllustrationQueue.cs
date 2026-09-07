@@ -67,7 +67,7 @@ public sealed class BackgroundIllustrationQueue(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Illustration job {JobId} stopped for club {ClubId}, trophy {TrophyId}", job.Id, job.ClubId, job.TrophyId);
-            var message = started ? "The provider outcome needs review before another attempt. Your trophy and photographs are safe; contact support." : exception is BillingException billingException ? billingException.Message : "This illustration could not start. Your photographs are safe.";
+            var message = started ? "Processing was interrupted. Your photos are saved. Please try again; no additional credit is needed." : exception is BillingException billingException ? billingException.Message : "This illustration could not start. Your photographs are safe.";
             billing.FailJob(job, message, started);
             try { await store.SetIllustrationStatusAsync(job.TrophyId, IllustrationStates.Failed, message, CancellationToken.None); } catch (Exception updateException) { logger.LogWarning(updateException, "Could not save illustration job status for {JobId}", job.Id); }
             if (cancellationToken.IsCancellationRequested) throw;

@@ -35,17 +35,33 @@ public sealed class BillingTests : IDisposable
         Assert.True(store.BeginProviderAttempt(illustration, 2)); store.CompleteJob(first, "done"); store.CompleteJob(illustration, "done"); store.CompleteJob(first, "repeat");
         Assert.Equal(0, store.Balance("club-a").Available); Assert.Equal(1, store.Balance("club-a").Used); Assert.Equal(0, store.Balance("club-a").Reserved);
     }
-    [Fact] public void KnownFailureReleasesReservationWithoutErasingTheTrophy()
+    [Fact] public void KnownFailureKeepsCreditAssignedToTheSameTrophy()
     {
         var job = Job("trophy"); store.FailJob(job, "No provider request sent", false);
-        Assert.Equal(1, store.Balance("club-a").Available); Assert.Equal("failed", store.JobStatus("club-a", "trophy", "analysis")!.State);
+        Assert.Equal(0, store.Balance("club-a").Available); Assert.Equal(1, store.Balance("club-a").Reserved); Assert.Equal("failed", store.JobStatus("club-a", "trophy", "analysis")!.State);
     }
     [Fact] public async Task RestartResumesQueuedJobsButDoesNotReplayUnknownProviderOutcomes()
     {
         var running = Job("running"); store.BeginProviderAttempt(running, 1); var waiting = Job("waiting", club: "club-b");
-        await store.InitializeAsync(); Assert.Equal("needs_review", store.JobStatus("club-a", "running", "analysis")!.State); Assert.Equal(waiting.Id, store.NextJob("analysis")!.Id);
-        Assert.Throws<BillingException>(() => Job("running")); Assert.Throws<BillingException>(() => store.AcknowledgeUnknownJob("club-b", running.Id));
-        store.AcknowledgeUnknownJob("club-a", running.Id); Assert.Equal(1, store.Balance("club-a").Available); Assert.NotEqual(running.Id, Job("running").Id);
+        await store.InitializeAsync(); Assert.Equal("failed", store.JobStatus("club-a", "running", "analysis")!.State); Assert.Equal(waiting.Id, store.NextJob("analysis")!.Id);
+        Assert.Empty(store.ReviewJobs("club-a"));
+        Assert.Equal(0, store.Balance("club-a").Available); Assert.NotEqual(running.Id, Job("running").Id);
+    }
+    [Fact] public async Task ExistingInterruptedJobsAreMigratedAndCreditIdentitySurvivesRetries()
+    {
+        var job = Job("trophy"); store.BeginProviderAttempt(job, 1);
+        using var db = new SqliteConnection($"Data Source={Path.Combine(root, "operations.sqlite")}"); db.Open();
+        using var command = db.CreateCommand();
+        command.CommandText = "SELECT credit_id FROM trophy_allocations WHERE club_id='club-a' AND trophy_id='trophy'";
+        var creditId = Assert.IsType<string>(command.ExecuteScalar()); Assert.NotEmpty(creditId);
+        command.CommandText = "UPDATE billable_jobs SET state='needs_review'"; command.ExecuteNonQuery();
+        await store.InitializeAsync();
+        Assert.Empty(store.ReviewJobs("club-a"));
+        var retry = Job("trophy"); Assert.True(store.BeginProviderAttempt(retry, 1));
+        store.FailJob(retry, "Interrupted", true);
+        var next = Job("trophy"); Assert.True(store.BeginProviderAttempt(next, 1)); store.CompleteJob(next, "done");
+        command.CommandText = "SELECT credit_id FROM trophy_allocations WHERE club_id='club-a' AND trophy_id='trophy'";
+        Assert.Equal(creditId, command.ExecuteScalar()); Assert.Equal(1, store.Balance("club-a").Used);
     }
     [Fact] public void DuplicatePaymentEventsAndCheckoutRetriesCreditOnce()
     {
@@ -87,11 +103,12 @@ public sealed class BillingTests : IDisposable
         var purchase = store.CreatePurchase("club-a", new("club", Guid.NewGuid().ToString()));
         Assert.Throws<BillingException>(() => store.FulfilPayment("evt-bad", purchase.Id, "cs-one", "pi-one", 1, "gbp", "cus-a")); Assert.Equal(1, store.Balance("club-a").Available);
     }
-    [Fact] public void FreeAllowanceIsFiniteAndLegacyAllowanceIsPreserved()
+    [Fact] public void AllFutureReadingsAndIllustrationsUseTheSameCredit()
     {
         Assert.Throws<BillingException>(() => store.CheckPhotoAllowance("club-a", "trophy", 13));
-        for (var i = 0; i < 3; i++) { var job = Job("trophy"); store.BeginProviderAttempt(job, 1); store.CompleteJob(job, "done"); }
-        Assert.Throws<BillingException>(() => Job("trophy"));
+        for (var i = 0; i < 25; i++) { foreach (var kind in new[] { "analysis", "illustration" }) { var job = Job("trophy", kind); Assert.True(store.BeginProviderAttempt(job, 1)); store.CompleteJob(job, "done"); } }
+        Assert.Equal(1, store.Balance("club-a").Used); Assert.Equal(0, store.Balance("club-a").Available);
+        Assert.Throws<BillingException>(() => Job("another-trophy"));
         store.EnsureClub("legacy", true); for (var i = 0; i < 15; i++) Job("legacy-" + i, club: "legacy");
         Assert.True(store.Balance("legacy").Unlimited); store.CheckPhotoAllowance("legacy", "trophy", 500);
     }
