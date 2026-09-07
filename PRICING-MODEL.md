@@ -1,6 +1,6 @@
 # Trophy Archive AI — pricing model
 
-Agreed pricing:
+Agreed pricing (VAT included; totals unchanged):
 
 | Pack | Price | Trophies | Customer price per trophy |
 | --- | ---: | ---: | ---: |
@@ -15,6 +15,8 @@ Orders of 250 or more cost £2.50 per trophy: 250 costs £625, 300 costs £750 a
 These are non-expiring credits, not a recurring subscription. The core job is a finite archive project; subscriptions should be introduced later for genuinely recurring value such as hosted public pages, additional administrators, backups, API access and website publishing.
 
 ## Unit economics
+
+The historic estimates below use gross selling prices. They predate the confirmed VAT-inclusive policy and must be recalculated net of VAT before being used as margin forecasts.
 
 Stripe currently lists standard UK-card pricing at 1.5% + 20p per transaction. The table below applies that rate to one purchase of each pack. It then uses a deliberately conservative £1.50 per-trophy envelope for all variable AI, short-term storage and delivery costs. That is a planning ceiling, not a statement of the actual OpenAI invoice.
 

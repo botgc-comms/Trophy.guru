@@ -151,6 +151,55 @@ public sealed class BillingTests : IDisposable
         var quote = store.Quote("club-a", "complete", previous.Id);
         Assert.Equal(40000, quote.AmountPence); Assert.Equal(200, quote.Credits);
     }
+    [Theory]
+    [InlineData(250, 62500)]
+    [InlineData(300, 75000)]
+    [InlineData(500, 125000)]
+    public async Task LiveCheckoutSendsServerPriceAndOnlyWebhookGrantsCredits(int credits, long amount)
+    {
+        var config = Config(); config["BILLING_MODE"] = "live"; config["STRIPE_SECRET_KEY"] = "sk_live_fixture";
+        config["PUBLIC_SITE_URL"] = "https://trophy.guru"; config["BILLING_LIVE_APPROVED"] = "true"; config["BILLING_LEGAL_READY"] = "true";
+        store.SetCustomer("club-a", "cus-live-fixture");
+        var handler = new CheckoutFixtureHandler();
+        var stripe = new StripeBillingService(new FixtureClients(handler), config, store);
+        var account = new AccountRecord { Id = "owner-a", ClubId = "club-a", Email = "owner@example.test", DisplayName = "Fixture owner", NormalizedEmail = "OWNER@EXAMPLE.TEST" };
+        var input = new BillingCheckoutInput("complete", Guid.NewGuid().ToString(), Credits: credits);
+        Assert.Equal("https://checkout.stripe.com/c/pay/cs_live_fixture", await stripe.CheckoutAsync(account, input, default));
+        Assert.Equal(amount.ToString(), handler.Fields["line_items[0][price_data][unit_amount]"]);
+        Assert.Equal("gbp", handler.Fields["line_items[0][price_data][currency]"]);
+        Assert.Equal("inclusive", handler.Fields["line_items[0][price_data][tax_behavior]"]);
+        Assert.Equal("1", handler.Fields["line_items[0][quantity]"]);
+        Assert.Contains(credits.ToString(), handler.Fields["line_items[0][price_data][product_data][name]"]);
+        Assert.Equal("https://trophy.guru/archive.html?billing=success", handler.Fields["success_url"]);
+        Assert.Equal(1, store.Balance("club-a").Available);
+        await stripe.CheckoutAsync(account, input, default); Assert.Equal(1, handler.Posts);
+        var purchase = Assert.Single(store.Purchases("club-a"));
+        handler.Payment = JsonSerializer.Serialize(new { id = "cs_live_fixture", mode = "payment", status = "complete", payment_status = "paid", payment_intent = "pi-live-fixture", customer = "cus-live-fixture", amount_total = amount, currency = "gbp", metadata = new { purchase_id = purchase.Id, club_id = "club-a" } });
+        var body = Encoding.UTF8.GetBytes("{\"id\":\"evt-live-fixture\",\"type\":\"checkout.session.completed\",\"livemode\":true,\"data\":{\"object\":{\"id\":\"cs_live_fixture\"}}}");
+        await stripe.HandleWebhookAsync(body, Sign(body, DateTimeOffset.UtcNow.ToUnixTimeSeconds()), default);
+        await stripe.HandleWebhookAsync(body, Sign(body, DateTimeOffset.UtcNow.ToUnixTimeSeconds()), default);
+        Assert.Equal(credits + 1, store.Balance("club-a").Available);
+    }
+    private sealed class CheckoutFixtureHandler : HttpMessageHandler
+    {
+        public Dictionary<string, string> Fields { get; private set; } = [];
+        public string Payment { get; set; } = "{}";
+        public int Posts { get; private set; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert.Equal("api.stripe.com", request.RequestUri!.Host);
+            Assert.Equal("sk_live_fixture", request.Headers.Authorization!.Parameter);
+            string result;
+            if (request.Method == HttpMethod.Post)
+            {
+                Assert.Equal("/v1/checkout/sessions", request.RequestUri.AbsolutePath); Posts++;
+                Fields = (await request.Content!.ReadAsStringAsync(cancellationToken)).Split('&').Select(x => x.Split('=', 2)).ToDictionary(x => Uri.UnescapeDataString(x[0]), x => Uri.UnescapeDataString(x[1]).Replace('+', ' '));
+                result = "{\"id\":\"cs_live_fixture\",\"url\":\"https://checkout.stripe.com/c/pay/cs_live_fixture\"}";
+            }
+            else { Assert.Equal(HttpMethod.Get, request.Method); result = Payment; }
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(result, Encoding.UTF8, "application/json") };
+        }
+    }
     private static IConfigurationRoot Config() => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["BILLING_MODE"] = "test", ["STRIPE_SECRET_KEY"] = "sk_test_fixture", ["STRIPE_WEBHOOK_SECRET"] = "whsec_fixture", ["PUBLIC_SITE_URL"] = "http://127.0.0.1:5192" }).Build();
     private static string Sign(byte[] body, long stamp) => $"t={stamp},v1={Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes("whsec_fixture"), Encoding.UTF8.GetBytes(stamp + ".").Concat(body).ToArray())).ToLowerInvariant()}";
     private sealed class FixtureHandler(string payload) : HttpMessageHandler

@@ -4,7 +4,7 @@ Prepared 6 September 2026 for a UK-first launch. This is a proposed agreement, n
 
 ## Parties and orders
 
-The service is operated by [LEGAL NAME, legal form, company number if applicable], at [BUSINESS ADDRESS]. Contact [SUPPORT EMAIL]. VAT registration: [STATUS / NUMBER]. The customer is the organisation named in the order. Its authorised representative agrees these terms on the organisation’s behalf. [Confirm how unincorporated clubs contract and identify the contracting parties.] These terms, the accepted order and the data processing agreement form the contract. The data processing agreement takes priority for its subject matter.
+The service is operated by [LEGAL NAME, legal form, company number if applicable], at [BUSINESS ADDRESS]. Contact [SUPPORT EMAIL]. VAT registered. VAT number: [VAT NUMBER]. The customer is the organisation named in the order. Its authorised representative agrees these terms on the organisation’s behalf. [Confirm how unincorporated clubs contract and identify the contracting parties.] These terms, the accepted order and the data processing agreement form the contract. The data processing agreement takes priority for its subject matter.
 
 The service is intended for organisations preserving trophy and award records. An individual paying on behalf of a club is not automatically outside consumer law. [Confirm customer eligibility and the consumer cancellation/renewal process with legal advice before taking payment; do not rely on a blanket waiver.]
 
@@ -22,7 +22,7 @@ Archives begin private. A public honours board contains an explicitly reviewed v
 
 ## Trophy credits and payment
 
-Core trophy credits are one-off purchases. The first proof credit is separate from paid packs. The current proposed price schedule is 1 credit £7.50; 10 £60; 50 £225; 250 £875. [Confirm final tax treatment and ensure advertised totals, checkout, receipts and VAT invoices agree before enabling sales.]
+Core trophy credits are one-off purchases. The first proof credit is separate from paid packs. The current proposed price schedule is 1 credit £7.50; 10 £60; 50 £225; 250 or more £2.50 per trophy (£625 for 250). These prices include VAT; no VAT is added on top. [Insert the VAT number and verify VAT reporting and invoices before enabling sales.]
 
 A credit is reserved when a trophy’s AI work is queued and used once after its first successful AI job. Reading and illustration for that same trophy share that credit. Manual editing, export and access to existing records do not spend additional credits. A known failure releases an unused reservation. An interrupted provider request needs review before another attempt; the attempted AI call still counts towards its allowance.
 
@@ -32,7 +32,7 @@ Pack upgrades add the difference in credits and charge the difference in pack pr
 
 ## Optional recurring integrations
 
-The proposed Intelligent Golf option is £299 per club per year, separate from one-off trophy credits, with no per-member fee. [Confirm tax treatment, setup scope, supported delivery method and renewal/cancellation wording before activation.] It remains in development and is not currently available to purchase.
+The proposed Intelligent Golf option is £299 per club per year, separate from one-off trophy credits, with no per-member fee. The £299 price includes VAT. [Confirm setup scope, supported delivery method and renewal/cancellation wording before activation.] It remains in development and is not currently available to purchase.
 
 A separately accepted integration order must identify the supported platform, included setup/support, price and tax, billing frequency, renewal terms, cancellation method and what happens when payment fails or access ends. Cancelling an integration must not delete the core trophy archive. [Complete and test notices, cancellation, refunds and any applicable consumer subscription obligations before offering this option.] No integration is advertised as available until it can actually be delivered.
 

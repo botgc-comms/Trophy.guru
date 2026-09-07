@@ -107,6 +107,7 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
             ["payment_intent_data[metadata][purchase_id]"] = purchase.Id, ["payment_intent_data[metadata][club_id]"] = purchase.ClubId,
             ["line_items[0][price_data][currency]"] = "gbp", ["line_items[0][price_data][unit_amount]"] = purchase.AmountPence.ToString(CultureInfo.InvariantCulture),
             ["line_items[0][price_data][product_data][name]"] = $"Trophy Archive — {purchase.Credits} trophy credits" + (purchase.UpgradeFrom != null ? " (pack upgrade)" : ""),
+            ["line_items[0][price_data][tax_behavior]"] = "inclusive",
             ["line_items[0][quantity]"] = "1", ["payment_method_types[0]"] = "card"
         };
         using var result = await RequestAsync(HttpMethod.Post, "checkout/sessions", values, "checkout:" + purchase.Id, cancellationToken);

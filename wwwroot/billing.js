@@ -91,10 +91,10 @@
           total.textContent = valid ? money(count * pack.amountPence / pack.credits) : 'Enter 250 or more'; buy.disabled = !enabled || !valid;
         });
         quantity.required = true; quantity.max = '2147483647';
-        card.append(node('h3', '250 or more trophies'), node('p', '£2.50 per trophy'), label, quantity, total, node('p', 'One-off purchase. Credits do not expire.'), buy);
+        card.append(node('h3', '250 or more trophies'), node('p', '£2.50 per trophy'), label, quantity, total, node('p', 'VAT included. One-off purchase. Credits do not expire.'), buy);
         packs.append(card); continue;
       }
-      card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', 'One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
+      card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', 'VAT included. One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
       packs.append(card);
     }
     mount.append(packs);
