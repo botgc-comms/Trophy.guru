@@ -3,6 +3,7 @@
     illustrationConfigured: false,
     memberDirectory: null,
     activeWinnerId: null,
+    restartingImage: false,
   };
 
   installNewTrophyFlow();
@@ -224,13 +225,16 @@
     retry.addEventListener('click', async () => {
       const id = state.current?.id;
       if (!id) return;
+      if (commercial.restartingImage) return;
+      commercial.restartingImage = true;
       retry.disabled = true;
+      retry.textContent = 'Restarting image generation…';
       try {
-        await api('/api/trophies/' + encodeURIComponent(id) + '/illustration/background', { method: 'POST', body: '{}' });
+        await api('/api/trophies/' + encodeURIComponent(id) + '/illustration/restart', { method: 'POST', body: '{}' });
         if (state.current?.id === id) { state.current.illustrationState = 'processing'; renderDetail(); renderTrophyPhotos(); }
         watchIllustration(id);
       } catch (error) { showToast(error.message, true); }
-      finally { renderTrophyPhotos(); }
+      finally { commercial.restartingImage = false; renderTrophyPhotos(); }
     });
     const observer = new MutationObserver(renderTrophyPhotos);
     observer.observe(document.querySelector('#detail-title'), { childList: true, subtree: true });
@@ -254,8 +258,8 @@
     const retry = document.querySelector('#retry-trophy-illustration');
     if (retry) {
       retry.hidden = !photos.length || !commercial.illustrationConfigured;
-      retry.disabled = trophy?.illustrationState === 'processing';
-      retry.textContent = trophy?.illustrationState === 'failed' ? 'Retry trophy image — included in your credit' : 'Generate trophy image';
+      retry.disabled = commercial.restartingImage;
+      retry.textContent = commercial.restartingImage ? 'Restarting image generation…' : trophy?.illustrationState === 'processing' ? 'Restart image generation' : trophy?.illustrationState === 'failed' ? 'Retry trophy image — included in your credit' : 'Generate trophy image';
     }
     if (!trophy) status.textContent = '';
     else if (trophy.illustrationState === 'processing') status.textContent = 'Generating trophy image… You can close this window and keep working.';

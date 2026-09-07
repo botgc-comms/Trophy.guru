@@ -24,3 +24,5 @@ public sealed class BillingException(string code, string message, int statusCode
     public string Code { get; } = code;
     public int StatusCode { get; } = statusCode;
 }
+
+public sealed record BillingUpgradeBasis(long Credits, string UpgradeFrom, bool Pending);

@@ -83,33 +83,46 @@
     const packs = node('div', undefined, 'billing-packs');
     for (const pack of state.packs) {
       const card = node('article', undefined, 'billing-pack');
+      const basis = state.upgradeBasis;
+      const pending = state.purchases.find(p => p.state === 'pending' && p.packCode === pack.code && p.upgradeFrom?.startsWith('balance:'));
+      const quoteFor = count => {
+        const full = pack.code === 'complete' ? count * 250 : pack.amountPence;
+        const upgrade = basis && !basis.pending && basis.credits > 0 && basis.credits < count;
+        return { amount: upgrade ? (count - basis.credits) * (pack.amountPence / pack.credits) : full, credits: upgrade ? count - basis.credits : count, from: upgrade ? basis.upgradeFrom : null };
+      };
+      let count = pack.credits;
+      const total = node('strong');
+      const explanation = node('p');
+      const buy = button('Buy credits', () => {
+        if (pending) { redirect('/api/billing/checkout', {packCode: pending.packCode, requestId: pending.requestId, upgradeFrom: pending.upgradeFrom}); return; }
+        const quote = quoteFor(count);
+        checkout(pack.code, quote.from, pack.code === 'complete' ? count : undefined);
+      }, enabled);
+      const update = () => {
+        if (pending) { total.textContent = money(pending.amountPence); buy.textContent = 'Continue upgrade'; buy.disabled = !enabled; explanation.textContent = 'Complete your pending purchase of ' + pending.credits + ' additional credits.'; return; }
+        const valid = Number.isInteger(count) && count >= pack.credits && count <= 2147483647;
+        buy.disabled = !enabled || !valid;
+        if (!valid) { total.textContent = 'Enter 150 or more'; explanation.textContent = ''; return; }
+        const quote = quoteFor(count);
+        total.textContent = money(quote.amount);
+        buy.textContent = quote.from ? 'Upgrade to ' + count : 'Buy credits';
+        explanation.textContent = quote.from ? 'Add ' + quote.credits + ' credits at ' + money(pack.amountPence / pack.credits) + ' each. You have already purchased ' + basis.credits + ' credits.' : 'VAT included. One-off purchase. Credits do not expire.';
+      };
+      card.append(node('h3', pack.code === 'complete' ? '150 or more trophies' : pack.credits + ' trophy ' + (pack.credits === 1 ? 'credit' : 'credits')));
       if (pack.code === 'complete') {
-        const quantity = node('input'); quantity.type = 'number'; quantity.min = '150'; quantity.step = '1'; quantity.value = '150'; quantity.id = 'volume-trophy-quantity';
-        const label = node('label', 'Number of trophies'); label.htmlFor = quantity.id;
-        const total = node('strong', money(pack.amountPence)); total.id = 'volume-trophy-total';
-        const buy = button('Buy credits', () => { if (quantity.reportValidity()) checkout(pack.code, null, Number(quantity.value)); }, enabled);
-        quantity.addEventListener('input', () => {
-          const count = Number(quantity.value); const valid = Number.isInteger(count) && count >= 150 && count <= 2147483647;
-          total.textContent = valid ? money(count * pack.amountPence / pack.credits) : 'Enter 150 or more'; buy.disabled = !enabled || !valid;
-        });
-        quantity.required = true; quantity.max = '2147483647';
-        card.append(node('h3', '150 or more trophies'), node('p', '£2.50 per trophy · Save 67%'), label, quantity, total, node('p', 'VAT included. One-off purchase. Credits do not expire.'), buy);
-        packs.append(card); continue;
+        const quantity = node('input'); quantity.type = 'number'; quantity.min = '150'; quantity.step = '1'; quantity.value = '150'; quantity.id = 'volume-trophy-quantity'; quantity.max = '2147483647'; quantity.required = true; quantity.disabled = Boolean(pending);
+        const label = node('label', 'Total trophies'); label.htmlFor = quantity.id;
+        quantity.addEventListener('input', () => { count = Number(quantity.value); update(); });
+        total.id = 'volume-trophy-total'; card.append(label, quantity);
       }
-      card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', `${money(pack.amountPence / pack.credits)} per trophy${pack.credits > 1 ? ' · Save ' + Math.round((1 - pack.amountPence / pack.credits / 750) * 100) + '%' : ''}`), node('p', 'VAT included. One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
-      packs.append(card);
+      const rate = money(pack.amountPence / pack.credits);
+      const saving = Math.round((1 - pack.amountPence / pack.credits / 750) * 100);
+      card.append(total, node('p', rate + ' per trophy' + (saving ? ' · Save ' + saving + '%' : '')), explanation, buy);
+      update(); packs.append(card);
     }
     mount.append(packs);
+    if (state.upgradeBasis?.credits) mount.append(node('p', 'Upgrade prices charge only for the additional credits, at the selected pack’s per-credit rate. Used credits stay used; your free first trophy is separate. All prices include VAT.'));
     renderIntegration(mount);
-    if (state.upgrades.length && !balance.unlimited) {
-      mount.append(node('h3', 'Upgrade a previous pack'));
-      const upgrades = node('div', undefined, 'billing-upgrades');
-      for (const quote of state.upgrades) {
-        const pack = state.packs.find(item => item.code === quote.packCode);
-        upgrades.append(button(`Upgrade to ${pack.credits}: add ${quote.credits} credits for ${money(quote.amountPence)}`, () => checkout(quote.packCode, quote.upgradeFrom), enabled));
-      }
-      mount.append(upgrades, node('p', 'Upgrades add only the extra credits. Credits you have already used stay used; your free first trophy is separate.'));
-    }
     mount.append(node('p', 'One credit is permanently linked to one trophy. All future edits, photo readings and trophy illustrations are included. Retrying an interrupted request never uses another credit.', 'billing-explanation'));
     mount.append(node('p', 'Archive storage is limited to keep the service reliable. The standard allowance is 256 MiB for a free archive and 2 GiB for a paid archive; contact support for larger collections. Existing records remain available when an allowance is reached.'));
     if (state.purchases.length) {
@@ -126,8 +139,10 @@
       state = await api('/api/billing');
       for (const purchase of state.purchases) {
         if (purchase.state === 'pending') continue;
-        const key = `trophy-checkout:${state.clubId}:${purchase.packCode}:${purchase.upgradeFrom || 'new'}`;
-        if (sessionStorage.getItem(key) === purchase.requestId) sessionStorage.removeItem(key);
+        for (let index = sessionStorage.length - 1; index >= 0; index--) {
+          const key = sessionStorage.key(index);
+          if (key?.startsWith('trophy-checkout:') && sessionStorage.getItem(key) === purchase.requestId) sessionStorage.removeItem(key);
+        }
       }
       const name = document.querySelector('#header-plan-name'); const balance = document.querySelector('#header-plan-balance');
       if (name) name.textContent = state.balance.unlimited ? 'Unlimited' : `${state.balance.available} ${state.balance.available === 1 ? 'credit' : 'credits'}`;
@@ -162,10 +177,25 @@
   }
   window.TrophyBilling = { open, refresh, canAddTrophy };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
-  document.addEventListener('DOMContentLoaded', () => {
-    const returned = new URLSearchParams(location.search).get('billing');
-    if (returned) {
-      open().then(() => { if (returned === 'success') message('Checkout has returned. Your balance updates when Stripe confirms payment. Refresh if it is still pending.'); });
+  document.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('billing') !== 'success') return;
+    const purchaseId = params.get('purchase');
+    const notice = node('p', 'Confirming your payment and updating your credits…', 'security-verification-banner');
+    notice.id = 'payment-return-notice'; notice.setAttribute('role', 'status');
+    document.querySelector('.catalogue-heading')?.after(notice);
+    document.querySelector('#plan-dialog')?.close();
+    history.replaceState(null, '', location.pathname + location.search + '#catalogue');
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const current = await refresh();
+      const confirmed = current && (purchaseId ? current.purchases.some(p => p.id === purchaseId && p.state === 'paid') : current.purchases.some(p => p.state === 'paid') && !current.purchases.some(p => p.state === 'pending'));
+      if (confirmed) {
+        notice.textContent = 'Payment confirmed. You now have ' + current.balance.available + ' trophy ' + (current.balance.available === 1 ? 'credit' : 'credits') + ' available.';
+        history.replaceState(null, '', location.pathname + '#catalogue');
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
+    notice.textContent = 'Your payment is still awaiting confirmation. Your credits will appear once Stripe confirms it; please do not pay again.';
   });
 })();

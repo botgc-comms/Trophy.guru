@@ -786,6 +786,17 @@ public static class EntryPoint
             return Results.Accepted($"/api/trophies/{id}/illustration/status", new { trophy, illustration = job });
         }).VerifiedOperation();
 
+        app.MapPost("/api/trophies/{id}/illustration/restart", async (string id, CatalogueStore store, OpenAiTrophyIllustrator illustrator, BackgroundIllustrationQueue queue, CancellationToken cancellationToken) =>
+        {
+            var trophy = await store.GetTrophyAsync(id, cancellationToken);
+            if (trophy is null) return Results.NotFound();
+            if (trophy.TrophyPhotos.Count == 0) return Results.BadRequest(new { error = "Add a trophy reference photo first." });
+            if (!illustrator.IsAvailable) return Results.Json(new { message = "Image generation is currently unavailable." }, statusCode: 503);
+            var job = await queue.RestartAsync(id, cancellationToken);
+            await store.SetIllustrationStatusAsync(id, IllustrationStates.Processing, "Generating a new trophy image…", cancellationToken);
+            return Results.Accepted($"/api/trophies/{id}/illustration/status", new { illustration = job });
+        }).VerifiedOperation();
+
         app.MapGet("/api/trophies/{id}/illustration/status", async (
             string id,
             CatalogueStore store,

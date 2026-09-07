@@ -20,14 +20,14 @@ public static class BillingEndpoints
             var balance = billing.Balance(account.ClubId!);
             var purchases = billing.Purchases(account.ClubId!);
             var upgrades = new List<BillingQuote>();
-            foreach (var purchase in purchases.Where(x => x.State == "paid"))
-                foreach (var pack in TrophyCreditPack.All)
-                    try { upgrades.Add(billing.Quote(account.ClubId!, pack.Code, purchase.Id)); } catch (BillingException) { }
+            var upgradeBasis = billing.UpgradeBasis(account.ClubId!);
+            foreach (var pack in TrophyCreditPack.All)
+                try { upgrades.Add(billing.Quote(account.ClubId!, pack.Code, upgradeBasis.UpgradeFrom)); } catch (BillingException) { }
             var integrationOffer = await stripe.IntegrationOfferAsync(context.RequestAborted);
             return Results.Ok(new
             {
                 balance = new { balance.Unlimited, balance.Available, balance.Reserved, balance.Used, balance.OnHold },
-                clubId = account.ClubId, reviewJobs = billing.ReviewJobs(account.ClubId!), packs = TrophyCreditPack.All, upgrades,
+                clubId = account.ClubId, reviewJobs = billing.ReviewJobs(account.ClubId!), packs = TrophyCreditPack.All, upgrades, upgradeBasis,
                 purchases = purchases.Select(x => new { x.Id, x.PackCode, x.Credits, x.AmountPence, x.State, x.UpgradeFrom, x.RequestId }),
                 paymentsEnabled = stripe.Enabled, mode = stripe.Mode,
                 owner = AccountSecurity.IsOwner(account), emailVerified = AccountSecurity.IsEmailVerified(account),

@@ -102,7 +102,7 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
         var values = new Dictionary<string, string>
         {
             ["mode"] = "payment", ["customer"] = customer,
-            ["success_url"] = SiteUrl + "/archive.html?billing=success", ["cancel_url"] = SiteUrl + "/archive.html?billing=cancelled",
+            ["success_url"] = SiteUrl + "/archive.html?billing=success&purchase=" + purchase.Id + "#catalogue", ["cancel_url"] = SiteUrl + "/archive.html?billing=cancelled",
             ["client_reference_id"] = purchase.Id, ["metadata[purchase_id]"] = purchase.Id, ["metadata[club_id]"] = purchase.ClubId,
             ["payment_intent_data[metadata][purchase_id]"] = purchase.Id, ["payment_intent_data[metadata][club_id]"] = purchase.ClubId,
             ["line_items[0][price_data][currency]"] = "gbp", ["line_items[0][price_data][unit_amount]"] = purchase.AmountPence.ToString(CultureInfo.InvariantCulture),

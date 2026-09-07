@@ -12,6 +12,28 @@ public sealed class BackgroundIllustrationQueue(
     BillingStore billing,
     ILogger<BackgroundIllustrationQueue> logger) : BackgroundService
 {
+    private readonly object activeGate = new();
+    private readonly Dictionary<(string Club, string Trophy), ActiveRequest> activeRequests = new();
+    private sealed record ActiveRequest(CancellationTokenSource Cancellation, TaskCompletionSource Finished);
+
+    public async Task<IllustrationJobSnapshot> RestartAsync(string trophyId, CancellationToken cancellationToken)
+    {
+        var clubId = clubContext.RequireClubId();
+        Task? previous = null;
+        lock (activeGate) {
+            billing.CancelIllustrationJobs(clubId, trophyId);
+            if (activeRequests.TryGetValue((clubId, trophyId), out var active)) {
+                active.Cancellation.Cancel();
+                previous = active.Finished.Task;
+            }
+        }
+        if (previous is not null) {
+            try { await previous.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken); }
+            catch (TimeoutException) { throw new BillingException("image_stopping", "The previous image request is stopping. Please try again in a few seconds."); }
+        }
+        return Enqueue(trophyId);
+    }
+
     public IllustrationJobSnapshot Enqueue(string trophyId)
     {
         var clubId = clubContext.RequireClubId();
@@ -47,6 +69,12 @@ public sealed class BackgroundIllustrationQueue(
     private async Task ProcessAsync(DurableBillableJob job, CancellationToken cancellationToken)
     {
         using var scope = clubContext.Push(job.ClubId);
+        using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        requestCancellation.CancelAfter(TimeSpan.FromMinutes(5));
+        var stopped = cancellationToken;
+        cancellationToken = requestCancellation.Token;
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (activeGate) activeRequests[(job.ClubId, job.TrophyId)] = new(requestCancellation, finished);
         var started = false;
         try
         {
@@ -61,6 +89,7 @@ public sealed class BackgroundIllustrationQueue(
             started = billing.BeginProviderAttempt(job, trophy.TrophyPhotos.Count + trophy.Evidence.Count);
             if (!started) return;
             var image = await illustrator.GenerateAsync(trophy.Name, references, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             await store.SaveIllustrationAsync(job.TrophyId, image, cancellationToken);
             billing.CompleteJob(job, "Catalogue illustration created.");
         }
@@ -70,7 +99,11 @@ public sealed class BackgroundIllustrationQueue(
             var message = started ? "Processing was interrupted. Your photos are saved. Please try again; no additional credit is needed." : exception is BillingException billingException ? billingException.Message : "This illustration could not start. Your photographs are safe.";
             billing.FailJob(job, message, started);
             try { await store.SetIllustrationStatusAsync(job.TrophyId, IllustrationStates.Failed, message, CancellationToken.None); } catch (Exception updateException) { logger.LogWarning(updateException, "Could not save illustration job status for {JobId}", job.Id); }
-            if (cancellationToken.IsCancellationRequested) throw;
+            if (stopped.IsCancellationRequested) throw;
+        }
+        finally {
+            lock (activeGate) activeRequests.Remove((job.ClubId, job.TrophyId));
+            finished.TrySetResult();
         }
     }
 }

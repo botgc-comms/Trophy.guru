@@ -141,11 +141,22 @@ public sealed class BillingStore
         return result;
     }
 
+    public BillingUpgradeBasis UpgradeBasis(string clubId) => Write((db, tx) => UpgradeBasis(db, tx, clubId));
+    private static BillingUpgradeBasis UpgradeBasis(SqliteConnection db, SqliteTransaction tx, string clubId)
+    {
+        using var command = Command(db, tx, "SELECT id,credits FROM billing_purchases WHERE club_id=$club AND state='paid' ORDER BY id", ("$club", clubId));
+        long credits = 0; var ids = new List<string>();
+        using (var reader = command.ExecuteReader()) while (reader.Read()) { ids.Add(reader.GetString(0)); credits += reader.GetInt64(1); }
+        var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(clubId + ":" + string.Join(",", ids)))).ToLowerInvariant();
+        var pending = Scalar(db, tx, "SELECT COUNT(*) FROM billing_purchases WHERE club_id=$club AND upgrade_from IS NOT NULL AND state IN ('pending','review')", ("$club", clubId)) > 0;
+        return new(credits, "balance:" + fingerprint, pending);
+    }
+
     public BillingQuote Quote(string clubId, string packCode, string? upgradeFrom) => Write((db, tx) => Quote(db, tx, clubId, packCode, upgradeFrom));
     public BillingPurchase CreatePurchase(string clubId, BillingCheckoutInput input) => Write((db, tx) =>
     {
         var requestedPack = TrophyCreditPack.Find(input.PackCode, input.Credits);
-        if (input.Credits is not null && input.UpgradeFrom is not null)
+        if (input.Credits is not null && input.UpgradeFrom is not null && !input.UpgradeFrom.StartsWith("balance:", StringComparison.Ordinal))
             throw new BillingException("invalid_upgrade", "Choose a listed pack upgrade or buy a separate volume order.", 400);
         if (!Guid.TryParse(input.RequestId, out _)) throw new BillingException("invalid_request", "A valid checkout request identifier is required.", 400);
         using (var existingCommand = Command(db, tx, "SELECT * FROM billing_purchases WHERE club_id=$club AND request_id=$request", ("$club", clubId), ("$request", input.RequestId)))
@@ -276,6 +287,12 @@ public sealed class BillingStore
         return job;
     });
 
+    public void CancelIllustrationJobs(string clubId, string trophyId) => Write((db, tx) =>
+    {
+        Execute(db, tx, "UPDATE billable_jobs SET state='cancelled',message='Replaced by a new image request.',updated_at=$now WHERE club_id=$club AND trophy_id=$trophy AND kind='illustration' AND state IN ('queued','running','needs_review')", ("$now", Now), ("$club", clubId), ("$trophy", trophyId));
+        return 0;
+    });
+
     public DurableBillableJob? NextJob(string kind)
     {
         using var db = Open();
@@ -322,11 +339,16 @@ public sealed class BillingStore
     {
         var pack = TrophyCreditPack.Find(packCode, credits);
         if (upgradeFrom is null) return new(pack.Code, pack.Credits, pack.AmountPence, "gbp", null);
+        if (upgradeFrom.StartsWith("balance:", StringComparison.Ordinal)) {
+            var basis = UpgradeBasis(db, tx, clubId);
+            if (basis.UpgradeFrom != upgradeFrom || basis.Pending || basis.Credits < 1 || basis.Credits >= pack.Credits)
+                throw new BillingException("upgrade_unavailable", "Your purchases have changed or an upgrade is pending. Refresh your prices before continuing.");
+            return new(pack.Code, checked(pack.Credits - (int)basis.Credits), (pack.Credits - basis.Credits) * (pack.AmountPence / pack.Credits), "gbp", upgradeFrom);
+        }
         var previous = FindPurchase(db, tx, upgradeFrom);
         if (previous is null || previous.ClubId != clubId || previous.State != "paid") throw new BillingException("invalid_upgrade", "Choose a paid pack belonging to this club.");
-        // Honour the actual credits and amount purchased, including older prices and upgrades.
+        // Count purchased credits across upgrades; previous spending does not affect the new unit rate.
         var sourceCredits = previous.Credits;
-        var sourceAmount = previous.AmountPence;
         var ancestorId = previous.UpgradeFrom;
         var seen = new HashSet<string> { previous.Id };
         while (ancestorId is not null) {
@@ -334,12 +356,11 @@ public sealed class BillingStore
             if (ancestor is null || ancestor.ClubId != clubId || ancestor.State != "paid" || !seen.Add(ancestor.Id))
                 throw new BillingException("upgrade_unavailable", "This purchase cannot currently be upgraded.");
             sourceCredits += ancestor.Credits;
-            sourceAmount += ancestor.AmountPence;
             ancestorId = ancestor.UpgradeFrom;
         }
-        if (sourceCredits >= pack.Credits || sourceAmount >= pack.AmountPence || Scalar(db, tx, "SELECT COUNT(*) FROM billing_purchases WHERE upgrade_from=$parent AND state IN ('pending','paid','review')", ("$parent", upgradeFrom)) > 0)
+        if (sourceCredits >= pack.Credits || Scalar(db, tx, "SELECT COUNT(*) FROM billing_purchases WHERE upgrade_from=$parent AND state IN ('pending','paid','review')", ("$parent", upgradeFrom)) > 0)
             throw new BillingException("upgrade_unavailable", "This pack already has an upgrade or is larger than your selection.");
-        return new(pack.Code, pack.Credits - sourceCredits, pack.AmountPence - sourceAmount, "gbp", upgradeFrom);
+        return new(pack.Code, pack.Credits - sourceCredits, (pack.Credits - sourceCredits) * (pack.AmountPence / pack.Credits), "gbp", upgradeFrom);
     }
 
     private static void ReserveTrophy(SqliteConnection db, SqliteTransaction tx, string clubId, string trophyId)

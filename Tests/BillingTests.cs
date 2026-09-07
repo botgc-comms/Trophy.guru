@@ -72,10 +72,10 @@ public sealed class BillingTests : IDisposable
         store.FulfilPayment("evt-two", purchase.Id, "cs-one", "pi-one", 6000, "gbp", "cus-a");
         Assert.Equal(11, store.Balance("club-a").Available); Assert.Equal(1, store.Balance("club-b").Available);
     }
-    [Fact] public void TenToFiftyUpgradeCostsDifferenceAndAddsForty()
+    [Fact] public void TenToFiftyUpgradeChargesFortyCreditsAtTheFiftyPackRate()
     {
         var first = Buy(); var reading = Job("used"); store.BeginProviderAttempt(reading, 1); store.CompleteJob(reading, "done");
-        var quote = store.Quote("club-a", "collection", first.Id); Assert.Equal(11500, quote.AmountPence); Assert.Equal(40, quote.Credits);
+        var quote = store.Quote("club-a", "collection", first.Id); Assert.Equal(14000, quote.AmountPence); Assert.Equal(40, quote.Credits);
         Buy("collection", first.Id); Assert.Equal(50, store.Balance("club-a").Available); Assert.Equal(1, store.Balance("club-a").Used);
         Assert.Throws<BillingException>(() => store.Quote("club-a", "complete", first.Id)); Assert.Throws<BillingException>(() => store.Quote("club-b", "collection", first.Id));
     }
@@ -162,23 +162,40 @@ public sealed class BillingTests : IDisposable
         Assert.Equal("invalid_quantity", Assert.Throws<BillingException>(() => store.CreatePurchase("club-a", new(code, Guid.NewGuid().ToString(), Credits: credits))).Code);
         Assert.Empty(store.Purchases("club-a"));
     }
-    [Fact] public void HistoricalPricesAndChainedUpgradesKeepTheirActualPurchaseValue()
+    [Fact] public void HistoricalPricesDoNotAffectCreditBasedUpgrades()
     {
         var old = Buy("collection");
         using var db = new SqliteConnection($"Data Source={Path.Combine(root, "operations.sqlite")}"); db.Open();
         using var cmd = db.CreateCommand(); cmd.CommandText = "UPDATE billing_purchases SET amount_pence=22500 WHERE id=$id"; cmd.Parameters.AddWithValue("$id", old.Id); cmd.ExecuteNonQuery();
         var quote = store.Quote("club-a", "complete", old.Id);
-        Assert.Equal(15000, quote.AmountPence); Assert.Equal(100, quote.Credits);
+        Assert.Equal(25000, quote.AmountPence); Assert.Equal(100, quote.Credits);
         var first = Buy("club"); var upgrade = Buy("collection", first.Id);
         var next = store.Quote("club-a", "complete", upgrade.Id);
-        Assert.Equal(20000, next.AmountPence); Assert.Equal(100, next.Credits);
+        Assert.Equal(25000, next.AmountPence); Assert.Equal(100, next.Credits);
+    }
+    [Fact] public void FourPaidCreditsUpgradeByQuantityAtTargetRateAndCannotBeReusedConcurrently()
+    {
+        for (var i = 0; i < 4; i++) Buy("single");
+        var basis = store.UpgradeBasis("club-a"); Assert.Equal(4, basis.Credits);
+        var ten = store.Quote("club-a", "club", basis.UpgradeFrom); Assert.Equal(6, ten.Credits); Assert.Equal(3600, ten.AmountPence);
+        var fifty = store.Quote("club-a", "collection", basis.UpgradeFrom); Assert.Equal(46, fifty.Credits); Assert.Equal(16100, fifty.AmountPence);
+        var bulk = store.Quote("club-a", "complete", basis.UpgradeFrom); Assert.Equal(146, bulk.Credits); Assert.Equal(36500, bulk.AmountPence);
+        Assert.Throws<BillingException>(() => store.Quote("club-b", "club", basis.UpgradeFrom));
+        var input = new BillingCheckoutInput("club", Guid.NewGuid().ToString(), basis.UpgradeFrom);
+        var purchase = store.CreatePurchase("club-a", input);
+        Assert.Equal(purchase.Id, store.CreatePurchase("club-a", input).Id);
+        Assert.Throws<BillingException>(() => store.CreatePurchase("club-a", new("collection", Guid.NewGuid().ToString(), basis.UpgradeFrom)));
+        store.FulfilPayment("upgrade-four", purchase.Id, "cs-four", "pi-four", 3600, "gbp", "cus-a");
+        Assert.Equal(10, store.UpgradeBasis("club-a").Credits); Assert.Equal(11, store.Balance("club-a").Available);
+        Assert.Throws<BillingException>(() => store.Quote("club-a", "collection", basis.UpgradeFrom));
+        Assert.Equal(14000, store.Quote("club-a", "collection", store.UpgradeBasis("club-a").UpgradeFrom).AmountPence);
     }
     [Fact] public void CabinetDefaultAndUpgradeUseTheNewPrice()
     {
         Assert.Equal(37500, store.Quote("club-a", "complete", null).AmountPence);
         var previous = Buy("collection");
         var quote = store.Quote("club-a", "complete", previous.Id);
-        Assert.Equal(20000, quote.AmountPence); Assert.Equal(100, quote.Credits);
+        Assert.Equal(25000, quote.AmountPence); Assert.Equal(100, quote.Credits);
     }
     [Theory]
     [InlineData(150, 37500)]
@@ -200,7 +217,8 @@ public sealed class BillingTests : IDisposable
         Assert.Equal("inclusive", handler.Fields["line_items[0][price_data][tax_behavior]"]);
         Assert.Equal("1", handler.Fields["line_items[0][quantity]"]);
         Assert.Contains(credits.ToString(), handler.Fields["line_items[0][price_data][product_data][name]"]);
-        Assert.Equal("https://trophy.guru/archive.html?billing=success", handler.Fields["success_url"]);
+        Assert.StartsWith("https://trophy.guru/archive.html?billing=success&purchase=", handler.Fields["success_url"]);
+        Assert.EndsWith("#catalogue", handler.Fields["success_url"]);
         Assert.Equal(1, store.Balance("club-a").Available);
         await stripe.CheckoutAsync(account, input, default); Assert.Equal(1, handler.Posts);
         var purchase = Assert.Single(store.Purchases("club-a"));

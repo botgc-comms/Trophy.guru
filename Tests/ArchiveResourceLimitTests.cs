@@ -287,6 +287,54 @@ public sealed class ArchiveResourceLimitTests
         Assert.False((await fixture.Store.GetTrophyAsync(trophy.Id))!.Archived);
     }
 
+    [Fact]
+    public async Task RestartCancelsTheOldProviderRequestBeforeStartingAnotherWithoutAnotherCredit()
+    {
+        using var fixture = await Fixture.CreateAsync(new() { ["OPENAI_API_KEY"] = "fixture" });
+        using var scope = fixture.Context.Push("club-a");
+        var trophy = await fixture.CreateTrophyAsync();
+        using var photo = new MemoryStream([1, 2, 3]);
+        await fixture.Store.AddTrophyPhotoAsync(trophy.Id, "photo.png", "image/png", photo);
+        var handler = new BlockingImageHandler();
+        var generator = new OpenAiTrophyIllustrator(new ImageClients(handler), fixture.Configuration, Microsoft.Extensions.Logging.Abstractions.NullLogger<OpenAiTrophyIllustrator>.Instance);
+        var accounts = new AccountStore(new TestEnvironment(fixture.Root), fixture.Configuration, new Microsoft.AspNetCore.Identity.PasswordHasher<AccountRecord>());
+        using var queue = new BackgroundIllustrationQueue(fixture.Store, generator, accounts, fixture.Context, fixture.Billing, Microsoft.Extensions.Logging.Abstractions.NullLogger<BackgroundIllustrationQueue>.Instance);
+        queue.Enqueue(trophy.Id);
+        await queue.StartAsync(default);
+        try {
+            await handler.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var balance = fixture.Billing.Balance("club-a");
+            var original = fixture.Billing.JobStatus("club-a", trophy.Id, "illustration")!.Id;
+            await queue.RestartAsync(trophy.Id, default);
+            await handler.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(handler.FirstCancelled); Assert.Equal(1, handler.MaximumConcurrent);
+            Assert.NotEqual(original, fixture.Billing.JobStatus("club-a", trophy.Id, "illustration")!.Id);
+            Assert.Equal(balance, fixture.Billing.Balance("club-a"));
+            Assert.Single((await fixture.Store.GetTrophyAsync(trophy.Id))!.TrophyPhotos);
+        } finally { await queue.StopAsync(default); }
+    }
+    private sealed class ImageClients(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, false);
+    }
+    private sealed class BlockingImageHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource FirstStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource SecondStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool FirstCancelled { get; private set; }
+        public int MaximumConcurrent { get; private set; }
+        private int calls, active;
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var call = Interlocked.Increment(ref calls);
+            MaximumConcurrent = Math.Max(MaximumConcurrent, Interlocked.Increment(ref active));
+            (call == 1 ? FirstStarted : SecondStarted).TrySetResult();
+            try { await Task.Delay(Timeout.Infinite, cancellationToken); throw new InvalidOperationException(); }
+            catch (OperationCanceledException) { if (call == 1) FirstCancelled = true; throw; }
+            finally { Interlocked.Decrement(ref active); }
+        }
+    }
+
     private sealed class Fixture : IDisposable
     {
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "trophy-resource-tests", Guid.NewGuid().ToString("N"));
