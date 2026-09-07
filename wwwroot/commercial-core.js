@@ -55,7 +55,11 @@
       </form>`;
     document.body.append(dialog);
 
-    button.addEventListener('click', () => dialog.showModal());
+    button.addEventListener('click', () => {
+      const category = dialog.querySelector('[name="category"]');
+      if (!category.value.trim()) category.value = state.auth?.club?.sport || '';
+      dialog.showModal();
+    });
     dialog.querySelector('.commercial-dialog-close').addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
     dialog.querySelector('form').addEventListener('submit', createTrophy);

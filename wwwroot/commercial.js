@@ -5,7 +5,7 @@
   document.head.append(stylesheet);
 
   const core = document.createElement('script');
-  core.src = '/commercial-core.js?v=20260904-member-enrichment-1';
+  core.src = '/commercial-core.js?v=20260907-club-sport-1';
   core.onload = installPhotoFirstWizard;
   document.head.append(core);
 
@@ -58,7 +58,11 @@
     const list = dialog.querySelector('#wizard-photo-list');
     const submit = form.querySelector('[type="submit"]');
 
-    button.addEventListener('click', () => dialog.showModal());
+    button.addEventListener('click', () => {
+      const category = dialog.querySelector('[name="category"]');
+      if (!category.value.trim()) category.value = state.auth?.club?.sport || '';
+      dialog.showModal();
+    });
     dialog.querySelector('.commercial-dialog-close').addEventListener('click', closeWizard);
     dialog.addEventListener('click', event => { if (event.target === dialog) closeWizard(); });
     camera.addEventListener('change', event => addPhotographs([...event.target.files]));
