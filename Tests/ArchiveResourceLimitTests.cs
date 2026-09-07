@@ -33,7 +33,7 @@ public sealed class ArchiveResourceLimitTests
         var purchase = fixture.Billing.CreatePurchase("club-a", new("complete", Guid.NewGuid().ToString()));
         fixture.Billing.FulfilPayment("event", purchase.Id, "checkout", "payment", purchase.AmountPence, "gbp", "customer");
         var limits = new ArchiveResourceLimits(fixture.Configuration);
-        Assert.Equal(255, limits.Allowance(fixture.Billing.Balance("club-a")).Trophies);
+        Assert.Equal(155, limits.Allowance(fixture.Billing.Balance("club-a")).Trophies);
         // Settled credits are still represented by the original trophy records.
         Assert.Equal(255, limits.Allowance(new("club-a", false, 0, 1, 250, false, null)).Trophies);
         Assert.Equal(2048L * 1024 * 1024, limits.Allowance(fixture.Billing.Balance("club-a")).StorageBytes);
@@ -262,6 +262,30 @@ public sealed class ArchiveResourceLimitTests
         Id = "CUP", Name = "Original Cup", Category = "Golf", IllustrationState = IllustrationStates.Complete,
         IllustrationGenerationCount = 1, ReferenceImage = "/api/trophies/CUP/illustration"
     };
+
+    [Fact]
+    public async Task ArchiveAndRestorePreserveRecordsAndNeverRefundTrophyCredits()
+    {
+        using var fixture = await Fixture.CreateAsync();
+        using var scope = fixture.Context.Push("club-a");
+        var trophy = await fixture.CreateTrophyAsync();
+        await fixture.Store.AddWinnerAsync(trophy.Id, new(2000, "Saved winner", ReviewStates.Confirmed, null));
+        var job = fixture.Billing.ScheduleJob("club-a", trophy.Id, "analysis", 1, DateTimeOffset.UtcNow);
+        fixture.Billing.BeginProviderAttempt(job, 1); fixture.Billing.CompleteJob(job, "done");
+        var before = fixture.Billing.Balance("club-a");
+        for (var i = 0; i < 3; i++) {
+            Assert.True((await fixture.Store.SetArchivedAsync(trophy.Id, true))!.Archived);
+            Assert.True(Assert.Single(await fixture.Store.GetSummariesAsync()).Archived);
+            Assert.True(Assert.Single(fixture.ReadSavedState("club-a").Trophies).Archived);
+            Assert.Equal(before, fixture.Billing.Balance("club-a"));
+            Assert.False((await fixture.Store.SetArchivedAsync(trophy.Id, false))!.Archived);
+        }
+        Assert.Equal("Saved winner", Assert.Single((await fixture.Store.GetTrophyAsync(trophy.Id))!.Winners).Name);
+        Assert.Equal(before, fixture.Billing.Balance("club-a"));
+        Assert.Throws<BillingException>(() => fixture.Billing.ScheduleJob("club-a", "another", "analysis", 1, DateTimeOffset.UtcNow));
+        using (fixture.Context.Push("club-b")) Assert.Null(await fixture.Store.SetArchivedAsync(trophy.Id, true));
+        Assert.False((await fixture.Store.GetTrophyAsync(trophy.Id))!.Archived);
+    }
 
     private sealed class Fixture : IDisposable
     {

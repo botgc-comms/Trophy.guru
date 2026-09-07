@@ -13,8 +13,8 @@ Use non-expiring trophy credits for the core digitisation workflow. A trophy cab
 | First trophy | £0 | £0 | One account, two evidence images, one illustration, review and export |
 | Single credit | £7.50 | £7.50 | A club testing a difficult or important trophy |
 | Club pack | £60 | £6.00 | Ten trophies |
-| Heritage pack | £225 | £4.50 | Fifty trophies |
-| Cabinet pack | From £625 | £2.50 | Any quantity of 250 or more trophies |
+| Heritage pack | £175 | £3.50 | Fifty trophies |
+| Cabinet pack | From £375 | £2.50 | Any quantity of 150 or more trophies |
 
 All advertised prices include VAT, as confirmed by the operator on 7 September 2026. Do not add VAT on top. One credit should cover one trophy record, background inscription reading from its evidence set, one generated catalogue illustration, member matching and CSV export. Regeneration and unusually high evidence volume should have a documented fair-use limit so a faulty workflow cannot create unbounded AI spend.
 

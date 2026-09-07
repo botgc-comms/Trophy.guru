@@ -37,6 +37,8 @@
     card.setAttribute('aria-labelledby', 'billing-integration-title');
     const copy = node('div', undefined, 'integration-offer-copy');
     const title = node('h3', 'Intelligent Golf integration'); title.id = 'billing-integration-title';
+    const logo = node('img', undefined, 'integration-brand-logo'); logo.src = '/images/partners/intelligentgolf.png'; logo.alt = 'intelligentgolf';
+    copy.append(logo);
     copy.append(node('p', 'Optional annual extra', 'integration-kicker'), title,
       node('p', 'Bring your honours board into your club’s member area, with a personal view of each member’s trophies.'),
       node('span', subscribed ? state.integrationSubscription.status === 'active' ? 'Subscription active' : 'Manage existing subscription' : ready ? 'Annual subscription' : 'In development', 'integration-status'));
@@ -82,19 +84,19 @@
     for (const pack of state.packs) {
       const card = node('article', undefined, 'billing-pack');
       if (pack.code === 'complete') {
-        const quantity = node('input'); quantity.type = 'number'; quantity.min = '250'; quantity.step = '1'; quantity.value = '250'; quantity.id = 'volume-trophy-quantity';
+        const quantity = node('input'); quantity.type = 'number'; quantity.min = '150'; quantity.step = '1'; quantity.value = '150'; quantity.id = 'volume-trophy-quantity';
         const label = node('label', 'Number of trophies'); label.htmlFor = quantity.id;
         const total = node('strong', money(pack.amountPence)); total.id = 'volume-trophy-total';
         const buy = button('Buy credits', () => { if (quantity.reportValidity()) checkout(pack.code, null, Number(quantity.value)); }, enabled);
         quantity.addEventListener('input', () => {
-          const count = Number(quantity.value); const valid = Number.isInteger(count) && count >= 250 && count <= 2147483647;
-          total.textContent = valid ? money(count * pack.amountPence / pack.credits) : 'Enter 250 or more'; buy.disabled = !enabled || !valid;
+          const count = Number(quantity.value); const valid = Number.isInteger(count) && count >= 150 && count <= 2147483647;
+          total.textContent = valid ? money(count * pack.amountPence / pack.credits) : 'Enter 150 or more'; buy.disabled = !enabled || !valid;
         });
         quantity.required = true; quantity.max = '2147483647';
-        card.append(node('h3', '250 or more trophies'), node('p', '£2.50 per trophy'), label, quantity, total, node('p', 'VAT included. One-off purchase. Credits do not expire.'), buy);
+        card.append(node('h3', '150 or more trophies'), node('p', '£2.50 per trophy · Save 67%'), label, quantity, total, node('p', 'VAT included. One-off purchase. Credits do not expire.'), buy);
         packs.append(card); continue;
       }
-      card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', 'VAT included. One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
+      card.append(node('h3', `${pack.credits} trophy ${pack.credits === 1 ? 'credit' : 'credits'}`), node('strong', money(pack.amountPence)), node('p', `${money(pack.amountPence / pack.credits)} per trophy${pack.credits > 1 ? ' · Save ' + Math.round((1 - pack.amountPence / pack.credits / 750) * 100) + '%' : ''}`), node('p', 'VAT included. One-off purchase. Credits do not expire.'), button('Buy credits', () => checkout(pack.code), enabled));
       packs.append(card);
     }
     mount.append(packs);
@@ -145,7 +147,20 @@
     const mount = document.querySelector('#billing-panel'); if (mount) mount.replaceChildren(node('p', 'Loading your club balance…'));
     await refresh();
   }
-  window.TrophyBilling = { open, refresh };
+  async function canAddTrophy() {
+    const current = await refresh();
+    if (!current) {
+      await open();
+      return false;
+    }
+    if (current.balance.unlimited || current.balance.available > 0) return true;
+    await open();
+    const explanation = node('p', 'You have no unused trophy credits. Buy more credits to add another trophy. Future edits to your existing credited trophies are already included.', 'billing-message');
+    explanation.setAttribute('role', 'status');
+    document.querySelector('#billing-panel')?.prepend(explanation);
+    return false;
+  }
+  window.TrophyBilling = { open, refresh, canAddTrophy };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   document.addEventListener('DOMContentLoaded', () => {
     const returned = new URLSearchParams(location.search).get('billing');

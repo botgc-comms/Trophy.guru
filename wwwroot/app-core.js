@@ -92,13 +92,14 @@ function updateCounts() {
   setText('#filter-review-count', totals.needsReview ?? 0);
   setText('#filter-progress-count', totals.inProgress ?? 0);
   setText('#filter-complete-count', totals.complete ?? 0);
+  setText('#filter-archived-count', totals.archived ?? 0);
 }
 
 function renderTrophies() {
   const query = elements.search.value.trim().toLowerCase();
   const visible = state.trophies.filter(trophy => {
-    const matchesFilter = state.filter === 'all' ||
-      (state.filter === 'review' ? trophy.needsReviewCount > 0 : trophy.status === state.filter);
+    const matchesFilter = state.filter === 'archived' ? trophy.archived : !trophy.archived && (state.filter === 'all' ||
+      (state.filter === 'review' ? trophy.needsReviewCount > 0 : trophy.status === state.filter));
     const searchText = `${trophy.id} ${trophy.name} ${trophy.secondaryName || ''} ${trophy.category}`.toLowerCase();
     return matchesFilter && searchText.includes(query);
   });
@@ -187,7 +188,8 @@ function renderDetail() {
   generationNotice.hidden = trophy.illustrationState !== 'processing';
   addImageFallback(detailPhoto);
   const statusElement = document.querySelector('#detail-status');
-  statusElement.textContent = status.label;
+  statusElement.textContent = trophy.archived ? 'Archived' : status.label;
+  document.querySelector('#archive-trophy-button').textContent = trophy.archived ? 'Restore trophy' : 'Archive trophy';
   statusElement.className = `status-pill status-${status.key}`;
   setText('#evidence-count', plural(trophy.evidence.length, 'image'));
   document.querySelector('#timeline-start').value = trophy.timelineStartYear ?? '';
@@ -1016,4 +1018,19 @@ window.addEventListener('resize', () => {
 window.addEventListener('popstate', () => {
   const id = trophyIdFromHash();
   if (id) openTrophy(id, false); else closeTrophy(false);
+});
+
+ document.querySelector('#archive-trophy-button')?.addEventListener('click', async event => {
+  const trophy = state.current;
+  if (!trophy) return;
+  const archived = !trophy.archived;
+  if (archived && !confirm('Archive this trophy? Its records will be kept and you can restore it later. Its credit stays assigned to this trophy and will not be refunded.')) return;
+  event.currentTarget.disabled = true;
+  try {
+    await api('/api/trophies/' + encodeURIComponent(trophy.id) + '/archive', { method:'PUT', body:JSON.stringify({ archived }) });
+    closeTrophy();
+    await loadCatalogue();
+    showToast(archived ? 'Trophy archived. Its credit remains assigned.' : 'Trophy restored. No additional credit used.');
+  } catch (error) { showToast(error.message, true); }
+  finally { document.querySelector('#archive-trophy-button').disabled = false; }
 });

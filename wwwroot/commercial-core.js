@@ -55,7 +55,11 @@
       </form>`;
     document.body.append(dialog);
 
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        if (!window.TrophyBilling || !await window.TrophyBilling.canAddTrophy()) return;
+      } finally { button.disabled = false; }
       const category = dialog.querySelector('[name="category"]');
       if (!category.value.trim()) category.value = state.auth?.club?.sport || '';
       dialog.showModal();

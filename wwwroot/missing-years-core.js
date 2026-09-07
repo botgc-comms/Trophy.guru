@@ -7,7 +7,7 @@
   }
   if (!document.querySelector('script[src^="/commercial.js"]')) {
     const commercialScript = document.createElement('script');
-    commercialScript.src = '/commercial.js?v=20260907-trophy-credit-1';
+    commercialScript.src = '/commercial.js?v=20260907-add-credit-check-1';
     document.head.append(commercialScript);
   }
 

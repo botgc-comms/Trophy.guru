@@ -75,7 +75,7 @@ public sealed class BillingTests : IDisposable
     [Fact] public void TenToFiftyUpgradeCostsDifferenceAndAddsForty()
     {
         var first = Buy(); var reading = Job("used"); store.BeginProviderAttempt(reading, 1); store.CompleteJob(reading, "done");
-        var quote = store.Quote("club-a", "collection", first.Id); Assert.Equal(16500, quote.AmountPence); Assert.Equal(40, quote.Credits);
+        var quote = store.Quote("club-a", "collection", first.Id); Assert.Equal(11500, quote.AmountPence); Assert.Equal(40, quote.Credits);
         Buy("collection", first.Id); Assert.Equal(50, store.Balance("club-a").Available); Assert.Equal(1, store.Balance("club-a").Used);
         Assert.Throws<BillingException>(() => store.Quote("club-a", "complete", first.Id)); Assert.Throws<BillingException>(() => store.Quote("club-b", "collection", first.Id));
     }
@@ -137,6 +137,7 @@ public sealed class BillingTests : IDisposable
         config["BILLING_LEGAL_READY"] = "true"; Assert.True(stripe.Enabled); Assert.False(stripe.IntegrationAvailable);
     }
     [Theory]
+    [InlineData(150, 37500)]
     [InlineData(250, 62500)]
     [InlineData(251, 62750)]
     [InlineData(300, 75000)]
@@ -152,7 +153,7 @@ public sealed class BillingTests : IDisposable
         Assert.Equal(credits + 1, store.Balance("club-a").Available);
     }
     [Theory]
-    [InlineData("complete", 249)]
+    [InlineData("complete", 149)]
     [InlineData("complete", 0)]
     [InlineData("complete", -1)]
     [InlineData("club", 300)]
@@ -161,14 +162,26 @@ public sealed class BillingTests : IDisposable
         Assert.Equal("invalid_quantity", Assert.Throws<BillingException>(() => store.CreatePurchase("club-a", new(code, Guid.NewGuid().ToString(), Credits: credits))).Code);
         Assert.Empty(store.Purchases("club-a"));
     }
+    [Fact] public void HistoricalPricesAndChainedUpgradesKeepTheirActualPurchaseValue()
+    {
+        var old = Buy("collection");
+        using var db = new SqliteConnection($"Data Source={Path.Combine(root, "operations.sqlite")}"); db.Open();
+        using var cmd = db.CreateCommand(); cmd.CommandText = "UPDATE billing_purchases SET amount_pence=22500 WHERE id=$id"; cmd.Parameters.AddWithValue("$id", old.Id); cmd.ExecuteNonQuery();
+        var quote = store.Quote("club-a", "complete", old.Id);
+        Assert.Equal(15000, quote.AmountPence); Assert.Equal(100, quote.Credits);
+        var first = Buy("club"); var upgrade = Buy("collection", first.Id);
+        var next = store.Quote("club-a", "complete", upgrade.Id);
+        Assert.Equal(20000, next.AmountPence); Assert.Equal(100, next.Credits);
+    }
     [Fact] public void CabinetDefaultAndUpgradeUseTheNewPrice()
     {
-        Assert.Equal(62500, store.Quote("club-a", "complete", null).AmountPence);
+        Assert.Equal(37500, store.Quote("club-a", "complete", null).AmountPence);
         var previous = Buy("collection");
         var quote = store.Quote("club-a", "complete", previous.Id);
-        Assert.Equal(40000, quote.AmountPence); Assert.Equal(200, quote.Credits);
+        Assert.Equal(20000, quote.AmountPence); Assert.Equal(100, quote.Credits);
     }
     [Theory]
+    [InlineData(150, 37500)]
     [InlineData(250, 62500)]
     [InlineData(300, 75000)]
     [InlineData(500, 125000)]
@@ -196,6 +209,58 @@ public sealed class BillingTests : IDisposable
         await stripe.HandleWebhookAsync(body, Sign(body, DateTimeOffset.UtcNow.ToUnixTimeSeconds()), default);
         await stripe.HandleWebhookAsync(body, Sign(body, DateTimeOffset.UtcNow.ToUnixTimeSeconds()), default);
         Assert.Equal(credits + 1, store.Balance("club-a").Available);
+    }
+    [Theory]
+    [InlineData(401, "invalid_api_key", "authenticate")]
+    [InlineData(400, "resource_missing", "test/live")]
+    [InlineData(400, "idempotency_error", "reuse")]
+    public async Task StripeFailuresExposeSafeRequestReferenceWithoutProviderSecrets(int status, string code, string expected)
+    {
+        store.SetCustomer("club-a", "cus-fixture");
+        var handler = new RejectedCheckoutHandler(status, code);
+        var stripe = new StripeBillingService(new FixtureClients(handler), Config(), store);
+        var account = new AccountRecord { Id = "owner", ClubId = "club-a", Email = "owner@example.test", DisplayName = "Owner", NormalizedEmail = "OWNER@EXAMPLE.TEST" };
+        var error = await Assert.ThrowsAsync<BillingException>(() => stripe.CheckoutAsync(account, new("single", Guid.NewGuid().ToString()), default));
+        Assert.Contains(expected, error.Message); Assert.Contains("req_fixture123", error.Message);
+        Assert.DoesNotContain("private-provider-data", error.Message);
+        Assert.Equal(1, store.Balance("club-a").Available);
+    }
+    private sealed class RejectedCheckoutHandler(int status, string code) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage((HttpStatusCode)status) { Content = new StringContent(JsonSerializer.Serialize(new { error = new { code, message = "private-provider-data" } })) };
+            response.Headers.Add("Request-Id", "req_fixture123"); return Task.FromResult(response);
+        }
+    }
+    [Fact]
+    public async Task ManagedPaymentsRejectionUsesStandardCheckoutAndReusesSuccessfulSession()
+    {
+        store.SetCustomer("club-a", "cus-fixture");
+        var handler = new ManagedPaymentsConflictHandler();
+        var stripe = new StripeBillingService(new FixtureClients(handler), Config(), store);
+        var account = new AccountRecord { Id = "owner", ClubId = "club-a", Email = "owner@example.test", DisplayName = "Owner", NormalizedEmail = "OWNER@EXAMPLE.TEST" };
+        var input = new BillingCheckoutInput("single", Guid.NewGuid().ToString());
+        Assert.Equal("https://checkout.stripe.com/c/pay/cs_fixed", await stripe.CheckoutAsync(account, input, default));
+        Assert.Equal(2, handler.Keys.Count); Assert.StartsWith("checkout:", handler.Keys[0]); Assert.StartsWith("checkout:standard-v1:", handler.Keys[1]);
+        Assert.Equal("false", handler.Fields["managed_payments[enabled]"]);
+        Assert.Equal("inclusive", handler.Fields["line_items[0][price_data][tax_behavior]"]);
+        Assert.Equal("750", handler.Fields["line_items[0][price_data][unit_amount]"]);
+        Assert.Equal("https://checkout.stripe.com/c/pay/cs_fixed", await stripe.CheckoutAsync(account, input, default));
+        Assert.Equal(2, handler.Keys.Count); Assert.Equal(1, store.Balance("club-a").Available);
+    }
+    private sealed class ManagedPaymentsConflictHandler : HttpMessageHandler
+    {
+        public List<string> Keys { get; } = [];
+        public Dictionary<string, string> Fields { get; private set; } = [];
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Keys.Add(request.Headers.GetValues("Idempotency-Key").Single());
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            Fields = body.Split('&').Select(pair => pair.Split('=', 2)).ToDictionary(pair => Uri.UnescapeDataString(pair[0]), pair => Uri.UnescapeDataString(pair[1].Replace("+", " ")));
+            if (Keys.Count == 1) return new(HttpStatusCode.BadRequest) { Content = new StringContent(JsonSerializer.Serialize(new { error = new { type = "invalid_request_error", message = "Unsupported parameter: payment_method_types. Managed Payments handles this parameter. Pass managed_payments[enabled]=false to disable it for this request." } })) };
+            return new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"cs_fixed\",\"url\":\"https://checkout.stripe.com/c/pay/cs_fixed\"}") };
+        }
     }
     private sealed class CheckoutFixtureHandler : HttpMessageHandler
     {

@@ -95,6 +95,7 @@ public sealed class TrophySeed
 
 public sealed class TrophyRecord
 {
+    public bool Archived { get; set; }
     public required string Id { get; set; }
     public required string Name { get; set; }
     public string? SecondaryName { get; set; }
@@ -231,7 +232,8 @@ public sealed record TrophySummary(
     int EvidenceCount,
     int NeedsReviewCount,
     int MissingYearCount,
-    DateTimeOffset? LastSavedAt);
+    DateTimeOffset? LastSavedAt,
+    bool Archived = false);
 
 public sealed record MemberDirectorySummary(
     int MemberCount,
@@ -250,6 +252,7 @@ public sealed record LoginInput(string Email, string Password);
 public sealed record LegacyLoginInput(string? Password);
 public sealed record ClubInput(string Name, string Sport, string Country, string? Website);
 public sealed record TrophyCreateInput(string Name, string? SecondaryName, string Category, string? Code, string? Division);
+public sealed record TrophyArchiveInput(bool Archived);
 public sealed record TrophyDivisionInput(string? Division);
 public sealed record TrophyAwardFormatInput(string? AwardFormat);
 public sealed record TrophyEngravingInstructionsInput(string? Instructions);

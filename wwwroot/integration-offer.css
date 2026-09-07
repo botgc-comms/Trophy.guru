@@ -2,3 +2,6 @@
 @media(max-width:850px){.integration-offer{grid-template-columns:1fr 1fr}.integration-offer-copy{grid-column:1/-1}.integration-offer-price{padding-left:22px}.integration-offer-copy>p:not(.integration-kicker){max-width:650px}}@media(max-width:520px){.integration-offer,#billing-panel .integration-offer{grid-template-columns:1fr;padding:24px 20px;gap:23px}.integration-offer-copy{grid-column:auto}.integration-offer-price{padding:22px 0 0;border-left:0;border-top:1px solid #ddd7c8}.integration-offer-price strong{font-size:44px}.integration-offer .integration-offer-footnote{grid-column:auto}}
 
 #billing-panel .integration-offer-price strong{color:#173e2e}#billing-panel .integration-offer .integration-subscribe{width:100%}
+
+.integration-offer { background:#f5f7eb url("/images/partners/intelligentgolf-course-pattern.png") center/cover no-repeat; }
+.integration-brand-logo { display:block; width:190px; max-width:100%; height:auto; margin:0 0 22px; }

@@ -439,6 +439,21 @@ public sealed class CatalogueStore(
         finally { tenant.Gate.Release(); }
     }
 
+    public async Task<TrophyRecord?> SetArchivedAsync(string trophyId, bool archived, CancellationToken cancellationToken = default)
+    {
+        var tenant = await GetTenantAsync(cancellationToken);
+        await tenant.Gate.WaitAsync(cancellationToken);
+        try {
+            var trophy = Find(tenant, trophyId);
+            if (trophy is null) return null;
+            trophy.Archived = archived;
+            // Archiving never deletes the trophy, releases its allocation or changes its credit ledger.
+            await SaveUnsafeAsync(tenant, cancellationToken);
+            return Clone(trophy);
+        }
+        finally { tenant.Gate.Release(); }
+    }
+
     public async Task<TrophyRecord?> UpdateTimelineAsync(string trophyId, TimelineInput input, CancellationToken cancellationToken = default)
     {
         var tenant = await GetTenantAsync(cancellationToken);
@@ -936,7 +951,8 @@ public sealed class CatalogueStore(
         trophy.Evidence.Count,
         trophy.Winners.Count(winner => winner.ReviewState != ReviewStates.Confirmed),
         MissingYears(trophy).Count,
-        trophy.LastSavedAt);
+        trophy.LastSavedAt,
+        trophy.Archived);
 
     private T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, jsonOptions), jsonOptions)!;
     private static string ExtensionFor(string contentType) => contentType.ToLowerInvariant() switch

@@ -12,10 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260907-trophy-credit-1">
+  <link rel="stylesheet" href="/styles.css?v=20260907-single-spinner-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
   <link rel="stylesheet" href="/publication.css?v=20260906-dashboard-fix-3">
-  <link rel="stylesheet" href="/integration-offer.css?v=20260906-1">
+  <link rel="stylesheet" href="/integration-offer.css?v=20260907-pricing-brand-1">
   <link rel="stylesheet" href="/billing.css?v=20260906-dashboard-fix-3">
   <link rel="stylesheet" href="/account-security.css?v=20260907-banner-1">
 </head>
@@ -88,6 +88,7 @@
           <button class="filter-chip" data-filter="review">Review <span id="filter-review-count">—</span></button>
           <button class="filter-chip" data-filter="in-progress">In progress <span id="filter-progress-count">—</span></button>
           <button class="filter-chip" data-filter="complete">Complete <span id="filter-complete-count">—</span></button>
+          <button class="filter-chip" data-filter="archived">Archived <span id="filter-archived-count">—</span></button>
         </div>
       </section>
 
@@ -102,6 +103,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
           All trophies
         </button>
+        <button id="archive-trophy-button" class="back-button" type="button">Archive trophy</button>
         <span id="detail-status" class="status-pill">To do</span>
       </nav>
 
@@ -362,10 +364,10 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260907-trophy-credit-1" defer></script>
-  <script src="/missing-years.js?v=20260907-trophy-credit-1" defer></script>
+  <script src="/app.js?v=20260907-archive-trophy-1" defer></script>
+  <script src="/missing-years.js?v=20260907-add-credit-check-1" defer></script>
   <script src="/publication.js?v=20260906-dashboard-fix-3" defer></script>
-  <script src="/billing.js?v=20260907-trophy-credit-1" defer></script>
+  <script src="/billing.js?v=20260907-pricing-brand-1" defer></script>
   <script src="/account-security.js?v=20260907-banner-1" defer></script>
 </body>
 </html>

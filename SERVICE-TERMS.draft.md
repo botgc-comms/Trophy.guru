@@ -22,7 +22,7 @@ Archives begin private. A public honours board contains an explicitly reviewed v
 
 ## Trophy credits and payment
 
-Core trophy credits are one-off purchases. The first proof credit is separate from paid packs. The current proposed price schedule is 1 credit £7.50; 10 £60; 50 £225; 250 or more £2.50 per trophy (£625 for 250). These prices include VAT; no VAT is added on top. [Insert the VAT number and verify VAT reporting and invoices before enabling sales.]
+Core trophy credits are one-off purchases. The first proof credit is separate from paid packs. The current proposed price schedule is 1 credit £7.50; 10 £60; 50 £175; 150 or more £2.50 per trophy (£375 for 150). These prices include VAT; no VAT is added on top. [Insert the VAT number and verify VAT reporting and invoices before enabling sales.]
 
 A credit is reserved when a trophy’s AI work is queued and used once after its first successful AI job. Reading and illustration for that same trophy share that credit. Manual editing, export and access to existing records do not spend additional credits. A known failure releases an unused reservation. An interrupted provider request needs review before another attempt; the attempted AI call still counts towards its allowance.
 

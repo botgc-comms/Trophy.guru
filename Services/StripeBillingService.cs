@@ -9,7 +9,7 @@ using Trophy.Catalogue.Domain;
 namespace Trophy.Catalogue.Services;
 
 /// <summary>Hosted Stripe checkout; no card details are accepted by this application.</summary>
-public sealed class StripeBillingService(IHttpClientFactory clients, IConfiguration configuration, BillingStore billing)
+public sealed class StripeBillingService(IHttpClientFactory clients, IConfiguration configuration, BillingStore billing, ILogger<StripeBillingService>? logger = null)
 {
     private readonly SemaphoreSlim webhookGate = new(1, 1);
     private readonly SemaphoreSlim offerGate = new(1, 1);
@@ -110,11 +110,23 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
             ["line_items[0][price_data][tax_behavior]"] = "inclusive",
             ["line_items[0][quantity]"] = "1", ["payment_method_types[0]"] = "card"
         };
-        using var result = await RequestAsync(HttpMethod.Post, "checkout/sessions", values, "checkout:" + purchase.Id, cancellationToken);
+        using var result = await CreateCreditCheckoutAsync(values, purchase.Id, cancellationToken);
         var url = RequiredString(result.RootElement, "url");
         ValidateStripeRedirect(url, "checkout.stripe.com");
         billing.AttachCheckout(purchase.Id, RequiredString(result.RootElement, "id"), url);
         return url;
+    }
+
+    private async Task<JsonDocument> CreateCreditCheckoutAsync(Dictionary<string, string> values, string purchaseId, CancellationToken cancellationToken)
+    {
+        try { return await RequestAsync(HttpMethod.Post, "checkout/sessions", values, "checkout:" + purchaseId, cancellationToken); }
+        catch (BillingException error) when (error.Code == "managed_payments_conflict")
+        {
+            // Only change the request key after Stripe explicitly confirms this request was rejected.
+            // Unknown/network failures keep their original key to avoid duplicate checkout sessions.
+            values["managed_payments[enabled]"] = "false";
+            return await RequestAsync(HttpMethod.Post, "checkout/sessions", values, "checkout:standard-v1:" + purchaseId, cancellationToken);
+        }
     }
 
     public async Task<string> PortalAsync(AccountRecord account, CancellationToken cancellationToken)
@@ -285,7 +297,35 @@ public sealed class StripeBillingService(IHttpClientFactory clients, IConfigurat
         if (idempotencyKey != null) request.Headers.Add("Idempotency-Key", idempotencyKey);
         if (values != null) request.Content = new FormUrlEncodedContent(values);
         using var response = await clients.CreateClient(nameof(StripeBillingService)).SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode) throw new BillingException("payment_provider_error", "The payment provider could not complete this request. Retry the same checkout or contact support.", 502);
+        if (!response.IsSuccessStatusCode)
+        {
+            string? code = null;
+            var managedPaymentsConflict = false;
+            try {
+                using var errorBody = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
+                if (errorBody.RootElement.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.Object)
+                {
+                    code = String(error, "code") ?? String(error, "type");
+                    var detail = String(error, "message") ?? "";
+                    managedPaymentsConflict = response.StatusCode == System.Net.HttpStatusCode.BadRequest &&
+                        detail.Contains("Unsupported parameter: payment_method_types", StringComparison.Ordinal) &&
+                        detail.Contains("Managed Payments", StringComparison.Ordinal) &&
+                        detail.Contains("managed_payments[enabled]=false", StringComparison.Ordinal);
+                }
+            } catch (JsonException) { }
+            // Keep provider messages, customer data and credentials out of public responses and logs.
+            static string? SafeCode(string? value) => value is not null && value.Length <= 100 && value.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') ? value : null;
+            code = SafeCode(code);
+            var requestId = SafeCode(response.Headers.TryGetValues("Request-Id", out var ids) ? ids.FirstOrDefault() : null);
+            logger?.LogWarning("Stripe request failed: HTTP {Status}, code {Code}, request {RequestId}", (int)response.StatusCode, code ?? "unknown", requestId ?? "unavailable");
+            var message = response.StatusCode == System.Net.HttpStatusCode.Unauthorized ? "Stripe could not authenticate the website. The payment connection needs attention."
+                : response.StatusCode == System.Net.HttpStatusCode.Forbidden ? "Stripe has not permitted this checkout. The payment connection needs attention."
+                : code == "resource_missing" ? "Stripe could not find a payment record. The website's Stripe account and test/live settings need checking."
+                : code is "idempotency_error" or "idempotency_key_in_use" ? "Stripe could not reuse this checkout request. Please contact support with the reference below."
+                : "Stripe could not open checkout. Please contact support with the reference below.";
+            if (requestId is not null) message += " Reference: " + requestId + ".";
+            throw new BillingException(managedPaymentsConflict ? "managed_payments_conflict" : "payment_provider_error", message, 502);
+        }
         return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
     }
     private static void ValidateStripeRedirect(string url, string host) { if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != host) throw new BillingException("invalid_payment_url", "The payment provider returned an unexpected checkout address.", 502); }

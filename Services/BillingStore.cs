@@ -324,10 +324,22 @@ public sealed class BillingStore
         if (upgradeFrom is null) return new(pack.Code, pack.Credits, pack.AmountPence, "gbp", null);
         var previous = FindPurchase(db, tx, upgradeFrom);
         if (previous is null || previous.ClubId != clubId || previous.State != "paid") throw new BillingException("invalid_upgrade", "Choose a paid pack belonging to this club.");
-        var sourcePack = TrophyCreditPack.Find(previous.PackCode);
-        if (sourcePack.Credits >= pack.Credits || Scalar(db, tx, "SELECT COUNT(*) FROM billing_purchases WHERE upgrade_from=$parent AND state IN ('pending','paid','review')", ("$parent", upgradeFrom)) > 0)
+        // Honour the actual credits and amount purchased, including older prices and upgrades.
+        var sourceCredits = previous.Credits;
+        var sourceAmount = previous.AmountPence;
+        var ancestorId = previous.UpgradeFrom;
+        var seen = new HashSet<string> { previous.Id };
+        while (ancestorId is not null) {
+            var ancestor = FindPurchase(db, tx, ancestorId);
+            if (ancestor is null || ancestor.ClubId != clubId || ancestor.State != "paid" || !seen.Add(ancestor.Id))
+                throw new BillingException("upgrade_unavailable", "This purchase cannot currently be upgraded.");
+            sourceCredits += ancestor.Credits;
+            sourceAmount += ancestor.AmountPence;
+            ancestorId = ancestor.UpgradeFrom;
+        }
+        if (sourceCredits >= pack.Credits || sourceAmount >= pack.AmountPence || Scalar(db, tx, "SELECT COUNT(*) FROM billing_purchases WHERE upgrade_from=$parent AND state IN ('pending','paid','review')", ("$parent", upgradeFrom)) > 0)
             throw new BillingException("upgrade_unavailable", "This pack already has an upgrade or is larger than your selection.");
-        return new(pack.Code, pack.Credits - sourcePack.Credits, pack.AmountPence - sourcePack.AmountPence, "gbp", upgradeFrom);
+        return new(pack.Code, pack.Credits - sourceCredits, pack.AmountPence - sourceAmount, "gbp", upgradeFrom);
     }
 
     private static void ReserveTrophy(SqliteConnection db, SqliteTransaction tx, string clubId, string trophyId)

@@ -515,11 +515,12 @@ public static class EntryPoint
                 items,
                 totals = new
                 {
-                    all = items.Count,
-                    notStarted = items.Count(item => item.Status == TrophyStatuses.NotStarted),
-                    inProgress = items.Count(item => item.Status == TrophyStatuses.InProgress),
-                    complete = items.Count(item => item.Status == TrophyStatuses.Complete),
-                    needsReview = items.Count(item => item.NeedsReviewCount > 0)
+                    all = items.Count(item => !item.Archived),
+                    archived = items.Count(item => item.Archived),
+                    notStarted = items.Count(item => !item.Archived && item.Status == TrophyStatuses.NotStarted),
+                    inProgress = items.Count(item => !item.Archived && item.Status == TrophyStatuses.InProgress),
+                    complete = items.Count(item => !item.Archived && item.Status == TrophyStatuses.Complete),
+                    needsReview = items.Count(item => !item.Archived && item.NeedsReviewCount > 0)
                 },
                 aiConfigured = reader.IsAvailable,
                 illustrationConfigured = illustrator.IsAvailable
@@ -548,6 +549,12 @@ public static class EntryPoint
                 ?? await store.GetTrophyAsync(id, cancellationToken);
             return trophy is null ? Results.NotFound() : Results.Ok(new { trophy, missingYears = CatalogueStore.MissingYears(trophy) });
         }).ResourceOperation();
+
+        app.MapPut("/api/trophies/{id}/archive", async (string id, TrophyArchiveInput input, CatalogueStore store, CancellationToken cancellationToken) =>
+        {
+            var trophy = await store.SetArchivedAsync(id, input.Archived, cancellationToken);
+            return trophy is null ? Results.NotFound() : Results.Ok(new { trophy });
+        });
 
         app.MapPut("/api/trophies/{id}/timeline", async (string id, TimelineInput input, CatalogueStore store, CancellationToken cancellationToken) =>
         {

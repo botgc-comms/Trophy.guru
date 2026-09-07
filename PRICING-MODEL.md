@@ -7,33 +7,27 @@ Agreed pricing (VAT included; totals unchanged):
 | Free proof | £0 | 1 | £0 |
 | Single | £7.50 | 1 | £7.50 |
 | Club | £60 | 10 | £6.00 |
-| Heritage | £225 | 50 | £4.50 |
-| Cabinet | From £625 | 250 or more | £2.50 |
+| Heritage | £175 | 50 | £3.50 |
+| Cabinet | From £375 | 150 or more | £2.50 |
 
-Orders of 250 or more cost £2.50 per trophy: 250 costs £625, 300 costs £750 and 500 costs £1,250.
+Orders of 150 or more cost £2.50 per trophy: 250 costs £625, 300 costs £750 and 500 costs £1,250.
 
 These are non-expiring credits, not a recurring subscription. The core job is a finite archive project; subscriptions should be introduced later for genuinely recurring value such as hosted public pages, additional administrators, backups, API access and website publishing.
 
 ## Unit economics
 
-The historic estimates below use gross selling prices. They predate the confirmed VAT-inclusive policy and must be recalculated net of VAT before being used as margin forecasts.
+At 20% VAT and Stripe standard UK-card fees of 1.5% + 20p, the approximate revenue remaining per trophy before AI, storage and support is:
 
-Stripe currently lists standard UK-card pricing at 1.5% + 20p per transaction. The table below applies that rate to one purchase of each pack. It then uses a deliberately conservative £1.50 per-trophy envelope for all variable AI, short-term storage and delivery costs. That is a planning ceiling, not a statement of the actual OpenAI invoice.
+| Pack | Gross total | Net per trophy after VAT and card fees |
+| --- | ---: | ---: |
+| Single | £7.50 | £5.87 |
+| Club (10) | £60 | £4.89 |
+| Heritage (50) | £175 | £2.86 |
+| Cabinet (150) | £375 | £2.04 |
 
-| Pack | Stripe fee | Net after Stripe per trophy | Contribution after £1.50 variable cost | Contribution margin |
-| --- | ---: | ---: | ---: | ---: |
-| Single | £0.31 | £7.19 | £5.69 | 75.8% |
-| Club | £1.10 | £5.89 | £4.39 | 73.2% |
-| Heritage | £3.58 | £4.43 | £2.93 | 65.1% |
-| Cabinet (250) | £9.58 | £2.46 | £0.96 | 38.5% |
+These are revenue figures, not profit forecasts. The former £1.50 variable-cost estimate has not been validated against the commitment to include future readings and illustrations. Measure actual lifetime usage before claiming a margin. Other card types and fees may differ.
 
-At a £1.00 variable cost, the corresponding contribution margins are approximately 82.5%, 81.5%, 76.2% and 58.5%. These figures exclude VAT, corporation tax, refunds, disputes, foreign-card/FX costs, fixed hosting, development, advertising and human support.
-
-OpenAI prices `gpt-image-2` by input/output image tokens rather than a single flat per-image fee. Record the returned usage for every illustration and engraving job, convert it using the current OpenAI price sheet, and update a rolling p50/p90/p99 cost dashboard before changing prices. The published model pricing and Stripe rate are volatile inputs:
-
-- https://developers.openai.com/api/docs/pricing
-- https://developers.openai.com/api/docs/models/gpt-image-2
-- https://stripe.com/gb/pricing
+Sources: https://www.gov.uk/vat-rates and https://stripe.com/gb/pricing
 
 ## Commercial safeguards
 
@@ -45,4 +39,4 @@ OpenAI prices `gpt-image-2` by input/output image tokens rather than a single fl
 - Do not advertise uncapped assisted onboarding for the Cabinet pack. At £2.50 per trophy, human labour must be self-service, tightly bounded or sold as a separate service.
 - Review pricing after the first 25 paid clubs using real conversion, support minutes, p90 AI cost, refund and acquisition-cost data.
 
-The £7.50 single price is useful as a low-friction proof, while the £60 pack should be the principal conversion target. A 250-trophy club can now buy one Cabinet pack rather than combining smaller packs. The £625 price is £2.50 per trophy and retains a 38.5% contribution margin even under the deliberately conservative £1.50 variable-cost envelope. Large collections should remain self-service; bespoke handling belongs in a separately quoted service.
+The minimum bulk purchase is now 150 trophies for £375. Existing paid purchases retain their actual credit quantity and amount when calculating upgrades.

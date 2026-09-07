@@ -5,7 +5,7 @@
   document.head.append(stylesheet);
 
   const core = document.createElement('script');
-  core.src = '/commercial-core.js?v=20260907-trophy-credit-1';
+  core.src = '/commercial-core.js?v=20260907-add-credit-check-1';
   core.onload = installPhotoFirstWizard;
   document.head.append(core);
 
@@ -58,7 +58,11 @@
     const list = dialog.querySelector('#wizard-photo-list');
     const submit = form.querySelector('[type="submit"]');
 
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        if (!window.TrophyBilling || !await window.TrophyBilling.canAddTrophy()) return;
+      } finally { button.disabled = false; }
       const category = dialog.querySelector('[name="category"]');
       if (!category.value.trim()) category.value = state.auth?.club?.sport || '';
       dialog.showModal();

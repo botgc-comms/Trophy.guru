@@ -2,7 +2,7 @@
   window.addEventListener('trophy-app-ready', () => {
     installEmptyCatalogueState();
     const script = document.createElement('script');
-    script.src = '/missing-years-core.js?v=20260907-trophy-credit-1';
+    script.src = '/missing-years-core.js?v=20260907-add-credit-check-1';
     document.head.append(script);
   }, { once: true });
 

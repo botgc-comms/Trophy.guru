@@ -52,7 +52,7 @@
   document.querySelector('#club-logo-input')?.addEventListener('change', previewClubLogo);
 
   const coreScript = document.createElement('script');
-  coreScript.src = '/app-core.js?v=20260907-trophy-credit-1';
+  coreScript.src = '/app-core.js?v=20260907-archive-trophy-1';
   coreScript.onload = () => {
     installBatchUploadControl();
     accountInitialise();
