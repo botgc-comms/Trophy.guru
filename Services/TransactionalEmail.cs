@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Mail;
+using Trophy.Catalogue.Domain;
 
 namespace Trophy.Catalogue.Services;
 
@@ -17,6 +19,27 @@ public sealed class TransactionalEmail(IConfiguration configuration, IWebHostEnv
 
     public Task<bool> SendInvitationAsync(string email, string token, string clubName, CancellationToken cancellationToken = default) =>
         SendAsync(email, "Invitation to edit a Trophy Archive", $"You have been invited to help edit the archive for {clubName}. Editors can manage trophies, evidence and winner records. Publication, payments and access settings remain with the club owner.\n\n{ActionLink("invite", token)}\n\nSign in or create an account using this email address, then accept the invitation. Each account can belong to one club. This link expires in 7 days and can be used once. If you were not expecting this, you can ignore this message.", cancellationToken);
+
+    public Task<bool> SendRegistrationNotificationAsync(AccountRecord account, CancellationToken cancellationToken = default)
+    {
+        var recipient = configuration["REGISTRATION_NOTIFICATION_EMAIL"];
+        if (!ValidAddress(recipient))
+        {
+            logger.LogWarning("Registration notification delivery is not configured.");
+            return Task.FromResult(false);
+        }
+        var registeredAt = account.CreatedAt.ToUniversalTime().ToString("dd MMM yyyy 'at' HH:mm 'UTC'", CultureInfo.InvariantCulture);
+        var body = $"""
+            A new Trophy.guru account has been registered.
+
+            Name: {account.DisplayName}
+            Email: {account.Email}
+            Registered: {registeredAt}
+
+            Email verification is still pending. No password or verification link is included in this notification.
+            """;
+        return SendAsync(recipient!, "New Trophy.guru registration", body, cancellationToken);
+    }
 
     private string ActionLink(string action, string token) => $"{PublicSiteOrigin}/account-security.html#{action}={Uri.EscapeDataString(token)}";
 

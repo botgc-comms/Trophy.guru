@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260907-single-spinner-1">
+  <link rel="stylesheet" href="/styles.css?v=20260907-dashboard-archive-1">
   <link rel="stylesheet" href="/accounts.css?v=20260903-settings-1">
   <link rel="stylesheet" href="/publication.css?v=20260906-dashboard-fix-3">
   <link rel="stylesheet" href="/integration-offer.css?v=20260907-pricing-brand-1">
@@ -103,7 +103,6 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
           All trophies
         </button>
-        <button id="archive-trophy-button" class="back-button" type="button">Archive trophy</button>
         <span id="detail-status" class="status-pill">To do</span>
       </nav>
 
@@ -202,7 +201,7 @@
     <footer class="dashboard-footer">
       <a href="/" class="dashboard-footer-brand">Trophy.guru</a>
       <p>Turn trophy photographs into a searchable record of your club’s winners.</p>
-      <nav aria-label="Footer navigation"><a href="/">Home</a><a href="/#how-it-works">How it works</a><a href="/#pricing">Pricing</a><a href="/uk/how-to-catalogue-trophy-winners/">Trophy guide</a><a href="/privacy.html">Privacy &amp; cookies</a></nav>
+      <nav aria-label="Footer navigation"><a href="/">Home</a><a href="/#how-it-works">How it works</a><a href="/#pricing">Pricing</a><a href="#archived" data-show-archive>Archived trophies</a><a href="/uk/how-to-catalogue-trophy-winners/">Trophy guide</a><a href="/privacy.html">Privacy &amp; cookies</a></nav>
       <small>© 2026 Trophy.guru</small>
     </footer>
   </div>
@@ -256,6 +255,24 @@
       <button id="setup-signout-button" class="setup-signout" type="button">Use a different account</button>
     </form>
   </section>
+
+  <dialog id="archive-trophy-dialog" class="archive-confirm-dialog" aria-labelledby="archive-dialog-title" aria-describedby="archive-dialog-copy archive-credit-warning">
+    <section>
+      <button id="archive-dialog-close" class="archive-dialog-close" type="button" aria-label="Close archive confirmation">×</button>
+      <span class="archive-dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg></span>
+      <p id="archive-dialog-kicker" class="eyebrow">Archive trophy</p>
+      <h2 id="archive-dialog-title">Archive this trophy?</h2>
+      <p id="archive-dialog-copy">Its photographs, winners and review work will be retained.</p>
+      <aside id="archive-credit-warning" class="archive-credit-warning">
+        <strong>No credit refund</strong>
+        <span>The trophy credit remains assigned when a trophy is archived.</span>
+      </aside>
+      <div class="archive-dialog-actions">
+        <button id="archive-dialog-cancel" type="button">Cancel</button>
+        <button id="archive-dialog-confirm" class="is-destructive" type="button">Archive trophy</button>
+      </div>
+    </section>
+  </dialog>
 
   <dialog id="trophy-photos-dialog" class="commercial-dialog reference-photos-dialog">
     <section>
@@ -364,7 +381,7 @@
     <div class="busy-card"><span class="reader-loader">✦</span><strong id="busy-title">Reading the winner records…</strong><p id="busy-copy">Comparing the available images for names and years.</p></div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=20260907-archive-trophy-1" defer></script>
+  <script src="/app.js?v=20260907-dashboard-archive-1" defer></script>
   <script src="/missing-years.js?v=20260907-image-restart-1" defer></script>
   <script src="/publication.js?v=20260906-dashboard-fix-3" defer></script>
   <script src="/billing.js?v=20260907-inline-upgrades-1" defer></script>

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Hosting;
@@ -218,6 +219,39 @@ public sealed class AccountSecurityTests
     }
 
     [Fact]
+    public async Task RegistrationNotificationUsesConfiguredOwnerAddressWithoutAccountSecrets()
+    {
+        using var fixture = new Fixture();
+        var pickup = Path.Combine(fixture.Root, "registration-mail");
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["EMAIL_TRANSPORT"] = "development", ["EMAIL_DEVELOPMENT_DIRECTORY"] = pickup,
+            ["EMAIL_FROM"] = "noreply@example.test", ["PUBLIC_SITE_URL"] = "http://127.0.0.1:5199",
+            ["REGISTRATION_NOTIFICATION_EMAIL"] = "simon@maraboustork.co.uk"
+        }).Build();
+        var email = new TransactionalEmail(config, fixture.Environment, NullLogger<TransactionalEmail>.Instance);
+        var account = new AccountRecord
+        {
+            Id = "account-fixture",
+            DisplayName = "New Club Owner",
+            Email = "new-owner@example.test",
+            NormalizedEmail = "NEW-OWNER@EXAMPLE.TEST",
+            PasswordHash = "secret-hash-that-must-not-be-sent",
+            CreatedAt = new DateTimeOffset(2026, 9, 7, 12, 30, 0, TimeSpan.Zero)
+        };
+
+        Assert.True(await email.SendRegistrationNotificationAsync(account));
+        var message = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(pickup, "*.eml")));
+        var messageBody = DecodePickupMessageBody(message);
+        Assert.Contains("To: simon@maraboustork.co.uk", message);
+        Assert.Contains("New Trophy.guru registration", message);
+        Assert.Contains("New Club Owner", messageBody);
+        Assert.Contains("new-owner@example.test", messageBody);
+        Assert.Contains("07 Sep 2026 at 12:30 UTC", messageBody);
+        Assert.DoesNotContain(account.PasswordHash, messageBody);
+    }
+
+    [Fact]
     public async Task FailedPersistenceRollsBackPasswordAndSessionChangesInMemory()
     {
         using var fixture = new Fixture();
@@ -231,6 +265,28 @@ public sealed class AccountSecurityTests
         Assert.True(failure is IOException or UnauthorizedAccessException);
         Assert.NotNull(await store.AuthenticateAsync(new LoginInput(account.Email, Fixture.Password)));
         Assert.True(AccountSecurity.IsSessionCurrent(principal, (await store.GetAccountAsync(account.Id))!));
+    }
+
+    private static string DecodePickupMessageBody(string message)
+    {
+        var separator = message.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        var separatorLength = 4;
+        if (separator < 0)
+        {
+            separator = message.IndexOf("\n\n", StringComparison.Ordinal);
+            separatorLength = 2;
+        }
+        if (separator < 0) return message;
+
+        var headers = message[..separator];
+        var body = message[(separator + separatorLength)..].Trim();
+        if (!headers.Contains("Content-Transfer-Encoding: base64", StringComparison.OrdinalIgnoreCase))
+        {
+            return body.Replace("=\r\n", string.Empty, StringComparison.Ordinal).Replace("=\n", string.Empty, StringComparison.Ordinal);
+        }
+
+        var encoded = string.Concat(body.Where(character => !char.IsWhiteSpace(character)));
+        return Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
     }
     private sealed class Fixture : IDisposable
     {

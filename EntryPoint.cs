@@ -412,6 +412,7 @@ public static class EntryPoint
                 if (!email.IsAvailable) return Results.Json(new { error = "registration_unavailable", message = "Registration is temporarily unavailable while email delivery is being configured. Existing accounts can still sign in." }, statusCode: 503);
                 var account = await accounts.CreateAccountAsync(input, cancellationToken);
                 var verificationEmailSent = await AccountSecurity.IssueVerificationAsync(account, accounts, email, cancellationToken);
+                await email.SendRegistrationNotificationAsync(account, CancellationToken.None);
                 await SignInAccountAsync(context, account);
                 return Results.Ok(AuthPayload(account, null, accounts, reader, illustrator, legacyAccess, billing, verificationEmailSent));
             }

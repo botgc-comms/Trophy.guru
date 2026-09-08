@@ -52,7 +52,7 @@
   document.querySelector('#club-logo-input')?.addEventListener('change', previewClubLogo);
 
   const coreScript = document.createElement('script');
-  coreScript.src = '/app-core.js?v=20260907-archive-trophy-1';
+  coreScript.src = '/app-core.js?v=20260907-dashboard-archive-1';
   coreScript.onload = () => {
     installBatchUploadControl();
     accountInitialise();
@@ -192,6 +192,7 @@
     window.trophyPublication?.refresh();
     const trophyId = trophyIdFromHash();
     if (trophyId) await openTrophy(trophyId, false);
+    else if (location.hash === '#archived') selectTrophyFilter('archived', false);
     else closeTrophy(false);
   }
 

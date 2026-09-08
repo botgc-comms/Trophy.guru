@@ -9,6 +9,7 @@ const state = {
   analysisStatus: null,
   analysisPollTimer: null,
   analysisNoticeShownFor: null,
+  pendingArchiveTrophyId: null,
 };
 
 const elements = {
@@ -105,12 +106,13 @@ function renderTrophies() {
   });
 
   elements.grid.innerHTML = visible.map(trophy => {
-    const status = displayStatus(trophy);
+    const status = trophy.archived ? { key: 'archived', label: 'Archived' } : displayStatus(trophy);
     const activity = trophy.evidenceCount
       ? `${plural(trophy.winnerCount, 'winner')} · ${plural(trophy.evidenceCount, 'image')}`
       : 'Ready to start';
     return `
-      <button class="trophy-card" data-id="${escapeHtml(trophy.id)}">
+      <article class="trophy-card-shell${trophy.archived ? ' is-archived' : ''}">
+      <button class="trophy-card" data-id="${escapeHtml(trophy.id)}" type="button" aria-label="Open ${escapeHtml(trophy.name)}">
         <span class="trophy-image-wrap">
           <img src="${escapeHtml(trophy.referenceImage || '/catalogue/fallback.svg')}" alt="${escapeHtml(trophy.name)}" loading="lazy">
           ${trophy.illustrationState === 'processing' ? '<span class="illustration-holding">↻ Generating trophy image…</span>' : ''}
@@ -123,8 +125,14 @@ function renderTrophies() {
           <small>${activity}</small>
         </span>
         <svg class="card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-      </button>`;
-  }).join('') || '<p class="empty-state">No trophies match that search.</p>';
+      </button>
+      <button class="trophy-card-archive${trophy.archived ? ' is-restore' : ''}" type="button" data-archive-id="${escapeHtml(trophy.id)}" aria-label="${trophy.archived ? 'Restore' : 'Archive'} ${escapeHtml(trophy.name)}" title="${trophy.archived ? 'Restore trophy' : 'Archive trophy'}">
+        ${trophy.archived
+          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8v5h5M6.6 16.5A8 8 0 1 0 5 9"/></svg>'
+          : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>'}
+      </button>
+      </article>`;
+  }).join('') || `<p class="empty-state">${state.filter === 'archived' ? 'No trophies have been archived.' : 'No trophies match that search.'}</p>`;
 
   elements.grid.querySelectorAll('img').forEach(addImageFallback);
 }
@@ -158,7 +166,7 @@ function closeTrophy(pushHistory = true) {
   state.analysisStatus = null;
   elements.detailView.hidden = true;
   elements.catalogueView.hidden = false;
-  if (pushHistory) history.pushState({}, '', '#catalogue');
+  if (pushHistory) history.pushState({}, '', state.filter === 'archived' ? '#archived' : '#catalogue');
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
@@ -189,7 +197,6 @@ function renderDetail() {
   addImageFallback(detailPhoto);
   const statusElement = document.querySelector('#detail-status');
   statusElement.textContent = trophy.archived ? 'Archived' : status.label;
-  document.querySelector('#archive-trophy-button').textContent = trophy.archived ? 'Restore trophy' : 'Archive trophy';
   statusElement.className = `status-pill status-${status.key}`;
   setText('#evidence-count', plural(trophy.evidence.length, 'image'));
   document.querySelector('#timeline-start').value = trophy.timelineStartYear ?? '';
@@ -923,16 +930,77 @@ function addImageFallback(image) {
   }, { once: true });
 }
 
+function selectTrophyFilter(filter, pushHistory = true) {
+  const button = document.querySelector(`.filter-chip[data-filter="${filter}"]`);
+  if (!button) return;
+  if (!elements.detailView.hidden) closeTrophy(false);
+  document.querySelector('.filter-chip.is-active')?.classList.remove('is-active');
+  button.classList.add('is-active');
+  state.filter = filter;
+  renderTrophies();
+  if (pushHistory) history.pushState({}, '', filter === 'archived' ? '#archived' : '#catalogue');
+}
+
+function openArchiveDialog(trophyId) {
+  const trophy = state.trophies.find(item => item.id === trophyId);
+  const dialog = document.querySelector('#archive-trophy-dialog');
+  if (!trophy || !dialog) return;
+  const archiving = !trophy.archived;
+  state.pendingArchiveTrophyId = trophy.id;
+  dialog.classList.toggle('is-restoring', !archiving);
+  setText('#archive-dialog-kicker', archiving ? 'Archive trophy' : 'Restore trophy');
+  setText('#archive-dialog-title', archiving ? `Archive ${trophy.name}?` : `Restore ${trophy.name}?`);
+  setText('#archive-dialog-copy', archiving
+    ? 'This moves the trophy out of the active list. Its photographs, winners and review work will be kept so it can be restored later.'
+    : 'This returns the trophy to the active dashboard with all of its photographs, winners and review work intact.');
+  const warning = document.querySelector('#archive-credit-warning');
+  warning.querySelector('strong').textContent = archiving ? 'No credit refund' : 'No additional credit';
+  warning.querySelector('span').textContent = archiving
+    ? 'The trophy credit remains assigned when this trophy is archived.'
+    : 'Restoring this trophy uses its existing assigned credit.';
+  const confirmButton = document.querySelector('#archive-dialog-confirm');
+  confirmButton.textContent = archiving ? 'Archive trophy' : 'Restore trophy';
+  confirmButton.classList.toggle('is-destructive', archiving);
+  dialog.showModal();
+  requestAnimationFrame(() => confirmButton.focus());
+}
+
+async function confirmArchiveChange() {
+  const dialog = document.querySelector('#archive-trophy-dialog');
+  const confirmButton = document.querySelector('#archive-dialog-confirm');
+  const trophy = state.trophies.find(item => item.id === state.pendingArchiveTrophyId);
+  if (!dialog || !confirmButton || !trophy) {
+    dialog?.close();
+    return;
+  }
+  const archived = !trophy.archived;
+  confirmButton.disabled = true;
+  confirmButton.textContent = archived ? 'Archiving…' : 'Restoring…';
+  try {
+    await api('/api/trophies/' + encodeURIComponent(trophy.id) + '/archive', { method: 'PUT', body: JSON.stringify({ archived }) });
+    dialog.close();
+    await loadCatalogue();
+    showToast(archived ? 'Trophy archived. Its credit remains assigned.' : 'Trophy restored. No additional credit used.');
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    confirmButton.disabled = false;
+    confirmButton.textContent = archived ? 'Archive trophy' : 'Restore trophy';
+  }
+}
+
 document.querySelectorAll('.filter-chip').forEach(button => {
-  button.addEventListener('click', () => {
-    document.querySelector('.filter-chip.is-active')?.classList.remove('is-active');
-    button.classList.add('is-active');
-    state.filter = button.dataset.filter;
-    renderTrophies();
-  });
+  button.addEventListener('click', () => selectTrophyFilter(button.dataset.filter));
 });
 elements.search.addEventListener('input', renderTrophies);
 elements.grid.addEventListener('click', event => {
+  const archiveAction = event.target.closest('[data-archive-id]');
+  if (archiveAction) {
+    event.preventDefault();
+    event.stopPropagation();
+    openArchiveDialog(archiveAction.dataset.archiveId);
+    return;
+  }
   const card = event.target.closest('.trophy-card');
   if (card) openTrophy(card.dataset.id);
 });
@@ -1017,20 +1085,25 @@ window.addEventListener('resize', () => {
 });
 window.addEventListener('popstate', () => {
   const id = trophyIdFromHash();
-  if (id) openTrophy(id, false); else closeTrophy(false);
+  if (id) openTrophy(id, false);
+  else selectTrophyFilter(location.hash === '#archived' ? 'archived' : 'all', false);
 });
 
- document.querySelector('#archive-trophy-button')?.addEventListener('click', async event => {
-  const trophy = state.current;
-  if (!trophy) return;
-  const archived = !trophy.archived;
-  if (archived && !confirm('Archive this trophy? Its records will be kept and you can restore it later. Its credit stays assigned to this trophy and will not be refunded.')) return;
-  event.currentTarget.disabled = true;
-  try {
-    await api('/api/trophies/' + encodeURIComponent(trophy.id) + '/archive', { method:'PUT', body:JSON.stringify({ archived }) });
-    closeTrophy();
-    await loadCatalogue();
-    showToast(archived ? 'Trophy archived. Its credit remains assigned.' : 'Trophy restored. No additional credit used.');
-  } catch (error) { showToast(error.message, true); }
-  finally { document.querySelector('#archive-trophy-button').disabled = false; }
+document.querySelectorAll('[data-show-archive]').forEach(link => {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    selectTrophyFilter('archived');
+    document.querySelector('.catalogue-tools')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+document.querySelector('#archive-dialog-close')?.addEventListener('click', () => document.querySelector('#archive-trophy-dialog').close());
+document.querySelector('#archive-dialog-cancel')?.addEventListener('click', () => document.querySelector('#archive-trophy-dialog').close());
+document.querySelector('#archive-dialog-confirm')?.addEventListener('click', confirmArchiveChange);
+document.querySelector('#archive-trophy-dialog')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+document.querySelector('#archive-trophy-dialog')?.addEventListener('close', event => {
+  state.pendingArchiveTrophyId = null;
+  const confirmButton = event.currentTarget.querySelector('#archive-dialog-confirm');
+  confirmButton.disabled = false;
 });
