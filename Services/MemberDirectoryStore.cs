@@ -130,7 +130,7 @@ public sealed class MemberDirectoryStore(
         var rows = await MemberImportReader.ReadAsync(fileName, content, cancellationToken);
         if (rows.Count < 2) throw new MemberImportException("The member file does not contain any data rows.");
 
-        var headers = rows[0].Select(NormalizeHeader).ToList();
+        var headers = rows[0];
         var columns = ResolveColumns(headers);
         if (columns.FullName < 0 && columns.Surname < 0)
             throw new MemberImportException("Include either a Full name column, or First name and Surname columns.");
@@ -295,24 +295,11 @@ public sealed class MemberDirectoryStore(
             throw new MemberImportException("Keep imported membership numbers under 81 characters.");
     }
 
-    private static MemberColumns ResolveColumns(IReadOnlyList<string> headers) => new(
-        Find(headers, "fullname", "membername", "displayname", "name"),
-        Find(headers, "firstname", "givenname", "forename"),
-        Find(headers, "initial", "initials", "middleinitial"),
-        Find(headers, "surname", "lastname", "familyname"),
-        Find(headers, "dateofbirth", "dob", "birthdate", "birthyear", "yearofbirth"),
-        Find(headers, "datejoined", "joindate", "joineddate", "membershipstartdate", "startdate", "joined", "yearjoined"),
-        Find(headers, "membershipnumber", "membernumber", "memberloginnumber", "membershipno", "memberno", "membershipid", "memberid"),
-        Find(headers, "gender", "sex", "membergender"));
-
-    private static int Find(IReadOnlyList<string> headers, params string[] names)
+    private static MemberColumns ResolveColumns(IReadOnlyList<string> headers)
     {
-        for (var index = 0; index < headers.Count; index++)
-            if (names.Contains(headers[index], StringComparer.OrdinalIgnoreCase)) return index;
-        return -1;
+        var columns = MemberColumnResolver.Resolve(headers);
+        return new(columns[0], columns[1], columns[2], columns[3], columns[4], columns[5], columns[6], columns[7]);
     }
-
-    private static string NormalizeHeader(string value) => new(value.Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
     private static string Cell(IReadOnlyList<string> row, int index) => index >= 0 && index < row.Count ? row[index].Trim() : string.Empty;
     private static string Clean(string value) => string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     private static string GuessSurname(string fullName) => Clean(fullName).Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;

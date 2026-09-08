@@ -281,6 +281,49 @@ public sealed class MemberImportSecurityTests
         Assert.Contains("\"Ada Audit\",\"000951\"", csv);
         Assert.Equal(2, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     }
+    [Theory]
+    [InlineData("Member Full Name", "Membership Ref", "Birth Date (DD/MM/YYYY)", "Date of Joining", "Member Sex")]
+    [InlineData("Name of Member", "Number Member", "Year of Birth", "Member Since", "Gender")]
+    [InlineData("FullName", "MemberLoginNumber", "DateOfBirth", "JoiningYear", "Sex")]
+    [InlineData("Full Nmae", "Memebr Number", "Brith Date", "Joning Date", "Gendre")]
+    [InlineData("Full Name (required)", "Member #", "DOB", "Date Joined (optional)", "Gender")]
+    public async Task VariedHeadingsImportTheCorrectFields(string name, string number, string birth, string joined, string gender)
+    {
+        using var fixture = new Fixture();
+        using var input = Text($"{name},{number},{birth},{joined},{gender}\nAda Audit,0007,1970,1990,female\n");
+        await fixture.Store.ImportAsync("members.csv", input);
+        var member = Assert.Single(await fixture.Store.GetMembersAsync());
+        Assert.Equal("Ada Audit", member.FullName);
+        Assert.Equal("0007", member.MembershipNumber);
+        Assert.Equal(1970, member.BirthYear);
+        Assert.Equal(1990, member.JoinYear);
+        Assert.Equal("female", member.Gender);
+    }
+
+    [Fact]
+    public async Task SplitNamesAndUnrelatedColumnsAreNotConfused()
+    {
+        using var fixture = new Fixture();
+        using var input = Text("Member Given Name,Member Family Name,Emergency Contact Name,Account Number,Telephone Number,Handicap Number,Renewal Date,Age\nAda,Audit,Other Person,999,123456,321,2025,55\n");
+        await fixture.Store.ImportAsync("members.csv", input);
+        var member = Assert.Single(await fixture.Store.GetMembersAsync());
+        Assert.Equal("Ada Audit", member.FullName);
+        Assert.Equal("Ada", member.FirstName);
+        Assert.Equal("Audit", member.Surname);
+        Assert.Null(member.MembershipNumber);
+        Assert.Null(member.BirthYear);
+        Assert.Null(member.JoinYear);
+    }
+
+    [Theory]
+    [InlineData("Full Name,Member ID,Membership Number\nAda Audit,123,456\n")]
+    [InlineData("Full Name,Date Joined,Membership Start Date\nAda Audit,1990,1991\n")]
+    [InlineData("Full Name,Memebr Number,Membership Numbre\nAda Audit,123,456\n")]
+    public async Task AmbiguousColumnsAreRejectedWithoutReplacingTheDirectory(string csv)
+    {
+        using var fixture = new Fixture();
+        await fixture.RejectedWithoutChangeAsync("members.csv", Text(csv));
+    }
     private static MemoryStream Text(string content) => new(Encoding.UTF8.GetBytes(content));
     private static MemoryStream Workbook(string rows, string? sharedStrings = null)
     {
