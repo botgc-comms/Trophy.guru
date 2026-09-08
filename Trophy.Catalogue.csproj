@@ -6,6 +6,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <Compile Remove="Tests/**/*.cs" />
     <Content Remove="Tests/**;data-backups/**" />

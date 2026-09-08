@@ -75,6 +75,9 @@ public static class EntryPoint
         builder.Services.AddSingleton<BillingStore>();
         builder.Services.AddSingleton<StripeBillingService>();
         builder.Services.AddHttpClient(nameof(StripeBillingService));
+        builder.Services.AddSingleton<BlogStore>();
+        builder.Services.AddHttpClient<BlogImages>(client => client.Timeout = TimeSpan.FromSeconds(30))
+            .ConfigurePrimaryHttpMessageHandler(BlogImages.CreateHandler);
         builder.Services.AddSingleton<CatalogueStore>();
         builder.Services.AddSingleton<MemberDirectoryStore>();
         builder.Services.AddSingleton<FuzzyMemberMatcher>();
@@ -211,6 +214,13 @@ public static class EntryPoint
                     // Container builds reset file timestamps; those are not content-change dates.
                     sitemap.Append($"  <url>\n    <loc>{System.Net.WebUtility.HtmlEncode(location)}</loc>\n  </url>\n");
                 }
+                var blogOrigin = BlogEndpoints.PublicOrigin(builder.Configuration);
+                sitemap.Append($"  <url><loc>{System.Net.WebUtility.HtmlEncode(blogOrigin + "/blog")}</loc></url>\n");
+                foreach (var post in context.RequestServices.GetRequiredService<BlogStore>().List(int.MaxValue))
+                {
+                    var location = blogOrigin + "/blog/" + Uri.EscapeDataString(post.Article.Slug);
+                    sitemap.Append($"  <url><loc>{System.Net.WebUtility.HtmlEncode(location)}</loc><lastmod>{post.Article.UpdatedAt:yyyy-MM-dd}</lastmod></url>\n");
+                }
                 sitemap.Append("</urlset>\n");
                 context.Response.ContentType = "application/xml; charset=utf-8";
                 context.Response.Headers.CacheControl = "public,max-age=3600";
@@ -274,6 +284,7 @@ public static class EntryPoint
                 context.Request.Path.StartsWithSegments("/api/auth") ||
                 context.Request.Path.StartsWithSegments("/api/public") ||
                 context.Request.Path == "/api/billing/webhook" ||
+                context.Request.Path == BlogEndpoints.WebhookPath ||
                 context.Request.Path == "/health")
             {
                 await next();
@@ -336,6 +347,7 @@ public static class EntryPoint
         HonoursEndpoints.Map(app, webRootPath);
         MapAuthentication(app);
         app.MapBillingEndpoints();
+        app.MapBlog();
         app.MapAccountSecurity();
         MapClub(app);
         MapCatalogue(app);

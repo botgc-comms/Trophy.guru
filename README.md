@@ -58,3 +58,7 @@ Render supplies its RENDER_EXTERNAL_URL automatically for canonical links, Open 
 - Catalogue, member and image paths are resolved from the authenticated club on the server; a trophy identifier alone cannot cross into another club.
 - Full birth dates are converted to a keyed, one-way comparison fingerprint plus birth year; joining dates are reduced to year only. The uploaded member file and readable full dates are not retained.
 - Use verified full-directory backups including identity, key-ring, archive and operational ledger; CSV alone cannot restore an account. Follow [LAUNCH-RUNBOOK.md](LAUNCH-RUNBOOK.md).
+
+## Blog and AutoSEO
+
+The public blog is at `/blog`. AutoSEO deliveries go to `POST /api/webhooks/autoseo`; configure `AUTOSEO_WEBHOOK_TOKEN` in the deployment environment. Articles and downloaded images use a separate `DATA_PATH/blog/` directory. See [AutoSEO setup and delivery behaviour](AUTOSEO-BLOG.md).

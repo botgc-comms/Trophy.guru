@@ -6,7 +6,8 @@ public static class RequestSecurity
     {
         if (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method) || HttpMethods.IsOptions(request.Method)) return true;
         // Stripe authenticates the raw request body using its webhook signature.
-        if (request.Path == "/api/billing/webhook") return true;
+        // AutoSEO authenticates its bearer token and optional raw-body signature independently.
+        if (request.Path == "/api/billing/webhook" || request.Path == BlogEndpoints.WebhookPath) return true;
         if (request.Headers["Sec-Fetch-Site"] == "cross-site") return false;
         var source = request.Headers.Origin.ToString();
         if (string.IsNullOrWhiteSpace(source)) source = request.Headers.Referer.ToString();
