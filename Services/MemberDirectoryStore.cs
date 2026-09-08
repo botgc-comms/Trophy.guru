@@ -302,7 +302,7 @@ public sealed class MemberDirectoryStore(
         Find(headers, "surname", "lastname", "familyname"),
         Find(headers, "dateofbirth", "dob", "birthdate", "birthyear", "yearofbirth"),
         Find(headers, "datejoined", "joindate", "joineddate", "membershipstartdate", "startdate", "joined", "yearjoined"),
-        Find(headers, "membershipnumber", "membernumber", "membershipno", "memberno", "membershipid", "memberid"),
+        Find(headers, "membershipnumber", "membernumber", "memberloginnumber", "membershipno", "memberno", "membershipid", "memberid"),
         Find(headers, "gender", "sex", "membergender"));
 
     private static int Find(IReadOnlyList<string> headers, params string[] names)

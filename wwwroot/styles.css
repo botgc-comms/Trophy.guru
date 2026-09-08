@@ -127,6 +127,21 @@ h2 { font-size: 28px; line-height: 1.05; }
 .trophy-card-archive.is-restore { border-color: rgba(18,91,68,.3); color: var(--green-800); }
 .trophy-card-archive.is-restore:hover { border-color: var(--green-800); background: var(--green-800); color: #fff; }
 .trophy-card-body { padding-right: 44px; }
+
+.trophy-grid.is-in-progress { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 18px; }
+.trophy-grid.is-in-progress .trophy-card { min-height: 160px; grid-template-columns: 136px 1fr 28px; }
+.trophy-grid.is-in-progress .trophy-image-wrap {
+  height: 100%; min-height: 160px; isolation: isolate;
+  background: linear-gradient(145deg, #f0ecdf 0%, var(--paper-deep) 100%);
+}
+.trophy-grid.is-in-progress .trophy-image-wrap img {
+  position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; max-width: none; padding: 10px 12px;
+  object-fit: contain; object-position: center; filter: drop-shadow(0 7px 7px rgba(38,31,20,.14));
+}
+.trophy-grid.is-in-progress .illustration-holding { z-index: 3; }
+.trophy-grid.is-in-progress .card-status { z-index: 2; }
+.trophy-grid.is-in-progress .trophy-card-body { padding-top: 22px; padding-bottom: 22px; }
+.trophy-grid.is-in-progress .card-arrow { margin-right: 4px; }
 .empty-state { grid-column: 1 / -1; padding: 48px; text-align: center; color: var(--muted); }
 .catalogue-loading { grid-column: 1 / -1; min-height: 260px; display: grid; place-items: center; align-content: center; gap: 14px; color: var(--muted); }
 .catalogue-loading span, .reader-loader { animation: pulse 1.3s ease-in-out infinite; color: var(--brass); }
@@ -393,6 +408,9 @@ h2 { font-size: 28px; line-height: 1.05; }
   .trophy-card { grid-template-columns: 94px 1fr 22px; }
   .trophy-image-wrap { height: 112px; }
   .trophy-card-body { padding: 14px 44px 14px 14px; }
+  .trophy-grid.is-in-progress { grid-template-columns: 1fr; gap: 10px; }
+  .trophy-grid.is-in-progress .trophy-card { min-height: 124px; grid-template-columns: 104px 1fr 22px; }
+  .trophy-grid.is-in-progress .trophy-image-wrap { min-height: 124px; }
   .trophy-card-body strong { font-size: 19px; }
   .detail-view { padding-top: 14px; }
   .detail-heading { margin: 14px 0 18px; gap: 15px; }

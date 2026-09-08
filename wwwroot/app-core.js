@@ -105,6 +105,7 @@ function renderTrophies() {
     return matchesFilter && searchText.includes(query);
   });
 
+  elements.grid.classList.toggle('is-in-progress', state.filter === 'in-progress');
   elements.grid.innerHTML = visible.map(trophy => {
     const status = trophy.archived ? { key: 'archived', label: 'Archived' } : displayStatus(trophy);
     const activity = trophy.evidenceCount

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -218,6 +220,67 @@ public sealed class MemberImportSecurityTests
     }
 
     private static string TenThousandMembers() => "Full name,Membership number\n" + string.Concat(Enumerable.Range(0, 10_000).Select(index => $"Audit member {index},M{index}\n"));
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoginNumberReimportPreservesConfirmedMatchAndAppearsInCompletedExport(bool manuallySelected)
+    {
+        using var fixture = new Fixture();
+        using var original = Text("Forename,Surname,Full Name,Gender,Dob,Join Date\r\nAda,Audit,Ada Audit,female,1970-01-02,1990-01-01\r\n");
+        await fixture.Store.ImportAsync("members.csv", original);
+        var previous = Assert.Single(await fixture.Store.GetMembersAsync());
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["DATA_PATH"] = fixture.Root, ["SKIP_SEED_CATALOGUE"] = "true" }).Build();
+        var catalogue = new CatalogueStore(new TestEnvironment { ContentRootPath = fixture.Root }, configuration, fixture.Context);
+        var matching = new MemberMatchingCoordinator(catalogue, fixture.Store, new FuzzyMemberMatcher());
+        var trophy = await catalogue.CreateTrophyAsync(new("Audit Cup", null, "Other", "AUDIT", "mixed"));
+        var winner = await catalogue.AddWinnerAsync(trophy.Id, new(2000, "A. Audit", ReviewStates.Confirmed, null));
+        Assert.NotNull(winner);
+        await matching.RefreshAllAsync();
+        if (manuallySelected) await matching.SelectMemberAsync(trophy.Id, winner.Id, previous.Id);
+        await catalogue.MarkCompleteAsync(trophy.Id);
+
+        using var updated = Text("\"Member (login) number\",Forename,Surname,\"Full Name\",Gender,\"Current Category\",Dob,\"Join Date\"\r\n000951,Ada,Audit,Ada Audit,female,Member,1970-01-02,1990-01-01\r\n");
+        var result = await fixture.Store.ImportAsync("members.csv", updated);
+        await matching.RefreshAllAsync();
+
+        Assert.Equal(1, result.MembershipNumbersAdded);
+        var member = Assert.Single(await fixture.Store.GetMembersAsync());
+        Assert.Equal(previous.Id, member.Id);
+        Assert.Equal("000951", member.MembershipNumber);
+        var refreshed = await catalogue.GetTrophyAsync(trophy.Id);
+        Assert.NotNull(refreshed);
+        Assert.Equal(TrophyStatuses.Complete, refreshed.Status);
+        var confirmed = Assert.Single(refreshed.Winners);
+        Assert.Equal(ReviewStates.Confirmed, confirmed.ReviewState);
+        Assert.NotNull(confirmed.MemberMatch);
+        Assert.Equal(previous.Id, confirmed.MemberMatch.MemberId);
+        Assert.Equal(manuallySelected, confirmed.MemberMatch.ManuallySelected);
+        Assert.Equal("000951", confirmed.MemberMatch.MembershipNumber);
+
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(
+            new Microsoft.AspNetCore.Builder.WebApplicationOptions { ContentRootPath = fixture.Root });
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddSingleton(catalogue);
+        await using var app = builder.Build();
+        app.Use(async (context, next) =>
+        {
+            using var scope = fixture.Context.Push("audit-club");
+            await next(context);
+        });
+        typeof(EntryPoint).GetMethod("MapExports", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .Invoke(null, [app]);
+        await app.StartAsync();
+        using var client = new HttpClient
+        {
+            BaseAddress = new Uri(app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+                .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!.Addresses.Single())
+        };
+        var csv = await client.GetStringAsync("/api/export.csv?completedOnly=true");
+        Assert.Contains("Membership number", csv);
+        Assert.Contains("\"Ada Audit\",\"000951\"", csv);
+        Assert.Equal(2, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+    }
     private static MemoryStream Text(string content) => new(Encoding.UTF8.GetBytes(content));
     private static MemoryStream Workbook(string rows, string? sharedStrings = null)
     {
