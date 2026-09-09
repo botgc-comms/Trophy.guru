@@ -150,6 +150,11 @@ h2 { font-size: 28px; line-height: 1.05; }
 
 .detail-view { padding: 26px 0 72px; }
 .detail-nav { display: flex; justify-content: space-between; align-items: center; }
+.detail-nav-actions { display: flex; align-items: center; gap: 10px; }
+.detail-export-link { min-height: 38px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #c9cfc9; border-radius: 9px; background: var(--surface); color: var(--green-800); font-size: 14px; font-weight: 700; text-decoration: none; }
+.detail-export-link:hover { border-color: var(--green-800); background: var(--green-100); }
+.detail-export-link:focus-visible { outline: 3px solid rgba(27,81,64,.28); outline-offset: 2px; }
+.detail-export-link svg { width: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .back-button, .text-button { border: 0; background: transparent; cursor: pointer; font-weight: 600; color: var(--green-800); }
 .back-button { min-height: 44px; padding: 0 10px 0 0; display: flex; align-items: center; gap: 6px; }
 .back-button svg { width: 20px; }

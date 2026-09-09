@@ -974,15 +974,21 @@ public static class EntryPoint
 
     private static void MapExports(WebApplication app)
     {
-        app.MapGet("/api/export.csv", async (bool? completedOnly, CatalogueStore store, CancellationToken cancellationToken) =>
+        app.MapGet("/api/export.csv", async Task<IResult> (bool? completedOnly, string? trophyId, CatalogueStore store, CancellationToken cancellationToken) =>
         {
             var summaries = await store.GetSummariesAsync(cancellationToken);
+            var hasSpecificTrophy = !string.IsNullOrWhiteSpace(trophyId);
+            var selectedSummaries = hasSpecificTrophy
+                ? summaries.Where(summary => summary.Id.Equals(trophyId, StringComparison.OrdinalIgnoreCase)).ToList()
+                : summaries.ToList();
+            if (hasSpecificTrophy && selectedSummaries.Count == 0) return Results.NotFound();
+
             var csv = new StringBuilder("Trophy code,Trophy name,Year,Winner,Description,AI reading notes,Review status,Source,Matched member,Membership number,Birth year,Joining year,Match confidence,Match reason\r\n");
-            foreach (var summary in summaries)
+            foreach (var summary in selectedSummaries)
             {
                 var trophy = await store.GetTrophyAsync(summary.Id, cancellationToken);
                 if (trophy is null || (completedOnly == true && trophy.Status != TrophyStatuses.Complete)) continue;
-                if (completedOnly == true && trophy.Winners.Count == 0)
+                if ((completedOnly == true || hasSpecificTrophy) && trophy.Winners.Count == 0)
                     csv.AppendLine(string.Join(',', new[] { Csv(trophy.Id), Csv(trophy.Name) }.Concat(Enumerable.Repeat(string.Empty, 12))));
                 foreach (var winner in trophy.Winners.OrderBy(item => item.Year).ThenBy(item => item.Name))
                 {
@@ -999,7 +1005,10 @@ public static class EntryPoint
                     }));
                 }
             }
-            return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"trophy-archive-{(completedOnly == true ? "completed-" : string.Empty)}{DateTime.UtcNow:yyyy-MM-dd}.csv");
+            var fileName = hasSpecificTrophy
+                ? $"trophy-{AppDataPath.SafeSegment(selectedSummaries[0].Id)}-{DateTime.UtcNow:yyyy-MM-dd}.csv"
+                : $"trophy-archive-{(completedOnly == true ? "completed-" : string.Empty)}{DateTime.UtcNow:yyyy-MM-dd}.csv";
+            return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", fileName);
         });
     }
 

@@ -195,6 +195,14 @@
 .member-match.is-unmatched { background: #f1f0eb; color: var(--muted); }
 .member-match.is-deliberately-unmatched { background: #edf1f4; color: #43535d; }
 .reference-photos-dialog, .member-match-dialog, .account-settings-dialog { width: min(620px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); overflow-y: auto; }
+.reference-illustration-preview { margin: -28px -28px 5px; overflow: hidden; display: grid; border-bottom: 1px solid rgba(10,42,33,.2); background: #e9e2d4; }
+.reference-illustration-preview[hidden] { display: none; }
+.reference-illustration-stage { min-height: 300px; padding: 22px 38px 12px; display: grid; place-items: center; background: radial-gradient(circle at 50% 36%, #fffdf7 0 24%, #e8e1d3 70%, #d7cdb9 100%); }
+.reference-illustration-stage img { width: 100%; height: 270px; max-width: 390px; object-fit: contain; object-position: center; filter: drop-shadow(0 18px 13px rgba(38,31,20,.2)); }
+.reference-illustration-preview figcaption { min-height: 58px; padding: 11px 28px 13px; display: flex; align-items: center; justify-content: space-between; gap: 18px; background: var(--green-950); color: #fff; }
+.reference-illustration-preview figcaption span { color: #dfb85c; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.reference-illustration-preview figcaption strong { font-family: Newsreader, serif; font-size: 20px; font-weight: 600; line-height: 1.1; text-align: right; }
+.reference-photos-dialog .commercial-dialog-close { z-index: 2; background: rgba(255,253,248,.94); box-shadow: 0 4px 14px rgba(10,42,33,.16); }
 .reference-photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .reference-photo-actions label { min-height: 46px; display: grid; place-items: center; border: 1px solid var(--green-900); border-radius: 10px; background: var(--green-900); color: #fff; cursor: pointer; }
 .reference-photo-actions label + label { background: #fff; color: var(--green-900); }
@@ -284,3 +292,10 @@
 .settings-logo-preview small { font-size: 9px; font-weight: 700; }
 @media (max-width:760px) { .plan-tier-list { grid-template-columns: 1fr 1fr; } }
 @media (max-width:540px) { .reference-photo-actions { grid-template-columns: 1fr; } .commercial-dialog > section { padding: 24px 18px; } .member-candidate small { white-space: normal; } .manual-member-form .commercial-form-grid, .manual-member-actions { grid-template-columns: 1fr; } .current-plan-summary, .plan-tier-heading, .plan-selection { align-items: stretch; flex-direction: column; } .current-plan-summary > span:last-child, .plan-tier-heading > small { text-align: left; } .plan-quote-form > label { grid-template-columns: 1fr; } .plan-quote-results, .plan-tier-list { grid-template-columns: 1fr; } .plan-tier { min-height: 180px; } .plan-selection button { width: 100%; } }
+@media (max-width:540px) {
+  .reference-illustration-preview { margin: -24px -18px 4px; }
+  .reference-illustration-stage { min-height: 240px; padding: 18px 24px 8px; }
+  .reference-illustration-stage img { height: 220px; }
+  .reference-illustration-preview figcaption { padding-inline: 18px; align-items: flex-start; flex-direction: column; gap: 3px; }
+  .reference-illustration-preview figcaption strong { text-align: left; }
+}

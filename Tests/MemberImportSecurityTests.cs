@@ -258,6 +258,10 @@ public sealed class MemberImportSecurityTests
         Assert.Equal(manuallySelected, confirmed.MemberMatch.ManuallySelected);
         Assert.Equal("000951", confirmed.MemberMatch.MembershipNumber);
 
+        var otherTrophy = await catalogue.CreateTrophyAsync(new("Other Cup", null, "Other", "OTHER", "mixed"));
+        var otherWinner = await catalogue.AddWinnerAsync(otherTrophy.Id, new(2001, "Other Winner", ReviewStates.Confirmed, null));
+        Assert.NotNull(otherWinner);
+
         var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(
             new Microsoft.AspNetCore.Builder.WebApplicationOptions { ContentRootPath = fixture.Root });
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -280,6 +284,18 @@ public sealed class MemberImportSecurityTests
         Assert.Contains("Membership number", csv);
         Assert.Contains("\"Ada Audit\",\"000951\"", csv);
         Assert.Equal(2, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+
+        using var singleResponse = await client.GetAsync($"/api/export.csv?trophyId={Uri.EscapeDataString(trophy.Id)}");
+        Assert.Equal(System.Net.HttpStatusCode.OK, singleResponse.StatusCode);
+        var singleCsv = await singleResponse.Content.ReadAsStringAsync();
+        Assert.Contains("\"AUDIT\",\"Audit Cup\"", singleCsv);
+        Assert.Contains("\"Ada Audit\",\"000951\"", singleCsv);
+        Assert.DoesNotContain("Other Cup", singleCsv);
+        Assert.DoesNotContain("Other Winner", singleCsv);
+        Assert.Contains("trophy-AUDIT-", singleResponse.Content.Headers.ContentDisposition?.FileName);
+
+        using var missingResponse = await client.GetAsync("/api/export.csv?trophyId=DOES-NOT-EXIST");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, missingResponse.StatusCode);
     }
     [Theory]
     [InlineData("Member Full Name", "Membership Ref", "Birth Date (DD/MM/YYYY)", "Date of Joining", "Member Sex")]

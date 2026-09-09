@@ -243,8 +243,31 @@
   function renderTrophyPhotos() {
     const strip = document.querySelector('#trophy-photo-strip');
     const status = document.querySelector('#reference-illustration-status');
-    if (!strip || !status) return;
+    const illustration = document.querySelector('#reference-illustration-preview');
+    const illustrationImage = document.querySelector('#reference-illustration-image');
+    const illustrationName = document.querySelector('#reference-illustration-name');
+    if (!strip || !status || !illustration || !illustrationImage || !illustrationName) return;
     const trophy = state.current;
+    const illustrationUrl = trophy?.referenceImage || '';
+    const hasIllustration = Boolean(illustrationUrl && !/\/catalogue\/fallback\.svg(?:[?#]|$)/i.test(illustrationUrl));
+    illustration.hidden = true;
+    if (hasIllustration) {
+      const trophyId = trophy.id;
+      illustrationName.textContent = trophy.name;
+      illustrationImage.alt = `${trophy.name} catalogue illustration`;
+      illustrationImage.onload = () => {
+        if (state.current?.id === trophyId) illustration.hidden = false;
+      };
+      illustrationImage.onerror = () => { illustration.hidden = true; };
+      illustrationImage.src = illustrationUrl;
+      if (illustrationImage.complete && illustrationImage.naturalWidth > 0) illustration.hidden = false;
+    } else {
+      illustrationImage.onload = null;
+      illustrationImage.onerror = null;
+      illustrationImage.removeAttribute('src');
+      illustrationImage.alt = '';
+      illustrationName.textContent = '';
+    }
     const photos = trophy?.trophyPhotos || [];
     strip.innerHTML = photos.length
       ? photos.map((photo, index) => `

@@ -2,12 +2,12 @@
   if (!document.querySelector('link[href^="/commercial.css"]')) {
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/commercial.css?v=20260904-plan-header-1';
+    stylesheet.href = '/commercial.css?v=20260909-illustration-preview-1';
     document.head.append(stylesheet);
   }
   if (!document.querySelector('script[src^="/commercial.js"]')) {
     const commercialScript = document.createElement('script');
-    commercialScript.src = '/commercial.js?v=20260907-image-restart-1';
+    commercialScript.src = '/commercial.js?v=20260909-illustration-preview-1';
     document.head.append(commercialScript);
   }
 

@@ -242,7 +242,7 @@
             <p>${escapeHtml(divisionLabel(trophy.division))}</p>
             <h3><a href="#trophy/${encodeURIComponent(trophy.id)}">${escapeHtml(trophy.name)}</a></h3>
             ${trophy.secondaryName ? `<small>${escapeHtml(trophy.secondaryName)}</small>` : ''}
-            <ul>${trophy.winners.map(winner => `<li><a href="#person/${winner.personId}">${escapeHtml(winner.name)}</a></li>`).join('')}</ul>
+            <ul>${trophy.winners.map(winner => `<li><a href="#person/${winner.personId}">${escapeHtml(formatWinnerName(winner.name))}</a></li>`).join('')}</ul>
             <a class="history-link" href="#trophy/${encodeURIComponent(trophy.id)}">View trophy history <span>→</span></a>
           </div>
         </article>`).join('')
@@ -285,11 +285,12 @@
     elements.results.innerHTML = people.length
       ? people.map((person, index) => {
           const uniqueTrophies = new Set(person.honours.map(honour => honour.trophy.id)).size;
+          const displayName = formatWinnerName(person.name);
           return `
             <article class="person-card">
-              <a href="#person/${person.id}" aria-label="View ${escapeAttribute(person.name)}'s honours">
+              <a href="#person/${person.id}" aria-label="View ${escapeAttribute(displayName)}'s honours">
                 <span class="person-number">${String(index + 1).padStart(2, '0')}</span>
-                <span class="person-name"><strong>${escapeHtml(person.name)}</strong><small>${formatNumber(person.honours.length)} honour${person.honours.length === 1 ? '' : 's'} · ${formatNumber(uniqueTrophies)} ${uniqueTrophies === 1 ? 'trophy' : 'trophies'}</small></span>
+                <span class="person-name"><strong>${escapeHtml(displayName)}</strong><small>${formatNumber(person.honours.length)} honour${person.honours.length === 1 ? '' : 's'} · ${formatNumber(uniqueTrophies)} ${uniqueTrophies === 1 ? 'trophy' : 'trophies'}</small></span>
                 <span class="person-years">${Math.min(...person.honours.map(item => item.year))}—${Math.max(...person.honours.map(item => item.year))}</span>
                 <span class="person-arrow" aria-hidden="true">→</span>
               </a>
@@ -319,7 +320,7 @@
           <div class="winner-timeline">
             <h2>Roll of honour</h2>
             <ol>${groups.map(([year, winners]) => `
-              <li><time>${year}</time><div>${winners.map(winner => `<a href="#person/${winner.personId}">${escapeHtml(winner.name)}</a>`).join('')}</div></li>`).join('')}
+              <li><time>${year}</time><div>${winners.map(winner => `<a href="#person/${winner.personId}">${escapeHtml(formatWinnerName(winner.name))}</a>`).join('')}</div></li>`).join('')}
             </ol>
           </div>
         </article>`;
@@ -328,11 +329,12 @@
       const person = buildPeople('all').find(item => item.id === id);
       if (!person) return renderMissingDetail();
       const honours = person.honours.sort((a, b) => b.year - a.year || a.trophy.name.localeCompare(b.trophy.name));
+      const displayName = formatWinnerName(person.name);
       elements.detailContent.innerHTML = `
         <article class="person-detail">
           <div class="person-detail-heading">
             <p class="eyebrow">Club roll of honour</p>
-            <h1>${escapeHtml(person.name)}</h1>
+            <h1>${escapeHtml(displayName)}</h1>
             <p>${formatNumber(honours.length)} confirmed honour${honours.length === 1 ? '' : 's'} across ${formatNumber(new Set(honours.map(item => item.trophy.id)).size)} ${new Set(honours.map(item => item.trophy.id)).size === 1 ? 'trophy' : 'trophies'}.</p>
           </div>
           <ol class="person-honours-list">${honours.map(honour => `
@@ -341,7 +343,7 @@
               <div>${trophyVisual(honour.trophy)}<span><small>${escapeHtml(divisionLabel(honour.trophy.division))}</small><strong><a href="#trophy/${encodeURIComponent(honour.trophy.id)}">${escapeHtml(honour.trophy.name)}</a></strong>${honour.trophy.secondaryName ? `<em>${escapeHtml(honour.trophy.secondaryName)}</em>` : ''}</span></div>
             </li>`).join('')}</ol>
         </article>`;
-      document.title = `${person.name} · ${state.data.club.name}`;
+      document.title = `${displayName} · ${state.data.club.name}`;
     }
     attachImageFallbacks(elements.detailContent);
   }
@@ -478,6 +480,15 @@
 
   function divisionLabel(division) {
     return ({ gents: 'Gents', ladies: 'Ladies', junior: 'Junior', mixed: 'Mixed & open' })[division] || 'Mixed & open';
+  }
+
+  function formatWinnerName(value) {
+    return String(value ?? '')
+      .trim()
+      .replace(/\s+/gu, ' ')
+      .replace(/\.+$/u, '')
+      .trim()
+      .toLocaleUpperCase('en-GB');
   }
 
   function normalise(value) {

@@ -181,6 +181,9 @@ function renderDetail() {
   secondary.textContent = trophy.secondaryName || '';
   secondary.hidden = !trophy.secondaryName;
   setText('#detail-summary', `${plural(trophy.evidence.length, 'image')} · ${plural(trophy.winners.length, 'winner')}`);
+  const exportLink = document.querySelector('#export-trophy-link');
+  exportLink.href = `/api/export.csv?trophyId=${encodeURIComponent(trophy.id)}`;
+  exportLink.setAttribute('aria-label', `Export ${trophy.name} as CSV`);
   const detailPhoto = document.querySelector('#detail-photo');
   detailPhoto.src = trophy.referenceImage || '/catalogue/fallback.svg';
   detailPhoto.alt = trophy.illustrationState === 'processing' ? `${trophy.name} illustration is being generated` : trophy.name;

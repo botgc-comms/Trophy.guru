@@ -26,7 +26,7 @@ public sealed class PublicationTests
         Assert.False((await fixture.Store.GetAsync("legacy")).IsPublic);
         Assert.Null(await fixture.Store.GetPublicAssetAsync("legacy", "logo"));
         var preview = await fixture.Store.PreviewAsync("legacy", fixture.Options());
-        Assert.Equal("A. Smith", Assert.Single(Assert.Single(preview.Snapshot.Trophies).Winners).Name);
+        Assert.Equal("A. SMITH", Assert.Single(Assert.Single(preview.Snapshot.Trophies).Winners).Name);
         Assert.False((await fixture.Store.GetAsync("legacy")).IsPublic);
         Assert.False(Directory.Exists(Path.Combine(fixture.Root, "honours-publication")));
     }
@@ -43,7 +43,7 @@ public sealed class PublicationTests
         options.NamePolicy = "approved-identities";
         var preview = await fixture.Store.PreviewAsync("legacy", options);
         var publicWinner = Assert.Single(Assert.Single(preview.Snapshot.Trophies).Winners);
-        Assert.Equal("A. Smith", publicWinner.Name);
+        Assert.Equal("A. SMITH", publicWinner.Name);
         Assert.Null(publicWinner.Description);
         var json = JsonSerializer.Serialize(preview.Snapshot);
         Assert.DoesNotContain("Alice Private", json);
@@ -58,16 +58,28 @@ public sealed class PublicationTests
         using (fixture.Context.Push("legacy"))
             await fixture.Catalogue.SetMemberMatchAsync("CUP", "winner", Match("Alice Smith", true));
         var inscription = await fixture.Store.PreviewAsync("legacy", fixture.Options());
-        Assert.Equal("A. Smith", inscription.Snapshot.Trophies[0].Winners[0].Name);
+        Assert.Equal("A. SMITH", inscription.Snapshot.Trophies[0].Winners[0].Name);
         var options = fixture.Options();
         options.NamePolicy = "approved-identities";
         var preview = await fixture.Store.PreviewAsync("legacy", options);
-        Assert.Equal("Alice Smith", preview.Snapshot.Trophies[0].Winners[0].Name);
+        Assert.Equal("ALICE SMITH", preview.Snapshot.Trophies[0].Winners[0].Name);
         await fixture.Store.PublishAsync("legacy", "owner", new(options, preview.Fingerprint, true));
         using (fixture.Context.Push("legacy"))
             await fixture.Catalogue.SetMemberMatchAsync("CUP", "winner", Match("Another Identity", true));
         var published = await fixture.Store.GetAsync("legacy");
-        Assert.Equal("Alice Smith", published.Snapshot!.Trophies[0].Winners[0].Name);
+        Assert.Equal("ALICE SMITH", published.Snapshot!.Trophies[0].Winners[0].Name);
+    }
+
+    [Fact]
+    public async Task PublicWinnerNamesAreUppercaseAndHaveNoTrailingPeriod()
+    {
+        using var fixture = await Fixture.CreateAsync();
+        using (fixture.Context.Push("legacy"))
+            await fixture.Catalogue.UpdateWinnerAsync("CUP", "winner", new(2020, "  E.A.Wright.  ", ReviewStates.Confirmed, null));
+
+        var preview = await fixture.Store.PreviewAsync("legacy", fixture.Options());
+
+        Assert.Equal("E.A.WRIGHT", preview.Snapshot.Trophies[0].Winners[0].Name);
     }
 
     [Fact]
@@ -221,7 +233,7 @@ public sealed class PublicationTests
                 Trophies =
                 [
                     new() { Id = "CUP", Name = "Test Cup", Category = "Golf", ReferenceImage = "/catalogue/test.png", Winners =
-                    [new() { Id = "winner", Year = 2020, Name = "A. SMITH", ReviewState = ReviewStates.Confirmed, Description = "Private note" },
+                    [new() { Id = "winner", Year = 2020, Name = "  A.   Smith.  ", ReviewState = ReviewStates.Confirmed, Description = "Private note" },
                      new() { Id = "unconfirmed", Year = 2021, Name = "Pending Person", ReviewState = ReviewStates.NeedsReview }] },
                     new() { Id = "JUNIOR", Name = "Junior Cup", Category = "Golf", Division = TrophyDivisions.Junior,
                         Winners = [new() { Id = "child", Year = 2020, Name = "Junior Winner", ReviewState = ReviewStates.Confirmed }] }

@@ -2,7 +2,7 @@
   window.addEventListener('trophy-app-ready', () => {
     installEmptyCatalogueState();
     const script = document.createElement('script');
-    script.src = '/missing-years-core.js?v=20260907-image-restart-1';
+    script.src = '/missing-years-core.js?v=20260909-illustration-preview-1';
     document.head.append(script);
   }, { once: true });
 

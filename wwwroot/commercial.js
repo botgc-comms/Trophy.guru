@@ -5,7 +5,7 @@
   document.head.append(stylesheet);
 
   const core = document.createElement('script');
-  core.src = '/commercial-core.js?v=20260907-image-restart-1';
+  core.src = '/commercial-core.js?v=20260909-illustration-preview-1';
   core.onload = installPhotoFirstWizard;
   document.head.append(core);
 
