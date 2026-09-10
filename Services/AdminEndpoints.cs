@@ -43,8 +43,16 @@ public static class AdminEndpoints
         app.MapGet("/admin", () => Results.Content(Page, "text/html"));
         app.MapPost("/admin/login", async (LoginInput input, HttpContext context, AccountStore accounts, IConfiguration config, CancellationToken ct) =>
         {
+            if (string.IsNullOrWhiteSpace(config["SITE_ADMIN_EMAIL"]))
+                return Results.Json(new { message = "Owner access has not been configured. Add SITE_ADMIN_EMAIL in Render with your Trophy Guru account email, then redeploy." }, statusCode: 503);
             var account = await accounts.AuthenticateAsync(input, ct);
-            if (!IsAllowed(account, config)) return Results.Json(new { message = "Unable to sign in. Use the verified site-owner account configured for administration." }, statusCode: 401);
+            if (account is null)
+                return Results.Json(new { message = "That email and password combination was not recognised. Use your registered Trophy Guru account, or reset its password using the link below." }, statusCode: 401);
+            // Only give account-specific guidance after the password has been verified.
+            if (!string.Equals(account.NormalizedEmail, config["SITE_ADMIN_EMAIL"]!.Trim(), StringComparison.OrdinalIgnoreCase))
+                return Results.Json(new { message = "Your password is correct, but this account is not the configured site owner. Check that SITE_ADMIN_EMAIL in Render matches this account email, then redeploy." }, statusCode: 403);
+            if (!account.EmailVerifiedAt.HasValue)
+                return Results.Json(new { message = "Your password is correct, but this account's email has not been verified. Open Account security below after signing into your archive. Original archive accounts need a regular registered, email-verified account for administration." }, statusCode: 403);
             await context.SignInAsync(Scheme, AccountSecurity.CreatePrincipal(account!), new AuthenticationProperties
             { IsPersistent = false, AllowRefresh = false, ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) });
             app.Logger.LogInformation("Site admin signed in: {AccountId}", account!.Id);
@@ -104,7 +112,7 @@ public static class AdminEndpoints
 <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/admin.css"><script src="/admin.js" defer></script></head>
 <body><header><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.png" width="200" height="54" alt="Trophy Guru"></a><span>Owner dashboard</span><button id="logout" hidden>Sign out</button></header>
 <main><section id="login-panel"><p class="eyebrow">Private administration</p><h1>Sign in to your dashboard</h1><p>Use your verified Trophy Guru owner account. Admin sessions last 30 minutes.</p>
-<form id="login"><label>Email<input name="email" type="email" autocomplete="username" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label><button>Sign in securely</button></form></section>
+<form id="login"><label>Email<input name="email" type="email" autocomplete="username" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label><button>Sign in securely</button></form><p><a href="/account-security.html#forgot">Reset password</a> · <a href="/account-security.html#settings">Account security</a> · <a href="/archive.html#signup">Create an account</a></p></section>
 <p id="message" role="status" aria-live="polite"></p>
 <section id="dashboard" hidden><p class="eyebrow">Your service at a glance</p><h1>Registrations</h1><p id="totals"></p><label>Find an account or club<input id="search" type="search" placeholder="Name, email or club"></label><button id="refresh">Refresh registrations</button>
 <div class="table-wrap"><table><thead><tr><th>Name and email</th><th>Registered</th><th>Email verified</th><th>Club</th><th>Uploads</th></tr></thead><tbody id="registrations"></tbody></table></div>

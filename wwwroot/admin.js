@@ -13,8 +13,13 @@ function showLogin() {
 }
 async function request(url, options = {}) {
   const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...options });
-  if (response.status === 401) { showLogin(); throw new Error('Please sign in with your verified site-owner account.'); }
-  if (!response.ok) throw new Error(response.status === 429 ? 'Too many attempts. Wait a minute and try again.' : 'Unable to load this information. Please try again.');
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    if (response.status === 401) showLogin();
+    const error = new Error(result.message || (response.status === 401 ? 'Your admin session has ended. Please sign in again.' : response.status === 429 ? 'Too many attempts. Wait a minute and try again.' : 'Unable to load this information. Please try again.'));
+    error.status = response.status;
+    throw error;
+  }
   return response;
 }
 function node(tag, text, className) {
@@ -94,5 +99,5 @@ $('logout').addEventListener('click', async () => {
 });
 $('search').addEventListener('input', renderAccounts);
 $('refresh').addEventListener('click', () => loadAccounts().catch(e => $('message').textContent = e.message));
-loadAccounts().catch(e => { $('message').textContent = e.message; });
+loadAccounts().catch(e => { if (e.status !== 401) $('message').textContent = e.message; });
 })();
