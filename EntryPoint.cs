@@ -98,6 +98,7 @@ public static class EntryPoint
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddHostedService<IndexNowPublisher>();
         builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true).WithTools<PublicProductTools>();
+        AdminEndpoints.Configure(builder);
         var app = builder.Build();
         await app.Services.GetRequiredService<AccountStore>().InitializeAsync();
         await app.Services.GetRequiredService<BillingStore>().InitializeAsync();
@@ -130,6 +131,18 @@ public static class EntryPoint
         }
 
         app.UseResponseCompression();
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/admin"))
+            {
+                context.Response.Headers.CacheControl = "no-store";
+                context.Response.Headers["X-Robots-Tag"] = "noindex,nofollow,noarchive";
+                if (!RequestSecurity.IsSameOriginMutation(context.Request, builder.Configuration))
+                { context.Response.StatusCode = 403; return; }
+                if (!await EndpointSecurity.ApplyBodyLimitAsync(context)) return;
+            }
+            await next();
+        });
 
         app.Use(async (context, next) =>
         {
@@ -142,7 +155,7 @@ public static class EntryPoint
             var frameAncestors = isHonoursDemo ? "'self'" : "'none'";
             var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24));
             context.Items["csp-nonce"] = nonce;
-            var privatePage = context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
+            var privatePage = context.Request.Path.StartsWithSegments("/admin") || context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
                 context.Request.Path.Equals("/account-security.html", StringComparison.OrdinalIgnoreCase) || context.Request.Path.StartsWithSegments("/api");
             var scriptSources = privatePage ? "'self'" : $"'self' 'nonce-{nonce}' https://www.googletagmanager.com";
             var connections = privatePage ? "'self'" : "'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com";
@@ -389,6 +402,7 @@ public static class EntryPoint
             }
             await next();
         });
+        AdminEndpoints.Map(app);
         if (IndexNowPublisher.Key(builder.Configuration) is { } indexNowKey)
             app.MapGet("/" + indexNowKey + ".txt", () => Results.Text(indexNowKey, "text/plain"));
         app.MapMcp("/mcp").RequireRateLimiting("public-discovery");
