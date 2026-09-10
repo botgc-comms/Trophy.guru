@@ -8,7 +8,7 @@ public static class ProductPages
 {
     public record Section(string Heading, string Text);
     public record Page(string Path, string Title, string Heading, string Description, Section[] Sections);
-    public const string Overview = "Trophy Guru is software for digitising historic trophy and competition records and creating electronic honours boards. Golf clubs and other sporting organisations can use photographs of engraved trophies or trophy plates to capture historic winner information, review the records and share a digital honours board.";
+    public const string Overview = "Trophy Guru provides AI-assisted transcription of engraved trophies, existing honours boards and historic competition records from photographs. Golf clubs and other sporting organisations can recover winner names and years, review the readings and build a searchable historical archive. Records can be exported or shared as an electronic honours board.";
     public static readonly Section[] Faqs = [
         new("What is an electronic honours board?", "An electronic honours board is a digital record of competition winners. Trophy Guru lets a club share confirmed winners online, with views by year, trophy and winner, while retaining a private working archive."),
         new("What is Trophy Guru?", Overview),
@@ -89,7 +89,7 @@ public static class ProductPages
         <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{{E(page.Title)}}"><meta name="twitter:description" content="{{E(page.Description)}}"><meta name="twitter:image" content="{{origin}}/images/brand/trophy-guru-logo.png">
         <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/marketing.css"><link rel="stylesheet" href="/product-pages.css"><link rel="stylesheet" href="/analytics.css">
         <script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
-        <script type="application/ld+json">{{breadcrumbs}}</script>{{faq}}</head>
+        <script type="application/ld+json">{{breadcrumbs}}</script>{{faq}}<link rel="stylesheet" href="/branding.css"></head>
         <body class="guide-body product-page"><a class="product-skip" href="#main">Skip to content</a>
         <header class="product-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.png" width="240" height="64" alt="Trophy Guru"></a>
         <nav aria-label="Main navigation"><a href="/how-it-works">How it works</a><a href="/for-golf-clubs">For golf clubs</a><a href="/faq">FAQ</a><a href="/archive.html#signup">Start your archive</a></nav></header>
@@ -97,7 +97,7 @@ public static class ProductPages
         <p class="eyebrow">Trophy Guru</p><h1>{{E(page.Heading)}}</h1><p>{{E(page.Description)}}</p></div>
         <div class="product-copy">{{content}}
         <section><h2>Explore the service</h2><p><a href="/#member-experience">Explore the illustrative honours board</a>, <a href="/#pricing">read the current pricing</a> or <a href="/archive.html#signup">start your club archive</a>.</p><nav class="product-links" aria-label="Related guides">{{Links}}</nav></section></div></main>
-        <footer class="product-footer"><p>Trophy Guru — a Marabou Stork Limited service</p><a href="/about">About</a> · <a href="/privacy.html">Privacy and cookies</a> · <a href="/blog">Blog</a></footer></body></html>
+        {{SiteBranding.Footer}}</body></html>
         """;
     }
 

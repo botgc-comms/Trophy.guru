@@ -324,7 +324,7 @@
   function applyClubBranding(club) {
     if (!club) return;
     document.querySelector('#club-name').textContent = club.name;
-    document.querySelector('#club-subtitle').textContent = `${club.sport} · Trophy Archive`;
+    document.querySelector('#club-subtitle').textContent = `${club.sport} · Trophy Guru`;
     const honoursLink = document.querySelector('#honours-board-link');
     if (honoursLink && club.id && club.complete) {
       honoursLink.href = '#publication';
@@ -343,7 +343,7 @@
       logo.hidden = true;
       monogram.hidden = false;
     }
-    document.title = `Trophy Archive · ${club.name}`;
+    document.title = `Trophy Guru · ${club.name}`;
   }
 
   async function accountSignOut() {

@@ -83,7 +83,7 @@ const ok = text => { checks.push(text); console.log('PASS ' + text); };
   assert.equal((await anon.get(`/honours/${clubId}`)).status(), 404); assert.equal((await anon.get(`/embed/${clubId}`)).status(), 404);
   assert.equal((await api(owner, `/api/trophies/${trophyId}`)).trophy.winners.length, 1); ok('Withdrawal removes public access while retaining the private trophy record');
   await api(owner, '/api/auth/forgot-password', 'POST', { email });
-  const resetMail = fs.readdirSync(path.join(dataRoot, 'mail')).map(name => fs.readFileSync(path.join(dataRoot, 'mail', name), 'utf8')).find(text => text.includes(email) && text.includes('Reset your Trophy Archive password'));
+  const resetMail = fs.readdirSync(path.join(dataRoot, 'mail')).map(name => fs.readFileSync(path.join(dataRoot, 'mail', name), 'utf8')).find(text => text.includes(email) && text.includes('Reset your Trophy Guru password'));
   const resetToken = resetMail.replace(/=\r?\n/g, '').replace(/=3D/g, '=').match(/#reset=([A-Za-z0-9_-]+)/)?.[1]; assert(resetToken);
   await page.goto(base + '/account-security.html#reset=' + resetToken);
   await page.getByLabel('New password', { exact: true }).fill('ReplacementPassword456!');

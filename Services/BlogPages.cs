@@ -83,10 +83,10 @@ public static class BlogPages
         <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(description)}"><meta name="twitter:image" content="{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}">
         <link rel="stylesheet" href="/analytics.css"><script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
         <meta name="theme-color" content="#061711"><meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(description)}"><meta property="og:url" content="{E(url)}">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/blog.css">{metadata}</head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/blog.css">{metadata}<link rel="stylesheet" href="/branding.css"></head>
         <body><a class="skip-link" href="#main">Skip to content</a><header class="blog-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo.png" width="220" height="88" alt="Trophy Guru"></a>
         <nav aria-label="Main navigation"><a href="/">Home</a><a href="/blog" aria-current="page">Blog</a><a class="button" href="/archive.html#signup">Start your archive</a></nav></header>
         <main id="main">{body}<aside class="blog-cta"><p class="eyebrow">Preserve every name. Every year.</p><h2>Your club’s history deserves to be remembered.</h2><p>Turn your trophy inscriptions into a searchable archive, one photograph at a time.</p><a class="button" href="/archive.html#signup">Try your first trophy free &rarr;</a></aside></main>
-        <footer class="blog-footer"><a href="/">Trophy Guru</a><p>Trophy Guru — a Marabou Stork Limited service.</p><nav aria-label="Footer navigation"><a href="/how-it-works">How it works</a><a href="/electronic-honours-boards">Electronic honours boards</a><a href="/about">About</a><a href="/blog">Blog</a><a href="/privacy.html">Privacy &amp; cookies</a><a href="/archive.html#login">Log in</a></nav></footer></body></html>
+        {SiteBranding.Footer}</body></html>
         """;
 }

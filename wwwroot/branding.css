@@ -1,0 +1,16 @@
+/* Shared product identity and footer, independent of page-specific layouts. */
+.trophy-guru-mark { display:block; width:200px; max-width:100%; height:auto; object-fit:contain; }
+.honours-product-mark .trophy-guru-mark { width:190px; }
+.privacy-brand .trophy-guru-mark, .security-header .trophy-guru-mark { width:190px; }
+.guru-footer { margin:0; padding:48px 32px 28px; background:#03110d; color:#eef0e8; border-top:1px solid #284036; }
+.guru-footer-inner { max-width:1280px; margin:0 auto; display:grid; grid-template-columns:230px minmax(0,1fr); gap:36px 64px; align-items:start; }
+.guru-footer-brand { display:block; width:200px; }
+.guru-footer-links { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px 36px; }
+.guru-footer-links > div { display:flex; flex-direction:column; align-items:flex-start; gap:12px; }
+.guru-footer .guru-footer-links h2 { margin:0 0 6px; color:#eee4c7; font-family:inherit; font-size:15px; line-height:1.4; font-weight:600; letter-spacing:normal; }
+.guru-footer .guru-footer-links a { color:#bfcac4; font-size:14px; line-height:1.5; font-weight:400; text-decoration:none; }
+.guru-footer .guru-footer-links a:hover { color:#fff; text-decoration:underline; text-underline-offset:4px; }
+.guru-footer a:focus-visible { outline:2px solid #d4b971; outline-offset:5px; }
+.guru-footer-copyright { grid-column:1/-1; padding-top:24px; border-top:1px solid #284036; color:#9aafa3; font-size:12px; line-height:1.6; }
+@media(max-width:900px) { .guru-footer-inner { grid-template-columns:1fr; gap:30px; } }
+@media(max-width:540px) { .guru-footer { padding:36px 24px 24px; } .guru-footer-links { grid-template-columns:1fr 1fr; gap:30px 20px; } .guru-footer-links > div:last-child { grid-column:1/-1; } .honours-product-mark .trophy-guru-mark { width:150px; } }

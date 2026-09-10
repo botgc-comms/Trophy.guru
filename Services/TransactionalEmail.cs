@@ -12,13 +12,13 @@ public sealed class TransactionalEmail(IConfiguration configuration, IWebHostEnv
     public string? PublicSiteOrigin => TryGetOrigin(out var origin) ? origin : null;
 
     public Task<bool> SendVerificationAsync(string email, string token, CancellationToken cancellationToken = default) =>
-        SendAsync(email, "Verify your Trophy Archive email", $"Confirm your email address to publish your honours board, purchase trophy credits and invite editors.\n\n{ActionLink("verify", token)}\n\nThis link expires in 24 hours and can be used once. If you did not create this account, you can ignore this message.", cancellationToken);
+        SendAsync(email, "Verify your Trophy Guru email", $"Confirm your email address to publish your honours board, purchase trophy credits and invite editors.\n\n{ActionLink("verify", token)}\n\nThis link expires in 24 hours and can be used once. If you did not create this account, you can ignore this message.", cancellationToken);
 
     public Task<bool> SendPasswordResetAsync(string email, string token, CancellationToken cancellationToken = default) =>
-        SendAsync(email, "Reset your Trophy Archive password", $"Use this link to choose a new password:\n\n{ActionLink("reset", token)}\n\nThis link expires in 30 minutes and can be used once. Resetting your password signs out all existing sessions. If you did not request this, you can ignore this message.", cancellationToken);
+        SendAsync(email, "Reset your Trophy Guru password", $"Use this link to choose a new password:\n\n{ActionLink("reset", token)}\n\nThis link expires in 30 minutes and can be used once. Resetting your password signs out all existing sessions. If you did not request this, you can ignore this message.", cancellationToken);
 
     public Task<bool> SendInvitationAsync(string email, string token, string clubName, CancellationToken cancellationToken = default) =>
-        SendAsync(email, "Invitation to edit a Trophy Archive", $"You have been invited to help edit the archive for {clubName}. Editors can manage trophies, evidence and winner records. Publication, payments and access settings remain with the club owner.\n\n{ActionLink("invite", token)}\n\nSign in or create an account using this email address, then accept the invitation. Each account can belong to one club. This link expires in 7 days and can be used once. If you were not expecting this, you can ignore this message.", cancellationToken);
+        SendAsync(email, "Invitation to edit a Trophy Guru", $"You have been invited to help edit the archive for {clubName}. Editors can manage trophies, evidence and winner records. Publication, payments and access settings remain with the club owner.\n\n{ActionLink("invite", token)}\n\nSign in or create an account using this email address, then accept the invitation. Each account can belong to one club. This link expires in 7 days and can be used once. If you were not expecting this, you can ignore this message.", cancellationToken);
 
     public Task<bool> SendRegistrationNotificationAsync(AccountRecord account, CancellationToken cancellationToken = default)
     {

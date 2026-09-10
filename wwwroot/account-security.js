@@ -139,7 +139,7 @@
 
   function renderVerify() {
     title.textContent = 'Verify your email';
-    const section = card('', 'Confirm this email address for your Trophy Archive account.');
+    const section = card('', 'Confirm this email address for your Trophy Guru account.');
     button(section, 'Verify email address', async () => {
       const result = await request('/api/auth/verify-email', { token: actionToken }); actionToken = null; content.replaceChildren(); showNotice(result.message); link(content, 'Return to your archive', '/archive.html');
     });

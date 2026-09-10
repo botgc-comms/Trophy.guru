@@ -248,7 +248,7 @@
       return { path: '/privacy', title: 'Privacy and cookies' };
     }
     if (path === '/' || path === '/index.html') {
-      return { path: '/', title: 'Trophy Archive AI' };
+      return { path: '/', title: 'Trophy Guru' };
     }
     const publicPaths = ['/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/integrations/intelligent-golf', '/blog'];
     if (publicPaths.includes(path) || /^\/blog\/[a-z0-9-]+$/.test(path)) {
@@ -273,8 +273,8 @@
 
   function archiveTitle(route) {
     return ({
-      signup: 'Create a Trophy Archive account',
-      login: 'Sign in to Trophy Archive',
+      signup: 'Create a Trophy Guru account',
+      login: 'Sign in to Trophy Guru',
       catalogue: 'Trophy catalogue',
       trophy: 'Review a trophy',
     })[route];
