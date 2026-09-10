@@ -8,7 +8,7 @@ public static class AdminEndpoints
 {
     public const string Scheme = "TrophyGuruSiteAdmin";
     public static bool IsAllowed(AccountRecord? account, IConfiguration configuration) =>
-        account is not null && account.EmailVerifiedAt.HasValue &&
+        account is not null &&
         !string.IsNullOrWhiteSpace(configuration["SITE_ADMIN_EMAIL"]) &&
         string.Equals(account.NormalizedEmail, configuration["SITE_ADMIN_EMAIL"]!.Trim(), StringComparison.OrdinalIgnoreCase);
 
@@ -49,10 +49,8 @@ public static class AdminEndpoints
             if (account is null)
                 return Results.Json(new { message = "That email and password combination was not recognised. Use your registered Trophy Guru account, or reset its password using the link below." }, statusCode: 401);
             // Only give account-specific guidance after the password has been verified.
-            if (!string.Equals(account.NormalizedEmail, config["SITE_ADMIN_EMAIL"]!.Trim(), StringComparison.OrdinalIgnoreCase))
+            if (!IsAllowed(account, config))
                 return Results.Json(new { message = "Your password is correct, but this account is not the configured site owner. Check that SITE_ADMIN_EMAIL in Render matches this account email, then redeploy." }, statusCode: 403);
-            if (!account.EmailVerifiedAt.HasValue)
-                return Results.Json(new { message = "Your password is correct, but this account's email has not been verified. Open Account security below after signing into your archive. Original archive accounts need a regular registered, email-verified account for administration." }, statusCode: 403);
             await context.SignInAsync(Scheme, AccountSecurity.CreatePrincipal(account!), new AuthenticationProperties
             { IsPersistent = false, AllowRefresh = false, ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) });
             app.Logger.LogInformation("Site admin signed in: {AccountId}", account!.Id);
@@ -111,7 +109,7 @@ public static class AdminEndpoints
 <title>Owner dashboard | Trophy Guru</title><meta name="robots" content="noindex,nofollow,noarchive">
 <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/admin.css"><script src="/admin.js" defer></script></head>
 <body><header><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.png" width="200" height="54" alt="Trophy Guru"></a><span>Owner dashboard</span><button id="logout" hidden>Sign out</button></header>
-<main><section id="login-panel"><p class="eyebrow">Private administration</p><h1>Sign in to your dashboard</h1><p>Use your verified Trophy Guru owner account. Admin sessions last 30 minutes.</p>
+<main><section id="login-panel"><p class="eyebrow">Private administration</p><h1>Sign in to your dashboard</h1><p>Use the account named in SITE_ADMIN_EMAIL and its existing password. Email verification is not required for admin access. Admin sessions last 30 minutes.</p>
 <form id="login"><label>Email<input name="email" type="email" autocomplete="username" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label><button>Sign in securely</button></form><p><a href="/account-security.html#forgot">Reset password</a> · <a href="/account-security.html#settings">Account security</a> · <a href="/archive.html#signup">Create an account</a></p></section>
 <p id="message" role="status" aria-live="polite"></p>
 <section id="dashboard" hidden><p class="eyebrow">Your service at a glance</p><h1>Registrations</h1><p id="totals"></p><label>Find an account or club<input id="search" type="search" placeholder="Name, email or club"></label><button id="refresh">Refresh registrations</button>
