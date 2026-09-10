@@ -50,7 +50,7 @@ async function main() {
     return amount === 'Free' ? 0 : Number(amount.replace(/[^0-9.]/g, ''));
   });
   assert.deepEqual(app.offers.map(offer => Number(offer.price)), prices);
-  assert(home.includes('AI-assisted transcription'));
+  assert(home.includes('We read the names and years'));
   assert(home.includes('electronic honours board'));
   ok('Service description and pricing agree with visible homepage content');
   for (const path of paths.filter(path => /^\/(uk|us)\//.test(path))) {
