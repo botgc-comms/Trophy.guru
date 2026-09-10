@@ -1,8 +1,25 @@
-# Public pages and assets are available to search and AI discovery crawlers.
-# The wildcard includes Googlebot, Bingbot, OAI-SearchBot, Claude-SearchBot
-# and PerplexityBot. One group keeps the API exclusion applicable to all.
+# Public marketing pages and required rendering assets are crawlable.
+# Robots is not authentication; private APIs retain account/club checks.
 User-agent: *
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: GPTBot
 Allow: /
 Disallow: /api/
+Disallow: /archive.html
+Disallow: /account-security.html
+Disallow: /honours
+Allow: /honours.css
+Allow: /honours.js
+Allow: /honours-preview.css
+Allow: /honours-preview.js
+Disallow: /embed/
+Allow: /embed/v1.js
+Allow: /embed/board.css
+Disallow: /mcp
+Disallow: /admin
+Disallow: /account/
 
 Sitemap: {{PUBLIC_SITE_URL}}/sitemap.xml

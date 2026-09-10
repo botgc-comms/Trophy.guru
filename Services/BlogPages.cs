@@ -44,7 +44,7 @@ public static class BlogPages
             ["datePublished"] = a.PublishedAt, ["dateModified"] = a.UpdatedAt,
             ["inLanguage"] = a.LanguageCode, ["keywords"] = a.Keywords,
             ["image"] = post.HeroPath is null ? null : origin + post.HeroPath,
-            ["publisher"] = new Dictionary<string, object> { ["@type"] = "Organization", ["name"] = "Trophy Guru", ["url"] = origin }
+            ["publisher"] = new Dictionary<string, object> { ["@type"] = "Organization", ["@id"] = origin + "/#organization", ["name"] = "Marabou Stork Limited", ["url"] = origin + "/about" }
         };
         var metadata = $"<meta property=\"og:type\" content=\"article\"><meta name=\"keywords\" content=\"{E(a.MetaKeywords ?? string.Join(", ", a.Keywords ?? []))}\">" +
             (post.HeroPath is null ? "" : $"<meta property=\"og:image\" content=\"{E(origin + post.HeroPath)}\"><meta property=\"og:image:alt\" content=\"{E(a.HeroImageAlt)}\">") +
@@ -72,18 +72,21 @@ public static class BlogPages
             <article class="blog-article"><header class="article-heading"><a href="/blog" class="back-link">&larr; All articles</a>
             <p class="eyebrow">Trophy Guru journal &middot; <time datetime="{a.PublishedAt:O}">{E(Date(a.PublishedAt))}</time></p>
             <h1>{E(a.Title)}</h1><p class="article-summary">{E(a.MetaDescription)}</p></header>
-            {hero}<div class="article-body">{post.Html}{infographic}{faqs}</div></article>
+            {hero}<div class="article-body">{System.Text.RegularExpressions.Regex.Replace(post.Html, @"<(\/?)h1(\s|>)", "<$1h2$2", System.Text.RegularExpressions.RegexOptions.IgnoreCase)}{infographic}{faqs}</div></article>
             """);
     }
 
     private static string Layout(string title, string description, string url, string language, string metadata, string body) => $"""
         <!doctype html><html lang="{E(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>{E(title)} | Trophy Guru</title><meta name="description" content="{E(description)}"><link rel="canonical" href="{E(url)}">
+        <meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="Trophy Guru">{(metadata.Contains("property=\"og:image\"") ? "" : $"<meta property=\"og:image\" content=\"{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}\">")}
+        <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(description)}"><meta name="twitter:image" content="{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}">
+        <link rel="stylesheet" href="/analytics.css"><script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
         <meta name="theme-color" content="#061711"><meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(description)}"><meta property="og:url" content="{E(url)}">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/blog.css">{metadata}</head>
         <body><a class="skip-link" href="#main">Skip to content</a><header class="blog-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo.png" width="220" height="88" alt="Trophy Guru"></a>
         <nav aria-label="Main navigation"><a href="/">Home</a><a href="/blog" aria-current="page">Blog</a><a class="button" href="/archive.html#signup">Start your archive</a></nav></header>
         <main id="main">{body}<aside class="blog-cta"><p class="eyebrow">Preserve every name. Every year.</p><h2>Your club’s history deserves to be remembered.</h2><p>Turn your trophy inscriptions into a searchable archive, one photograph at a time.</p><a class="button" href="/archive.html#signup">Try your first trophy free &rarr;</a></aside></main>
-        <footer class="blog-footer"><a href="/">Trophy Guru</a><p>Preserve the past. Celebrate every winner.</p><nav aria-label="Footer navigation"><a href="/blog">Blog</a><a href="/privacy.html">Privacy &amp; cookies</a><a href="/archive.html#login">Log in</a></nav></footer></body></html>
+        <footer class="blog-footer"><a href="/">Trophy Guru</a><p>Trophy Guru — a Marabou Stork Limited service.</p><nav aria-label="Footer navigation"><a href="/how-it-works">How it works</a><a href="/electronic-honours-boards">Electronic honours boards</a><a href="/about">About</a><a href="/blog">Blog</a><a href="/privacy.html">Privacy &amp; cookies</a><a href="/archive.html#login">Log in</a></nav></footer></body></html>
         """;
 }

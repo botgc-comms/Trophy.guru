@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const origin = 'https://trophy.guru';
-const key = '1a95e1c535538a960b7c30ca8d723027';
+const key = process.env.INDEXNOW_KEY;
+assert(key && /^[a-zA-Z0-9-]{8,128}$/.test(key), 'Set INDEXNOW_KEY to the deployed ownership key.');
 async function main() {
   const keyResponse = await fetch(origin + '/' + key + '.txt', { signal: AbortSignal.timeout(30000) });
   assert.equal(keyResponse.status, 200, 'Deploy the IndexNow ownership file before submitting.');
@@ -12,13 +13,14 @@ async function main() {
   assert.equal(sitemap.status, 200);
   const xml = await sitemap.text();
   const urlList = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
-  const publicPaths = ['/', '/uk/how-to-catalogue-trophy-winners/', '/us/how-to-catalog-trophy-winners/', '/integrations/intelligent-golf/'];
-  assert.equal(urlList.length, publicPaths.length, 'Review changed sitemap contents before submission.');
-  assert.equal(new Set(urlList).size, publicPaths.length);
+  const publicPaths = ['/', '/uk/how-to-catalogue-trophy-winners/', '/us/how-to-catalog-trophy-winners/', '/integrations/intelligent-golf/', '/privacy.html', '/blog', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security'];
+  assert(urlList.length >= publicPaths.length && urlList.length <= 10000);
+  for (const path of publicPaths) assert(urlList.includes(origin + path));
+  assert.equal(new Set(urlList).size, urlList.length);
   for (const url of urlList) {
     const parsed = new URL(url);
     assert.equal(parsed.origin, origin);
-    assert(publicPaths.includes(parsed.pathname) && !parsed.search && !parsed.hash);
+    assert((publicPaths.includes(parsed.pathname) || /^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(parsed.pathname)) && !parsed.search && !parsed.hash);
     const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
     assert.equal(response.status, 200, url);
     assert(!/noindex/i.test(response.headers.get('x-robots-tag') || ''), url);

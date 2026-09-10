@@ -10,3 +10,6 @@ wwwroot/uploads/
 *.suo
 
 data-backups/
+
+# Local AEO test screenshots, session metadata and build artifacts.
+outputs/aeo*

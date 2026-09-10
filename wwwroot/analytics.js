@@ -11,6 +11,7 @@
   const productionHost = location.protocol === 'https:' &&
     (location.hostname === 'trophy.guru' || location.hostname.endsWith('.trophy.guru'));
   const eventSchemas = {
+    signup_click: {},
     login: { method: ['password'] },
     sign_up: { method: ['password'] },
     trophy_created: {},
@@ -48,6 +49,9 @@
     } else if (consent !== 'denied') {
       showBanner();
     }
+    document.addEventListener('click', event => {
+      if (event.target.closest?.('a[href="/archive.html#signup"]')) track('signup_click');
+    });
     window.addEventListener('hashchange', sendPageView);
     window.addEventListener('popstate', sendPageView);
   }
@@ -146,7 +150,7 @@
       window.gtag('consent', 'default', consentState('denied'));
       window.gtag('consent', 'update', consentState('granted'));
       window.gtag('set', {
-        page_location: `${location.origin}${safePage.path}`,
+        page_location: `${location.origin}${safePage.path}${campaignQuery()}`,
         page_referrer: safeReferrer(),
         page_title: safePage.title,
       });
@@ -193,7 +197,7 @@
     const page = pageDetails(location.pathname, location.hash);
     if (page.path === lastPagePath) return;
     lastPagePath = page.path;
-    const pageLocation = `${location.origin}${page.path}`;
+    const pageLocation = `${location.origin}${page.path}${campaignQuery()}`;
     window.gtag('set', { page_location: pageLocation, page_title: page.title });
     window.gtag('event', 'page_view', {
       page_location: pageLocation,
@@ -246,7 +250,25 @@
     if (path === '/' || path === '/index.html') {
       return { path: '/', title: 'Trophy Archive AI' };
     }
-    return { path: '/other', title: 'Trophy Archive AI' };
+    const publicPaths = ['/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/integrations/intelligent-golf', '/blog'];
+    if (publicPaths.includes(path) || /^\/blog\/[a-z0-9-]+$/.test(path)) {
+      return { path, title: document.title };
+    }
+    return { path: '/other', title: 'Trophy Guru' };
+  }
+
+  // Capture only bounded campaign labels, never arbitrary query strings or tokens.
+  // The browser URL itself stays intact; consent is still required before sending.
+  function campaignQuery() {
+    if (!['/', '/index.html', '/privacy.html', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/blog'].includes(location.pathname) &&
+        !/^\/(blog|uk|us|integrations)\//.test(location.pathname)) return '';
+    const incoming = new URLSearchParams(location.search);
+    const allowed = new URLSearchParams();
+    for (const name of ['utm_source', 'utm_medium', 'utm_campaign']) {
+      const value = incoming.get(name);
+      if (value && /^[a-zA-Z0-9._-]{1,80}$/.test(value)) allowed.set(name, value);
+    }
+    return allowed.size ? '?' + allowed.toString() : '';
   }
 
   function archiveTitle(route) {

@@ -16,13 +16,17 @@ public static class BlogEndpoints
     public static void MapBlog(this WebApplication app)
     {
         app.MapPost(WebhookPath, ReceiveAsync).WithMetadata(new RequestBodyLimit(MaxBodyBytes));
-        app.MapGet("/blog", (HttpContext context, BlogStore store, IConfiguration config) =>
+        app.MapMethods("/blog", ["GET", "HEAD"], (HttpContext context, BlogStore store, IConfiguration config) =>
         {
-            var page = int.TryParse(context.Request.Query["page"], out var parsed) ? Math.Clamp(parsed, 1, 100000) : 1;
+            var page = 1;
+            if (context.Request.Query.ContainsKey("page") && (!int.TryParse(context.Request.Query["page"], out page) || page < 1 || page > 100000))
+                return Results.NotFound();
+            var posts = store.List(13, (page - 1) * 12);
+            if (page > 1 && posts.Count == 0) return Results.NotFound();
             context.Response.Headers.CacheControl = "no-cache";
-            return Results.Content(BlogPages.Index(store.List(13, (page - 1) * 12), PublicOrigin(config), page), "text/html; charset=utf-8");
+            return Results.Content(BlogPages.Index(posts, PublicOrigin(config), page), "text/html; charset=utf-8");
         });
-        app.MapGet("/blog/{slug}", (string slug, HttpContext context, BlogStore store, IConfiguration config) =>
+        app.MapMethods("/blog/{slug}", ["GET", "HEAD"], (string slug, HttpContext context, BlogStore store, IConfiguration config) =>
         {
             var post = store.Find(slug);
             if (post is null) return Results.NotFound();

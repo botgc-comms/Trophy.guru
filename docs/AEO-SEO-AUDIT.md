@@ -1,0 +1,24 @@
+# AEO and SEO audit — 10 September 2026
+
+## Baseline inspected before implementation
+
+- ASP.NET Core 9 minimal API, Docker on Render (Frankfurt), persistent volume and SQLite/file stores. No SPA fallback: unmatched routes return 404. Marketing documents are served as complete HTML by middleware; the blog is server rendered. Private archive and honours interfaces use JavaScript.
+- Canonical public marketing routes: `/`, `/integrations/intelligent-golf/`, `/uk/how-to-catalogue-trophy-winners/`, `/us/how-to-catalog-trophy-winners/`. Regional guides have reciprocal hreflang. `/blog` (pagination via `?page=N`) and `/blog/{slug}` are dynamic public content. `/privacy.html` is public but missing canonical/social metadata and sitemap inclusion.
+- Public APIs also include `/api/public/integrations/intelligent-golf` and the published club honours/logo/illustration endpoints under `/api/public/clubs/{clubId}`. `/honours-preview` is the empty authenticated-parent preview shell.
+- Public utility routes/assets: `/robots.txt`, `/sitemap.xml`, IndexNow verification text file, `/health`, `/blog/images/{name}`, static CSS/JS/images, `/embed/v1.js`, `/embed/board.css`. These are not independent marketing pages.
+- Private/account shells: `/archive.html` (login/signup/catalogue), `/account-security.html` (verification/recovery/security), `/honours.html` (including deliberately fictional demo). `/honours/{clubId}`, `/embed/{clubId}` and `/api/public/clubs/{clubId}/...` expose deliberately published boards, with publication controls; preserve their existing noindex policy. All `/api/auth/*`, `/api/club*`, `/api/trophies/*`, `/api/members/*`, `/api/export.csv`, `/api/billing/*`, publication management and webhook endpoints are outside the content sitemap. Customer APIs use account/club checks; webhook endpoints use their existing authentication. There is no separate public admin content route.
+- `EntryPoint.cs` maps marketing documents and redirects index.html, case and slash variants; substitutes the configured origin; adds verification tags, nonce-bearing JSON-LD and canonical Link headers. Render explicitly sets `PUBLIC_SITE_URL=https://trophy.guru`.
+- Sitemap generated from marketing routes and published blog articles; only blog articles have reliable lastmod. Robots wildcard permits public content but excludes only `/api/`. Archive/honours carry noindex headers; account-security has HTML noindex but needs consistent header coverage. Blog pagination could return successful empty pages beyond the final page; stored blog bodies could introduce a second H1. Static resources are not blocked.
+- Homepage already has WebSite, WebApplication, genuine visible GBP Offers and FAQPage schema; guides/integration and blog have page-specific schema. Missing coherent producer Organization/Service relationships and dedicated product explanation pages.
+- GA4 `G-8GMHWE0WLH` is consent gated by `analytics.js`; archive/account pages do not load measurement. Referrer origin is retained but all query parameters are removed, losing UTM attribution. Unknown marketing/blog routes collapse to `/other`.
+- Existing IndexNow script hard-codes four URLs and a checked-in verification key; it already fails when blog URLs are present. No automatic notification on deployment or CMS publication.
+- Homepage content is initial HTML but H1 is vague. Most images have dimensions; hero image and closing decorative trophy do not. The interactive fictional board is supplementary, not the sole source of product information.
+- Existing public demo and signup are real actions. No general public contact-submission endpoint or MCP server exists. Customer APIs are inappropriate for anonymous agent tools. Safe capability: read curated public product/workflow/FAQ information and return existing demo/signup links.
+
+## Implementation decisions
+
+Keep the established green/gold visual identity, archive workflows, publishing controls, pricing and integrations. Add a small server-rendered information architecture, shared public knowledge for agent tools, explicit crawler exclusions and metadata checks. Do not publish customer records, add speculative features or invent social profiles. Keep actual existing pricing Offers. Do not claim guaranteed search inclusion, rich results or recognition accuracy.
+
+Current official sources were checked: [OpenAI crawlers](https://developers.openai.com/api/docs/bots), [WebMCP site tools](https://learn.chatgpt.com/docs/webmcp), [MCP server](https://developers.openai.com/plugins/build/mcp-server), [submission](https://developers.openai.com/plugins/deploy/submission), [IndexNow](https://www.indexnow.org/documentation). OAI-SearchBot governs search, GPTBot training, and user-initiated ChatGPT-User access may not follow robots rules. Robots is not access control.
+
+Implementation and verification results are recorded in AEO-CHECKLIST.md; owner setup is in SEARCH-ENGINE-SETUP.md and OPENAI-PLUGIN.md.

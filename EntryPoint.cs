@@ -62,9 +62,11 @@ public static class EntryPoint
             });
         builder.Services.AddRateLimiter(options =>
         {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy("authentication", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+            options.AddFixedWindowLimiter("public-discovery", o => { o.PermitLimit = 120; o.Window = TimeSpan.FromMinutes(1); o.QueueLimit = 0; });
             EndpointSecurity.ConfigureLimits(options);
         });
         builder.Services.AddSingleton<IPasswordHasher<AccountRecord>, PasswordHasher<AccountRecord>>();
@@ -92,6 +94,10 @@ public static class EntryPoint
         builder.Services.AddHttpClient(nameof(OpenAiEngravingReader), client => client.Timeout = TimeSpan.FromMinutes(4));
         builder.Services.AddHttpClient(nameof(OpenAiTrophyIllustrator), client => client.Timeout = TimeSpan.FromMinutes(5));
 
+        builder.Services.AddHttpClient(nameof(IndexNowPublisher), c => { c.Timeout = TimeSpan.FromSeconds(20); c.MaxResponseContentBufferSize = 4 * 1024 * 1024; })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddHostedService<IndexNowPublisher>();
+        builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true).WithTools<PublicProductTools>();
         var app = builder.Build();
         await app.Services.GetRequiredService<AccountStore>().InitializeAsync();
         await app.Services.GetRequiredService<BillingStore>().InitializeAsync();
@@ -99,6 +105,7 @@ public static class EntryPoint
         var webRootPath = app.Environment.WebRootPath;
         var marketingDocuments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            ["/privacy.html"] = Path.Combine(webRootPath, "privacy.html"),
             ["/"] = Path.Combine(webRootPath, "index.html"),
             ["/integrations/intelligent-golf/"] = Path.Combine(webRootPath, "integrations", "intelligent-golf", "index.html"),
             ["/uk/how-to-catalogue-trophy-winners/"] = Path.Combine(webRootPath, "uk", "how-to-catalogue-trophy-winners", "index.html"),
@@ -114,6 +121,13 @@ public static class EntryPoint
             ["/us/how-to-catalog-trophy-winners"] = "/us/how-to-catalog-trophy-winners/",
             ["/us/how-to-catalog-trophy-winners/index.html"] = "/us/how-to-catalog-trophy-winners/"
         };
+
+        foreach (var page in ProductPages.All)
+        {
+            marketingDocuments[page.Path] = "";
+            marketingRedirects[page.Path + "/"] = page.Path;
+            marketingRedirects[page.Path + "/index.html"] = page.Path;
+        }
 
         app.UseResponseCompression();
 
@@ -134,8 +148,11 @@ public static class EntryPoint
             var connections = privatePage ? "'self'" : "'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com";
             context.Response.Headers["Content-Security-Policy"] =
                 $"default-src 'self'; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src {scriptSources}; connect-src {connections}; object-src 'none'; frame-ancestors {frameAncestors}; base-uri 'self'; form-action 'self'";
-            if (context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
-                context.Request.Path.StartsWithSegments("/honours") || isHonoursDemo)
+            if (privatePage || context.Request.Path.StartsWithSegments("/honours") ||
+                context.Request.Path.Equals("/honours.html", StringComparison.OrdinalIgnoreCase) ||
+                context.Request.Path.StartsWithSegments("/honours-preview") ||
+                context.Request.Path.StartsWithSegments("/embed") ||
+                context.Request.Path.StartsWithSegments("/mcp") || isHonoursDemo)
             {
                 context.Response.Headers["X-Robots-Tag"] = "noindex,nofollow,noarchive";
             }
@@ -154,9 +171,10 @@ public static class EntryPoint
             var publicSiteUrl = configuredPublicSiteUrl ?? ResolveRequestSiteUrl(context);
             // Consolidate public URLs without redirecting private APIs or health checks.
             // Render terminates TLS, so do not infer the public scheme from Kestrel.
-            var marketingPath = marketingDocuments.Keys.FirstOrDefault(key => key.Equals(path, StringComparison.OrdinalIgnoreCase));
+            var marketingPath = marketingDocuments.Keys.FirstOrDefault(key => key.Equals(path, StringComparison.OrdinalIgnoreCase))
+                ?? (path.Equals("/blog", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/blog/", StringComparison.OrdinalIgnoreCase) ? path.TrimEnd('/').ToLowerInvariant() : null);
             var redirectPath = marketingRedirects.GetValueOrDefault(path);
-            var discoveryDocument = path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase) || path.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase);
+            var discoveryDocument = path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase) || path.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase) || path.Equals("/llms.txt", StringComparison.OrdinalIgnoreCase);
             var canonicalHost = configuredPublicSiteUrl is null ? null : new Uri(configuredPublicSiteUrl).Authority;
             if ((marketingPath is not null || redirectPath is not null || discoveryDocument) &&
                 canonicalHost is not null && !string.Equals(context.Request.Host.Value, canonicalHost, StringComparison.OrdinalIgnoreCase))
@@ -177,7 +195,10 @@ public static class EntryPoint
 
             if (marketingDocuments.TryGetValue(path, out var marketingDocumentPath))
             {
-                var document = (await File.ReadAllTextAsync(marketingDocumentPath, context.RequestAborted))
+                var productPage = ProductPages.All.FirstOrDefault(p => p.Path == marketingPath);
+                var source = productPage is null ? await File.ReadAllTextAsync(marketingDocumentPath, context.RequestAborted) : ProductPages.Render(productPage, publicSiteUrl);
+                var document = source
+                    .Replace("</head>", "<script type=\"application/ld+json\">" + ProductPages.Graph(publicSiteUrl) + "</script></head>", StringComparison.Ordinal)
                     .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal)
                     .Replace("</head>", SearchDiscovery.VerificationTags(builder.Configuration) + "</head>", StringComparison.Ordinal)
                     .Replace("<script type=\"application/ld+json\">", $"<script type=\"application/ld+json\" nonce=\"{context.Items["csp-nonce"]}\">", StringComparison.Ordinal);
@@ -189,6 +210,14 @@ public static class EntryPoint
                 {
                     await context.Response.WriteAsync(document, context.RequestAborted);
                 }
+                return;
+            }
+
+            if (path.Equals("/llms.txt", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.ContentType = "text/plain; charset=utf-8";
+                if (!HttpMethods.IsHead(context.Request.Method))
+                    await context.Response.WriteAsync(ProductPages.Llms(publicSiteUrl), context.RequestAborted);
                 return;
             }
 
@@ -343,6 +372,27 @@ public static class EntryPoint
             }
         });
 
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/mcp"))
+            {
+                context.Response.Headers.CacheControl = "no-store";
+                var origin = context.Request.Headers.Origin.ToString();
+                if (origin.Length > 0 && origin != (configuredPublicSiteUrl ?? ResolveRequestSiteUrl(context)))
+                {
+                    context.Response.StatusCode = 403;
+                    return;
+                }
+                var limit = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+                if (limit is { IsReadOnly: false }) limit.MaxRequestBodySize = 16384;
+                if (context.Request.ContentLength > 16384) { context.Response.StatusCode = 413; return; }
+            }
+            await next();
+        });
+        if (IndexNowPublisher.Key(builder.Configuration) is { } indexNowKey)
+            app.MapGet("/" + indexNowKey + ".txt", () => Results.Text(indexNowKey, "text/plain"));
+        app.MapMcp("/mcp").RequireRateLimiting("public-discovery");
+        app.MapGet("/api/public/product", () => PublicProductTools.Knowledge());
         MapHealth(app);
         HonoursEndpoints.Map(app, webRootPath);
         MapAuthentication(app);

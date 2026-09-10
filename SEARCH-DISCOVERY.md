@@ -1,3 +1,5 @@
+> This is the historical 7 September release note. For current implementation and setup see [AEO checklist](docs/AEO-CHECKLIST.md), [audit](docs/AEO-SEO-AUDIT.md) and [search setup](docs/SEARCH-ENGINE-SETUP.md). The old four-URL count and checked-in IndexNow key no longer apply.
+
 # Search discovery release — 7 September 2026
 
 The four marketing pages are served as readable HTML without login or JavaScript. The homepage design and visible copy are retained. Metadata uses Trophy Guru, with Trophy.guru and the former Trophy Archive AI name linked in WebSite structured data. UK/US guide alternates point to the same regional set, and the planned integration is explicitly described as in development.
