@@ -6,7 +6,7 @@
 - [x] Clear homepage category H1 and factual introductory copy; retain existing design, real pricing and workflows.
 - [x] Seven server-rendered guides: electronic honours boards, golf clubs, trophy digitisation, workflow, FAQ, About, privacy/security. Shared content supplies public agent answers.
 - [x] Unique titles, descriptions, canonical and social metadata; improve existing privacy/blog metadata. Add descriptive links and breadcrumbs.
-- [x] Stable Organization, WebSite, WebApplication and Service graph; visible FAQ-backed FAQPage and BreadcrumbList. Keep real homepage pricing Offers. No invented reviews, awards, profiles or prices.
+- [x] Stable Organization, WebSite and Service graph; visible FAQ-backed FAQPage and BreadcrumbList. Keep real homepage pricing Offers. No invented reviews, awards, profiles or prices.
 - [x] Explicit OpenAI/Google/Bing crawler rules, shared private exclusions, broader private response noindex headers. Preserve authentication and public-board publication controls.
 - [x] Generated sitemap includes 13 public pages plus actual published blog articles; only reliable blog update dates become lastmod. No private or account pages included.
 - [x] Generated `/llms.txt` links the authoritative public pages. No redundant full-text export.

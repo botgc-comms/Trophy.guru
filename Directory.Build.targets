@@ -5,4 +5,11 @@
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Trophy.Catalogue'">
     <Compile Remove="Program.cs" />
   </ItemGroup>
+  <!-- Docker builds assets in a separate Node stage; normal publishes run this
+       after npm ci, so no deployment path silently ships unminified source. -->
+  <Target Name="MinifyWebAssets" AfterTargets="Publish"
+          Condition="'$(MSBuildProjectName)' == 'Trophy.Catalogue' and '$(SkipAssetMinification)' != 'true'">
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
+          Command="node &quot;$(MSBuildProjectDirectory)/scripts/minify-assets.cjs&quot; --outdir &quot;$(PublishDir)wwwroot&quot;" />
+  </Target>
 </Project>

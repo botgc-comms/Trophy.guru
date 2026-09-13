@@ -46,13 +46,14 @@ public sealed class ProductDiscoveryTests
     }
 
     [Fact]
-    public void EntityGraphUsesTheSameProducerAndSoftwareIds()
+    public void EntityGraphDescribesTheServiceWithoutUnsupportedAppRichResults()
     {
         using var json = JsonDocument.Parse(ProductPages.Graph("https://trophy.guru"));
         var graph = json.RootElement.GetProperty("@graph").EnumerateArray().ToArray();
-        Assert.Equal(4, graph.Length);
+        Assert.Equal(3, graph.Length);
         Assert.Contains(graph, e => e.GetProperty("@id").GetString() == "https://trophy.guru/#organization" && e.GetProperty("name").GetString() == "Marabou Stork Limited");
-        Assert.Contains(graph, e => e.GetProperty("@id").GetString() == "https://trophy.guru/#software");
+        Assert.Contains(graph, e => e.GetProperty("@id").GetString() == "https://trophy.guru/#service" && e.GetProperty("@type").GetString() == "Service");
+        Assert.DoesNotContain(graph, e => e.GetProperty("@type").GetString() is "WebApplication" or "SoftwareApplication");
         Assert.DoesNotContain("AggregateRating", ProductPages.Graph("https://trophy.guru"));
     }
 

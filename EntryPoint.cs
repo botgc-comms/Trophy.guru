@@ -131,6 +131,15 @@ public static class EntryPoint
         }
 
         app.UseResponseCompression();
+        // Render terminates HTTPS before Kestrel. Emit HSTS on every production
+        // response (including www redirects) when the configured public origin is HTTPS.
+        // Do not includeSubDomains: unrelated subdomains may have different TLS policies.
+        app.Use(async (context, next) =>
+        {
+            if (!app.Environment.IsDevelopment() && configuredPublicSiteUrl?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) == true)
+                context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000";
+            await next();
+        });
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments("/admin"))
@@ -211,6 +220,7 @@ public static class EntryPoint
                 var productPage = ProductPages.All.FirstOrDefault(p => p.Path == marketingPath);
                 var source = productPage is null ? await File.ReadAllTextAsync(marketingDocumentPath, context.RequestAborted) : ProductPages.Render(productPage, publicSiteUrl);
                 var document = source
+                    .Replace("{{SITE_FOOTER}}", SiteBranding.Footer, StringComparison.Ordinal)
                     .Replace("</head>", "<script type=\"application/ld+json\">" + ProductPages.Graph(publicSiteUrl) + "</script></head>", StringComparison.Ordinal)
                     .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal)
                     .Replace("</head>", SearchDiscovery.VerificationTags(builder.Configuration) + "</head>", StringComparison.Ordinal)

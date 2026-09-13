@@ -60,9 +60,8 @@ public static class ProductPages
     public static string Graph(string origin) => JsonSerializer.Serialize(new Dictionary<string, object> {
         ["@context"] = "https://schema.org", ["@graph"] = new object[] {
             new Dictionary<string, object> { ["@type"] = "Organization", ["@id"] = origin + "/#organization", ["name"] = "Marabou Stork Limited", ["url"] = origin + "/about" },
-            new Dictionary<string, object> { ["@type"] = "WebSite", ["@id"] = origin + "/#website", ["name"] = "Trophy Guru", ["url"] = origin + "/", ["publisher"] = Ref(origin + "/#organization") },
-            new Dictionary<string, object> { ["@type"] = "WebApplication", ["@id"] = origin + "/#software", ["name"] = "Trophy Guru", ["url"] = origin + "/", ["applicationCategory"] = "BusinessApplication", ["operatingSystem"] = "Web", ["description"] = Overview, ["publisher"] = Ref(origin + "/#organization") },
-            new Dictionary<string, object> { ["@type"] = "Service", ["@id"] = origin + "/#service", ["name"] = "Trophy record digitisation and electronic honours boards", ["description"] = Overview, ["provider"] = Ref(origin + "/#organization"), ["url"] = origin + "/how-it-works", ["isRelatedTo"] = Ref(origin + "/#software") }
+            new Dictionary<string, object> { ["@type"] = "WebSite", ["@id"] = origin + "/#website", ["name"] = "Trophy Guru", ["alternateName"] = new[] { "Trophy.guru" }, ["inLanguage"] = "en-GB", ["url"] = origin + "/", ["publisher"] = Ref(origin + "/#organization") },
+            new Dictionary<string, object> { ["@type"] = "Service", ["@id"] = origin + "/#service", ["name"] = "Trophy record digitisation and electronic honours boards", ["description"] = Overview, ["provider"] = Ref(origin + "/#organization"), ["url"] = origin + "/" }
         }});
     private static Dictionary<string, string> Ref(string id) => new() { ["@id"] = id };
 

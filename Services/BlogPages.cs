@@ -30,10 +30,14 @@ public static class BlogPages
             <section class="blog-intro"><p class="eyebrow">The Trophy Guru journal</p><h1>Every trophy has a story.</h1>
             <p>Ideas, stories and practical guides to help you preserve the names, memories and achievements that make your club.</p></section>
             <section class="blog-grid" aria-label="Latest articles">{cards}</section>{pagination}
+            <section class="blog-reading" aria-labelledby="archive-guides-title"><h2 id="archive-guides-title">Build an archive your club can trust</h2>
+            <p>A trophy collection holds more than a list of winners. Names, dates and competition titles connect today's members with earlier generations. These guides help you work through that evidence, from taking usable photographs to checking a digital record before sharing it. Choose the subject that matches your next step, and keep the original trophy or document available as you work.</p>
+            <h3>Start with clear photographs</h3><p>Photograph the whole trophy first, then take closer views of each engraved area. Include overlapping views where lettering curves around a cup or base. Reflections can conceal a letter or date, so compare several angles before deciding what an inscription says. Our <a href="/uk/how-to-catalogue-trophy-winners/">UK trophy catalogue guide</a> and <a href="/us/how-to-catalog-trophy-winners/">US trophy catalog guide</a> explain how to organise the records for your club.</p>
+            <h3>Review the names before sharing</h3><p>An automatic reading is a starting point for checking the evidence. Compare proposed winners with the photographs and other club records, especially where initials, worn lettering or missing years leave room for doubt. Preserve unresolved gaps until you have a reliable source. The <a href="/how-it-works">Trophy Guru workflow</a> explains how photographs become reviewed records, and the <a href="/electronic-honours-boards">electronic honours board guide</a> covers presenting confirmed history to members.</p></section>
             """);
     }
 
-    public static string Article(BlogPost post, string origin, string nonce)
+    public static string Article(BlogPost post, string origin, string nonce, IReadOnlyList<BlogPost>? related = null)
     {
         var a = post.Article;
         var url = origin + PathFor(post);
@@ -72,13 +76,34 @@ public static class BlogPages
             <article class="blog-article"><header class="article-heading"><a href="/blog" class="back-link">&larr; All articles</a>
             <p class="eyebrow">Trophy Guru journal &middot; <time datetime="{a.PublishedAt:O}">{E(Date(a.PublishedAt))}</time></p>
             <h1>{E(a.Title)}</h1><p class="article-summary">{E(a.MetaDescription)}</p></header>
-            {hero}<div class="article-body">{System.Text.RegularExpressions.Regex.Replace(post.Html, @"<(\/?)h1(\s|>)", "<$1h2$2", System.Text.RegularExpressions.RegexOptions.IgnoreCase)}{infographic}{faqs}</div></article>
+            {hero}<div class="article-body">{System.Text.RegularExpressions.Regex.Replace(post.Html, @"<(\/?)h1(\s|>)", "<$1h2$2", System.Text.RegularExpressions.RegexOptions.IgnoreCase)}{infographic}{faqs}</div></article>{RelatedArticles(related ?? [])}
             """);
+    }
+
+    private static string RelatedArticles(IReadOnlyList<BlogPost> posts) => posts.Count == 0 ? "" :
+        "<aside class=\"blog-reading\" aria-labelledby=\"related-title\"><h2 id=\"related-title\">More guides for your club archive</h2><ul>" +
+        string.Join("", posts.Select(p => $"<li><a href=\"{E(PathFor(p))}\">{E(p.Article.Title)}</a></li>")) + "</ul></aside>";
+
+    // Keep full editorial titles in headings and article schema. Search titles
+    // retain the brand while avoiding both long titles and H1/title duplicates.
+    public static string SearchTitle(string title)
+    {
+        const string suffix = " | Trophy Guru";
+        const int limit = 70 - 14;
+        title = title.Trim();
+        if (title.Length <= limit) return title + suffix;
+        var subtitle = title.IndexOf(':');
+        if (subtitle is >= 20 and <= limit) return title[..subtitle].TrimEnd() + suffix;
+        var shortened = title[..(limit - 1)];
+        var boundary = shortened.LastIndexOf(' ');
+        if (boundary >= 30) shortened = shortened[..boundary];
+        if (char.IsHighSurrogate(shortened[^1])) shortened = shortened[..^1];
+        return shortened.TrimEnd(' ', ':', ';', ',', '-', '|') + "…" + suffix;
     }
 
     private static string Layout(string title, string description, string url, string language, string metadata, string body) => $"""
         <!doctype html><html lang="{E(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>{E(title)} | Trophy Guru</title><meta name="description" content="{E(description)}"><link rel="canonical" href="{E(url)}">
+        <title>{E(SearchTitle(title))}</title><meta name="description" content="{E(description)}"><link rel="canonical" href="{E(url)}">
         <meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="Trophy Guru">{(metadata.Contains("property=\"og:image\"") ? "" : $"<meta property=\"og:image\" content=\"{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}\">")}
         <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(description)}"><meta name="twitter:image" content="{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}">
         <link rel="stylesheet" href="/analytics.css"><script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>

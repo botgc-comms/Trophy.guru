@@ -62,3 +62,12 @@ Render supplies its RENDER_EXTERNAL_URL automatically for canonical links, Open 
 ## Blog and AutoSEO
 
 The public blog is at `/blog`. AutoSEO deliveries go to `POST /api/webhooks/autoseo`; configure `AUTOSEO_WEBHOOK_TOKEN` in the deployment environment. Articles and downloaded images use a separate `DATA_PATH/blog/` directory. See [AutoSEO setup and delivery behaviour](AUTOSEO-BLOG.md).
+
+
+## Release assets and SEO checks
+
+Production publishes minify JavaScript and CSS without changing their URLs. Install Node.js 24 and run `npm ci` before `dotnet publish`; the publish target generates the minified files in the release `wwwroot`. Development source files stay readable. The Dockerfile performs the Node build in a separate stage, so Render does not need a Node runtime alongside ASP.NET. Do not set `SkipAssetMinification=true` outside that Docker workflow unless equivalent minified assets are copied into the release.
+
+Run `dotnet test Tests/Trophy.Catalogue.Tests.csproj` for regression tests. `node Tests/seo-audit-smoke.cjs` checks public sitemap pages for titles, content, internal links, schema, and minified assets. Set `QA_BASE_URL` to the tested server, `QA_PUBLIC_ORIGIN` to its canonical origin, and `PLAYWRIGHT_MODULE` if Playwright is installed outside normal Node resolution. Set `QA_REQUIRE_HSTS=true` against a production build. This HTTP audit is read-only; its fixture-free public-page checks can run against the live site after deployment.
+
+See [the September Semrush remediation record](docs/SEMRUSH-REMEDIATION-2026-09-12.md) for findings, validation and intentionally excluded private pages.

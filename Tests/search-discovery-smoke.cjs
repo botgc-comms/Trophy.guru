@@ -44,7 +44,7 @@ async function main() {
   }
   const home = documents.get('/');
   const graph = JSON.parse([...home.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)][0][1]);
-  const app = graph['@graph'].find(item => item['@type'] === 'WebApplication');
+  const app = graph['@graph'].find(item => item['@type'] === 'Service');
   const prices = [...home.matchAll(/<article class="price-card[^>]*>([\s\S]*?)<\/article>/g)].map(match => {
     const amount = match[1].match(/<strong>([^<]+)<\/strong>/)[1];
     return amount === 'Free' ? 0 : Number(amount.replace(/[^0-9.]/g, ''));

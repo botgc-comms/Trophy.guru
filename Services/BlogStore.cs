@@ -70,6 +70,23 @@ public sealed class BlogStore
         return posts;
     }
 
+    // Cycle through published slugs so older posts also receive article-to-article
+    // links. Always choosing the newest three would leave older articles isolated.
+    public IReadOnlyList<BlogPost> Related(string slug)
+    {
+        using var db = Open();
+        using var command = db.CreateCommand();
+        command.CommandText = """
+            SELECT post_json FROM autoseo_posts WHERE slug <> $slug
+            ORDER BY CASE WHEN slug > $slug THEN 0 ELSE 1 END, slug LIMIT 3;
+            """;
+        command.Parameters.AddWithValue("$slug", slug);
+        using var reader = command.ExecuteReader();
+        var posts = new List<BlogPost>();
+        while (reader.Read()) posts.Add(JsonSerializer.Deserialize<BlogPost>(reader.GetString(0), Json)!);
+        return posts;
+    }
+
     public void Upsert(BlogPost post)
     {
         using var db = Open();

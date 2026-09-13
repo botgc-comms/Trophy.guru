@@ -1,3 +1,11 @@
+FROM node:24-bookworm-slim AS assets
+WORKDIR /assets-build
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY scripts/minify-assets.cjs ./scripts/minify-assets.cjs
+COPY wwwroot ./wwwroot
+RUN node scripts/minify-assets.cjs --outdir /assets
+
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
@@ -6,7 +14,9 @@ COPY Data ./Data
 RUN dotnet restore Trophy.Catalogue.csproj
 
 COPY . .
-RUN dotnet publish Trophy.Catalogue.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false
+RUN dotnet publish Trophy.Catalogue.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false /p:SkipAssetMinification=true
+
+COPY --from=assets /assets/ /app/publish/wwwroot/
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app

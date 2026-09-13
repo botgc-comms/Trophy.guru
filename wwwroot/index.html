@@ -26,9 +26,9 @@
   <meta name="twitter:image" content="{{PUBLIC_SITE_URL}}/images/brand/trophy-guru-logo.png">
   <meta name="twitter:image:alt" content="Trophy Guru — preserve every name, every year">
   <link rel="preload" as="image" href="/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/fonts.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/marketing.css?v=20260907-logo-1">
@@ -43,45 +43,59 @@
   <script src="/honours-preview.js?v=20260906-1" defer></script>
   <script type="application/ld+json">
   {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebSite",
-        "@id": "{{PUBLIC_SITE_URL}}/#website",
-        "url": "{{PUBLIC_SITE_URL}}/",
-        "name": "Trophy Guru",
-        "alternateName": ["Trophy.guru", "Trophy Guru"],
-        "description": "AI-assisted reading of trophy inscriptions, honours boards and historic winner records for sports clubs and heritage organisations.",
-        "inLanguage": "en-GB"
-      },
-      {
-        "@type": "WebApplication",
-        "@id": "{{PUBLIC_SITE_URL}}/#software",
-        "url": "{{PUBLIC_SITE_URL}}/",
-        "name": "Trophy Guru",
-        "applicationCategory": "BusinessApplication",
-        "applicationSubCategory": "Digital archive software",
-        "operatingSystem": "Web",
-        "description": "Read historic trophy engravings from photographs, review winner names and years, and prepare a searchable digital honours board or CSV archive for your club.",
-        "image": "{{PUBLIC_SITE_URL}}/images/brand/trophy-guru-logo.png",
-        "featureList": [
-          "Multi-image analysis of trophy inscriptions, honours boards and winner records",
-          "Missing-year detection and manual winner editing",
-          "Age-aware member record matching",
-          "Generated catalogue illustrations",
-          "Shareable digital honours boards with year, trophy and winner views",
-          "CSV archive export"
-        ],
-        "offers": [
-          { "@type": "Offer", "name": "First trophy", "price": "0", "priceCurrency": "GBP", "url": "{{PUBLIC_SITE_URL}}/#pricing" },
-          { "@type": "Offer", "name": "Single trophy credit", "price": "7.50", "priceCurrency": "GBP", "url": "{{PUBLIC_SITE_URL}}/#pricing" },
-          { "@type": "Offer", "name": "Ten trophy credits", "price": "60", "priceCurrency": "GBP", "url": "{{PUBLIC_SITE_URL}}/#pricing" },
-          { "@type": "Offer", "name": "Fifty trophy credits", "price": "250", "priceCurrency": "GBP", "url": "{{PUBLIC_SITE_URL}}/#pricing" },
-          { "@type": "Offer", "name": "One hundred and fifty trophy credits", "price": "525", "priceCurrency": "GBP", "url": "{{PUBLIC_SITE_URL}}/#pricing" }
-        ]
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Service",
+      "@id": "{{PUBLIC_SITE_URL}}/#service",
+      "url": "{{PUBLIC_SITE_URL}}/",
+      "name": "Trophy record digitisation and electronic honours boards",
+      "description": "Read historic trophy engravings from photographs, review winner names and years, and prepare a searchable digital honours board or CSV archive for your club.",
+      "image": "{{PUBLIC_SITE_URL}}/images/brand/trophy-guru-logo.png",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "First trophy",
+          "price": "0",
+          "priceCurrency": "GBP",
+          "url": "{{PUBLIC_SITE_URL}}/#pricing"
+        },
+        {
+          "@type": "Offer",
+          "name": "Single trophy credit",
+          "price": "7.50",
+          "priceCurrency": "GBP",
+          "url": "{{PUBLIC_SITE_URL}}/#pricing"
+        },
+        {
+          "@type": "Offer",
+          "name": "Ten trophy credits",
+          "price": "60",
+          "priceCurrency": "GBP",
+          "url": "{{PUBLIC_SITE_URL}}/#pricing"
+        },
+        {
+          "@type": "Offer",
+          "name": "Fifty trophy credits",
+          "price": "250",
+          "priceCurrency": "GBP",
+          "url": "{{PUBLIC_SITE_URL}}/#pricing"
+        },
+        {
+          "@type": "Offer",
+          "name": "One hundred and fifty trophy credits",
+          "price": "525",
+          "priceCurrency": "GBP",
+          "url": "{{PUBLIC_SITE_URL}}/#pricing"
+        }
+      ],
+      "serviceType": "Trophy record digitisation and electronic honours boards",
+      "provider": {
+        "@id": "{{PUBLIC_SITE_URL}}/#organization"
       }
-    ]
-  }
+    }
+  ]
+}
   </script>
   <script type="application/ld+json">
   {
@@ -311,16 +325,6 @@
     </section>
   </main>
 
-  <footer class="guru-footer">
-  <div class="guru-footer-inner">
-    <a class="guru-footer-brand" href="/" aria-label="Trophy Guru home"><img class="trophy-guru-mark" src="/images/brand/trophy-guru-logo-transparent.png" width="240" height="64" alt="Trophy Guru"></a>
-    <nav class="guru-footer-links" aria-label="Footer navigation">
-      <div><h2>Getting started</h2><a href="/how-it-works">How it works</a><a href="/digitise-trophy-records">Photographs to records</a><a href="/#pricing">Pricing</a></div>
-      <div><h2>Your club’s history</h2><a href="/for-golf-clubs">For golf clubs</a><a href="/electronic-honours-boards">Online honours boards</a><a href="/faq">Common questions</a></div>
-      <div><h2>Trophy Guru</h2><a href="/about">About us</a><a href="/blog">Guides and articles</a><a href="/privacy.html">Privacy and cookies</a></div>
-    </nav>
-    <small class="guru-footer-copyright">© 2026 Trophy Guru</small>
-  </div>
-</footer>
+  {{SITE_FOOTER}}
 </body>
 </html>

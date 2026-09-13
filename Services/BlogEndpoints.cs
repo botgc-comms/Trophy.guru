@@ -31,7 +31,7 @@ public static class BlogEndpoints
             var post = store.Find(slug);
             if (post is null) return Results.NotFound();
             context.Response.Headers.CacheControl = "no-cache";
-            return Results.Content(BlogPages.Article(post, PublicOrigin(config), context.Items["csp-nonce"]?.ToString() ?? ""), "text/html; charset=utf-8");
+            return Results.Content(BlogPages.Article(post, PublicOrigin(config), context.Items["csp-nonce"]?.ToString() ?? "", store.Related(slug)), "text/html; charset=utf-8");
         });
         app.MapGet("/blog/images/{name}", (string name, BlogStore store) =>
         {

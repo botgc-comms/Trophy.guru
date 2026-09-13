@@ -1,0 +1,10 @@
+{
+  "name": "trophy-guru-assets",
+  "private": true,
+  "scripts": {
+    "build:assets": "node scripts/minify-assets.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

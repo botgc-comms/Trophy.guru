@@ -20,3 +20,5 @@ Tests
 **/obj
 
 outputs
+
+node_modules/
