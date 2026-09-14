@@ -457,11 +457,14 @@ public static class EntryPoint
 
     private static void MapHealth(WebApplication app)
     {
-        app.MapGet("/health", (OpenAiEngravingReader reader, OpenAiTrophyIllustrator illustrator) => Results.Ok(new
+        app.MapGet("/health", (OpenAiEngravingReader reader, OpenAiTrophyIllustrator illustrator, IConfiguration config) => Results.Ok(new
         {
             status = "healthy",
             aiConfigured = reader.IsAvailable,
-            illustrationConfigured = illustrator.IsAvailable
+            illustrationConfigured = illustrator.IsAvailable,
+            indexNowEnabled = IndexNowPublisher.Enabled(config),
+            indexNowConfigured = IndexNowPublisher.Key(config) is not null,
+            indexNowKeyLocation = IndexNowPublisher.Key(config) is { } key ? "/" + key + ".txt" : null
         }));
     }
 

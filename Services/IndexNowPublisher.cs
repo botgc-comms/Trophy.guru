@@ -10,9 +10,18 @@ namespace Trophy.Catalogue.Services;
 public sealed class IndexNowPublisher(IConfiguration config, IWebHostEnvironment environment,
     IHttpClientFactory clients, ILogger<IndexNowPublisher> logger) : BackgroundService
 {
+    // Ownership proof is public by design. Empty hosting placeholders must not
+    // disable the launch default for the canonical production site.
+    public const string DefaultPublicKey = "c0ad8d195aba4c3daadb47d2aba69b76";
+    private static bool IsCanonicalSite(IConfiguration config) =>
+        string.Equals((config["PUBLIC_SITE_URL"] ?? "").TrimEnd('/'), "https://trophy.guru", StringComparison.OrdinalIgnoreCase);
+    public static bool Enabled(IConfiguration config) =>
+        bool.TryParse(config["INDEXNOW_ENABLED"], out var enabled) ? enabled : IsCanonicalSite(config);
+
     public static string? Key(IConfiguration config)
     {
         var value = config["INDEXNOW_KEY"];
+        if (string.IsNullOrWhiteSpace(value) && IsCanonicalSite(config)) value = DefaultPublicKey;
         return value is not null && Regex.IsMatch(value, "\\A[a-zA-Z0-9-]{8,128}\\z") ? value : null;
     }
 
@@ -23,7 +32,7 @@ public sealed class IndexNowPublisher(IConfiguration config, IWebHostEnvironment
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!bool.TryParse(config["INDEXNOW_ENABLED"], out var enabled) || !enabled) return;
+        if (!Enabled(config)) return;
         var key = Key(config);
         if (key is null) { logger.LogWarning("IndexNow requires a valid INDEXNOW_KEY."); return; }
         var origin = BlogEndpoints.PublicOrigin(config);

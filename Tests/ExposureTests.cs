@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using AngleSharp.Html.Parser;
 using Trophy.Catalogue.Domain;
 using Trophy.Catalogue.Services;
@@ -50,6 +51,25 @@ public sealed class ExposureTests
             Assert.Equal(later.Html, store.Find(101)!.Html);
         }
         finally { Directory.Delete(path, true); }
+    }
+
+    [Fact]
+    public void IndexNowProductionDefaultsSurviveEmptyHostingPlaceholdersButRespectExplicitDisable()
+    {
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> {
+            ["PUBLIC_SITE_URL"] = "https://trophy.guru", ["INDEXNOW_KEY"] = "", ["INDEXNOW_ENABLED"] = ""
+        }).Build();
+        Assert.Equal(IndexNowPublisher.DefaultPublicKey, IndexNowPublisher.Key(config));
+        Assert.True(IndexNowPublisher.Enabled(config));
+        config["INDEXNOW_ENABLED"] = "false";
+        Assert.False(IndexNowPublisher.Enabled(config));
+        config["INDEXNOW_KEY"] = "invalid/key";
+        Assert.Null(IndexNowPublisher.Key(config));
+        config["PUBLIC_SITE_URL"] = "https://example.test";
+        config["INDEXNOW_KEY"] = "";
+        config["INDEXNOW_ENABLED"] = "";
+        Assert.False(IndexNowPublisher.Enabled(config));
+        Assert.Null(IndexNowPublisher.Key(config));
     }
 
     [Fact]

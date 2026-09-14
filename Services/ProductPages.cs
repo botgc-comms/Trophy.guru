@@ -99,7 +99,7 @@ public static class ProductPages
         <script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
         <script type="application/ld+json">{{breadcrumbs}}</script>{{faq}}<link rel="stylesheet" href="/branding.css"></head>
         <body class="guide-body product-page"><a class="product-skip" href="#main">Skip to content</a>
-        <header class="product-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.png" width="240" height="64" alt="Trophy Guru"></a>
+        <header class="product-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.webp" width="240" height="64" alt="Trophy Guru"></a>
         <nav aria-label="Main navigation"><a href="/how-it-works">How it works</a><a href="/for-golf-clubs">For golf clubs</a><a href="/demo">Demo</a><a href="/#pricing">Pricing</a><a href="/archive.html#signup">Try one trophy free</a></nav></header>
         <main id="main"><div class="product-intro"><nav aria-label="Breadcrumb"><a href="/">Home</a> / <span aria-current="page">{{E(page.Heading)}}</span></nav>
         <p class="eyebrow">Trophy Guru</p><h1>{{E(page.Heading)}}</h1><p>{{E(page.Description)}}</p>{{ProductEvidence.IntroActions(page.Path)}}</div>
