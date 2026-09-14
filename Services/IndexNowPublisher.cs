@@ -5,7 +5,7 @@ using System.Xml.Linq;
 
 namespace Trophy.Catalogue.Services;
 
-// Opt-in post-deployment/CMS publication monitor. Only validated public sitemap pages
+// Public-site deployment/CMS publication monitor. Only validated public sitemap pages
 // are submitted. A persistent digest avoids resubmission on ordinary process restarts.
 public sealed class IndexNowPublisher(IConfiguration config, IWebHostEnvironment environment,
     IHttpClientFactory clients, ILogger<IndexNowPublisher> logger) : BackgroundService

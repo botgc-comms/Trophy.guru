@@ -4,9 +4,18 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const origin = 'https://trophy.guru';
 // This ownership proof is intentionally public at /{key}.txt; it is not an account credential.
-const key = process.env.INDEXNOW_KEY || JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'appsettings.Production.json'), 'utf8')).INDEXNOW_KEY;
-assert(key && /^[a-zA-Z0-9-]{8,128}$/.test(key), 'Set INDEXNOW_KEY to the deployed ownership key.');
+let key = process.env.INDEXNOW_KEY;
 async function main() {
+  if (!key) {
+    // Hosting can override the repository's public key. Discover the active proof
+    // from health, but accept only a root-level, correctly formed ownership path.
+    const health = await fetch(origin + '/health', { signal: AbortSignal.timeout(30000) });
+    assert.equal(health.status, 200, 'The deployed application must be healthy.');
+    const status = await health.json();
+    const activeProof = /^\/([a-zA-Z0-9-]{8,128})\.txt$/.exec(status.indexNowKeyLocation || '');
+    key = activeProof?.[1] || JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'appsettings.Production.json'), 'utf8')).INDEXNOW_KEY;
+  }
+  assert(key && /^[a-zA-Z0-9-]{8,128}$/.test(key), 'Set INDEXNOW_KEY to the deployed ownership key.');
   const keyResponse = await fetch(origin + '/' + key + '.txt', { signal: AbortSignal.timeout(30000) });
   assert.equal(keyResponse.status, 200, 'Deploy the IndexNow ownership file before submitting.');
   assert.equal((await keyResponse.text()).trim(), key, 'The deployed ownership key must match.');

@@ -18,3 +18,8 @@ Dark variant final prompt: Use case: background-extraction. Edit the rendered Tr
 Light variant colour prompt: Create the light-background variant of the same logo. Preserve the gold open-book trophy and exact sturdy serif wordmark “Trophy.guru”. Use dark forest green #082B21 lettering and muted gold #D0AA54. Exclude all other page elements. Clean contours, no shadows or added details.
 
 Light variant final extraction prompt: Remove the white background from this exact logo and make it transparent. Keep the dark green Trophy.guru lettering and gold open-book trophy unchanged. Remove white from the empty spaces inside the trophy handles and letters too. Output a transparent PNG cutout, with genuine alpha transparency. Keep clean antialiased edges. Do not replace the white with checkerboard, grey, black, green or any other painted background. No redesign.
+
+
+## Lossless delivery copy — 14 September 2026
+
+The public headers and shared footer now use `trophy-guru-logo-transparent.webp` (200,632 bytes) instead of the 304,598-byte PNG. This is a lossless re-encoding with identical dimensions and decoded RGBA pixels, including fully transparent pixels. The original PNG is retained. This change does not redraw or recolour the logo.
