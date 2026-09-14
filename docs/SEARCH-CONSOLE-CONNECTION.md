@@ -4,11 +4,11 @@ This is a local owner tool, not a website feature or an installed Codex plugin. 
 
 ## Current state
 
-The connector and eight tests are implemented. No Google Cloud project or OAuth client has been selected yet, no consent has been granted, and no live Search Console data has been retrieved. Successful synthetic tests do not establish an account connection.
+Connected and verified on 14 September 2026 using Google Cloud project `trophy-guru-analytics`. Google confirmed read-only access to `https://trophy.guru/`. The first live performance report was successfully retrieved, and individual URL inspections returned Google index status. Credentials and private reports remain under the local storage paths below; they are not committed. The eight synthetic tests also pass. Access remains subject to Google consent and token expiry; run `status` to verify the current connection.
 
 ## One-time Google setup
 
-Use Simon's existing Google Cloud project. The project does not have to have the same name as the Search Console property.
+The configured project is **Trophy Guru Analytics** (`trophy-guru-analytics`). The following steps document initial setup or reconnection with a replacement client. The project does not have to have the same name as the Search Console property.
 
 1. Select that project in [Google Cloud Console](https://console.cloud.google.com/).
 2. Open the API Library, search for **Google Search Console API**, and enable it if necessary.
