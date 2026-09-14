@@ -22,3 +22,6 @@ Tests
 outputs
 
 node_modules/
+
+# Local owner analytics connection is not part of the public site.
+scripts/search-console.cjs
