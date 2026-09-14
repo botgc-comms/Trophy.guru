@@ -7,6 +7,7 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);outputs/**;node_modules/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Content/BlogRevisions/*.json" />
     <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <Compile Remove="Tests/**/*.cs" />

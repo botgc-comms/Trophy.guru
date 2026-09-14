@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using AngleSharp.Html.Parser;
 using Trophy.Catalogue.Domain;
 
 namespace Trophy.Catalogue.Services;
@@ -25,7 +27,7 @@ public static class BlogPages
         var pagination = "<nav class=\"pagination\" aria-label=\"Blog pages\">" +
             (page > 1 ? $"<a href=\"/blog?page={page - 1}\">&larr; Newer articles</a>" : "") +
             (posts.Count > 12 ? $"<a href=\"/blog?page={page + 1}\">Older articles &rarr;</a>" : "") + "</nav>";
-        return Layout("The Trophy Guru blog", "Ideas and practical guides for preserving trophies, sporting memories and club history.",
+        return Layout(page > 1 ? $"The Trophy Guru blog — Page {page}" : "The Trophy Guru blog", "Ideas and practical guides for preserving trophies, sporting memories and club history.",
             origin + "/blog" + (page > 1 ? "?page=" + page : ""), "en", "", $"""
             <section class="blog-intro"><p class="eyebrow">The Trophy Guru journal</p><h1>Every trophy has a story.</h1>
             <p>Ideas, stories and practical guides to help you preserve the names, memories and achievements that make your club.</p></section>
@@ -54,7 +56,20 @@ public static class BlogPages
             (post.HeroPath is null ? "" : $"<meta property=\"og:image\" content=\"{E(origin + post.HeroPath)}\"><meta property=\"og:image:alt\" content=\"{E(a.HeroImageAlt)}\">") +
             $"<script type=\"application/ld+json\" nonce=\"{E(nonce)}\">{JsonSerializer.Serialize(schema)}</script>";
         var faqs = "";
-        var validFaqs = (a.FaqSchema ?? []).Where(f => f is not null && !string.IsNullOrWhiteSpace(f.Question) && !string.IsNullOrWhiteSpace(f.Answer)).ToArray();
+        var bodyDocument = new HtmlParser().ParseDocument(post.Html);
+        var validFaqs = (a.FaqSchema ?? [])
+            .Where(f => f is not null && !string.IsNullOrWhiteSpace(f.Question) && !string.IsNullOrWhiteSpace(f.Answer))
+            .DistinctBy(f => Normalize(f.Question), StringComparer.OrdinalIgnoreCase)
+            .Select(f => {
+                var heading = bodyDocument.QuerySelectorAll("h2,h3,h4,h5,h6,summary")
+                    .FirstOrDefault(h => string.Equals(Normalize(h.TextContent), Normalize(f.Question), StringComparison.OrdinalIgnoreCase));
+                // Use the visible answer when the supplied body already contains this FAQ.
+                // A heading alone does not prove the answer has been rendered.
+                var answer = heading?.NextElementSibling;
+                var visibleAnswer = answer is not null && answer.LocalName is "p" or "div" or "ul" or "ol"
+                    ? Normalize(answer.TextContent) : "";
+                return (Faq: visibleAnswer.Length > 0 ? new BlogFaq(f.Question, visibleAnswer) : f, InBody: visibleAnswer.Length > 0);
+            }).ToArray();
         if (validFaqs.Length > 0)
         {
             var faqSchema = new Dictionary<string, object>
@@ -62,12 +77,14 @@ public static class BlogPages
                 ["@context"] = "https://schema.org", ["@type"] = "FAQPage",
                 ["mainEntity"] = validFaqs.Select(f => new Dictionary<string, object>
                 {
-                    ["@type"] = "Question", ["name"] = f.Question,
-                    ["acceptedAnswer"] = new Dictionary<string, object> { ["@type"] = "Answer", ["text"] = f.Answer }
+                    ["@type"] = "Question", ["name"] = f.Faq.Question,
+                    ["acceptedAnswer"] = new Dictionary<string, object> { ["@type"] = "Answer", ["text"] = f.Faq.Answer }
                 }).ToArray()
             };
             metadata += $"<script type=\"application/ld+json\" nonce=\"{E(nonce)}\">{JsonSerializer.Serialize(faqSchema)}</script>";
-            faqs = "<section class=\"blog-faq\"><h2>Frequently asked questions</h2>" + string.Join("", validFaqs.Select(f => $"<h3>{E(f.Question)}</h3><p>{E(f.Answer)}</p>")) + "</section>";
+            var missingFaqs = validFaqs.Where(f => !f.InBody).ToArray();
+            if (missingFaqs.Length > 0)
+                faqs = "<section class=\"blog-faq\"><h2>Frequently asked questions</h2>" + string.Join("", missingFaqs.Select(f => $"<h3>{E(f.Faq.Question)}</h3><p>{E(f.Faq.Answer)}</p>")) + "</section>";
         }
         // Images already embedded in the supplied body are not repeated.
         var hero = post.HeroPath is not null && post.Html.Contains(post.HeroPath, StringComparison.Ordinal) ? "" : Image(post.HeroPath, a.HeroImageAlt, "article-hero");
@@ -79,6 +96,8 @@ public static class BlogPages
             {hero}<div class="article-body">{System.Text.RegularExpressions.Regex.Replace(post.Html, @"<(\/?)h1(\s|>)", "<$1h2$2", System.Text.RegularExpressions.RegexOptions.IgnoreCase)}{infographic}{faqs}</div></article>{RelatedArticles(related ?? [])}
             """);
     }
+
+    private static string Normalize(string value) => Regex.Replace(value, @"\s+", " ").Trim();
 
     private static string RelatedArticles(IReadOnlyList<BlogPost> posts) => posts.Count == 0 ? "" :
         "<aside class=\"blog-reading\" aria-labelledby=\"related-title\"><h2 id=\"related-title\">More guides for your club archive</h2><ul>" +
@@ -104,14 +123,14 @@ public static class BlogPages
     private static string Layout(string title, string description, string url, string language, string metadata, string body) => $"""
         <!doctype html><html lang="{E(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>{E(SearchTitle(title))}</title><meta name="description" content="{E(description)}"><link rel="canonical" href="{E(url)}">
-        <meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="Trophy Guru">{(metadata.Contains("property=\"og:image\"") ? "" : $"<meta property=\"og:image\" content=\"{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}\">")}
-        <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(description)}"><meta name="twitter:image" content="{E(new Uri(new Uri(url), "/images/brand/trophy-guru-logo.png").AbsoluteUri)}">
+        <meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="Trophy Guru">{(metadata.Contains("property=\"og:image\"") ? "" : $"<meta property=\"og:image\" content=\"{E(new Uri(new Uri(url), "/marketing/trophy-guru-social.png").AbsoluteUri)}\">")}
+        <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(description)}"><meta name="twitter:image" content="{E(new Uri(new Uri(url), "/marketing/trophy-guru-social.png").AbsoluteUri)}">
         <link rel="stylesheet" href="/analytics.css"><script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
         <meta name="theme-color" content="#061711"><meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(description)}"><meta property="og:url" content="{E(url)}">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/blog.css">{metadata}<link rel="stylesheet" href="/branding.css"></head>
         <body><a class="skip-link" href="#main">Skip to content</a><header class="blog-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.png" width="240" height="64" alt="Trophy Guru"></a>
         <nav aria-label="Main navigation"><a href="/">Home</a><a href="/blog" aria-current="page">Blog</a><a class="button" href="/archive.html#signup">Start your archive</a></nav></header>
-        <main id="main">{body}<aside class="blog-cta"><p class="eyebrow">Preserve every name. Every year.</p><h2>Your club’s history deserves to be remembered.</h2><p>Turn your trophy inscriptions into a searchable archive, one photograph at a time.</p><a class="button" href="/archive.html#signup">Try your first trophy free &rarr;</a></aside></main>
+        <main id="main">{body}<aside class="blog-cta"><p class="eyebrow">Preserve every name. Every year.</p><h2>Your club’s history deserves to be remembered.</h2><p>Turn your trophy inscriptions into a searchable archive, one photograph at a time.</p><a class="button" href="/archive.html#signup">Try your first trophy free &rarr;</a><p><a class="demo-link" href="/demo">Explore the public honours board demo — no account needed</a></p></aside></main>
         {SiteBranding.Footer}</body></html>
         """;
 }

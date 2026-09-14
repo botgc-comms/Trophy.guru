@@ -15,6 +15,8 @@ public static class BlogEndpoints
 
     public static void MapBlog(this WebApplication app)
     {
+        var revised = BlogEditorialRevisions.Apply(app.Services.GetRequiredService<BlogStore>());
+        if (revised > 0) app.Logger.LogInformation("Applied {Count} reviewed public blog revisions; original public content backed up.", revised);
         app.MapPost(WebhookPath, ReceiveAsync).WithMetadata(new RequestBodyLimit(MaxBodyBytes));
         app.MapMethods("/blog", ["GET", "HEAD"], (HttpContext context, BlogStore store, IConfiguration config) =>
         {

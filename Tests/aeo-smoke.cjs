@@ -5,7 +5,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.QA_BASE_URL || 'http://127.0.0.1:5197';
 const origin = process.env.QA_PUBLIC_ORIGIN || 'https://127.0.0.1:5197';
 const output = process.env.QA_OUTPUT_PATH || 'outputs/aeo';
-const guidePaths = ['/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security'];
+const guidePaths = ['/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/demo', '/trophy-archive-project-plan'];
 const paths = ['/', '/privacy.html', '/integrations/intelligent-golf/', '/uk/how-to-catalogue-trophy-winners/', '/us/how-to-catalog-trophy-winners/', ...guidePaths, '/blog'];
 async function get(path, options = {}) { return fetch(base + path, { redirect: 'manual', ...options }); }
 async function main() {

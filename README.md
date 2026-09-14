@@ -71,3 +71,10 @@ Production publishes minify JavaScript and CSS without changing their URLs. Inst
 Run `dotnet test Tests/Trophy.Catalogue.Tests.csproj` for regression tests. `node Tests/seo-audit-smoke.cjs` checks public sitemap pages for titles, content, internal links, schema, and minified assets. Set `QA_BASE_URL` to the tested server, `QA_PUBLIC_ORIGIN` to its canonical origin, and `PLAYWRIGHT_MODULE` if Playwright is installed outside normal Node resolution. Set `QA_REQUIRE_HSTS=true` against a production build. This HTTP audit is read-only; its fixture-free public-page checks can run against the live site after deployment.
 
 See [the September Semrush remediation record](docs/SEMRUSH-REMEDIATION-2026-09-12.md) for findings, validation and intentionally excluded private pages.
+
+
+## September 2026 exposure release
+
+Public product demonstration: `/demo`. Committee resource: `/trophy-archive-project-plan`.
+Reviewed, version-specific blog corrections are packaged under `Content/BlogRevisions/`; originals are retained under the public blog’s `editorial-backups` directory. Later CMS versions are preserved.
+Production enables IndexNow with a deliberately public ownership proof in `appsettings.Production.json`. Set `INDEXNOW_ENABLED=false` for isolated testing. See [search setup](docs/SEARCH-ENGINE-SETUP.md), [launch posts and outreach](docs/marketing/EXPOSURE-LAUNCH-2026-09-14.md), and [keyword/editorial brief](docs/marketing/EDITORIAL-AND-KEYWORD-BRIEF.md).

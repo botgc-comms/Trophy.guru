@@ -1,3 +1,5 @@
+> Historical implementation checklist. For the 14 September production configuration and exposure work, see [search setup](SEARCH-ENGINE-SETUP.md) and [launch materials](marketing/EXPOSURE-LAUNCH-2026-09-14.md). Earlier unchecked setup items below are not the current deployment status.
+
 # AEO implementation checklist
 
 ## Implemented automatically

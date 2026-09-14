@@ -67,7 +67,7 @@ async function main() {
   const sitemap = await get('/sitemap.xml'); assert.equal(sitemap.status, 200);
   const xml = await sitemap.text();
   const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
-  const extraPaths = ['/privacy.html', '/blog', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security'];
+  const extraPaths = ['/privacy.html', '/blog', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/demo', '/trophy-archive-project-plan'];
   assert.deepEqual(urls.sort(), [...paths, ...extraPaths].map(path => origin + path).sort());
   assert(!xml.includes('<lastmod>'), 'Build timestamps must not masquerade as content updates');
   ok('Sitemap lists canonical public pages; robots advertises it');

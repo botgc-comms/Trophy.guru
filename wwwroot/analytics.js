@@ -12,6 +12,8 @@
     (location.hostname === 'trophy.guru' || location.hostname.endsWith('.trophy.guru'));
   const eventSchemas = {
     signup_click: {},
+    demo_open: { view: ['overview', 'year', 'trophy', 'person'] },
+    pricing_click: {},
     login: { method: ['password'] },
     sign_up: { method: ['password'] },
     trophy_created: {},
@@ -50,7 +52,17 @@
       showBanner();
     }
     document.addEventListener('click', event => {
-      if (event.target.closest?.('a[href="/archive.html#signup"]')) track('signup_click');
+      const link = event.target.closest?.('a[href]');
+      if (!link) return;
+      const target = new URL(link.href, location.href);
+      if (target.origin !== location.origin) return;
+      if (target.pathname === '/archive.html' && target.hash === '#signup') track('signup_click');
+      if (target.pathname === '/' && target.hash === '#pricing') track('pricing_click');
+      if (target.pathname === '/demo') track('demo_open', { view: 'overview' });
+      if (target.pathname === '/honours.html' && target.searchParams.get('demo') === '1') {
+        const view = target.hash.slice(1).split('/')[0];
+        track('demo_open', { view: ['year', 'trophy', 'person'].includes(view) ? view : 'overview' });
+      }
     });
     window.addEventListener('hashchange', sendPageView);
     window.addEventListener('popstate', sendPageView);
@@ -234,6 +246,10 @@
       const safeRoute = ['signup', 'login', 'catalogue', 'trophy'].includes(route) ? route : 'catalogue';
       return { path: `/archive/${safeRoute}`, title: archiveTitle(safeRoute) };
     }
+    if (path === '/honours.html' && new URLSearchParams(location.search).get('demo') === '1') {
+      const view = ['year', 'trophy', 'person'].includes(route) ? route : 'overview';
+      return { path: `/demo/board/${view}`, title: 'Example honours board' };
+    }
     if (path === '/honours' || path.startsWith('/honours/')) {
       const safeRoute = ['year', 'trophy', 'person'].includes(route) ? route : 'overview';
       return { path: `/honours/${safeRoute}`, title: honoursTitle(safeRoute) };
@@ -250,7 +266,7 @@
     if (path === '/' || path === '/index.html') {
       return { path: '/', title: 'Trophy Guru' };
     }
-    const publicPaths = ['/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/integrations/intelligent-golf', '/blog'];
+    const publicPaths = ['/demo', '/trophy-archive-project-plan', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/integrations/intelligent-golf', '/blog'];
     if (publicPaths.includes(path) || /^\/blog\/[a-z0-9-]+$/.test(path)) {
       return { path, title: document.title };
     }
@@ -260,11 +276,11 @@
   // Capture only bounded campaign labels, never arbitrary query strings or tokens.
   // The browser URL itself stays intact; consent is still required before sending.
   function campaignQuery() {
-    if (!['/', '/index.html', '/privacy.html', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/blog'].includes(location.pathname) &&
+    if (!['/', '/index.html', '/privacy.html', '/demo', '/trophy-archive-project-plan', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/blog'].includes(location.pathname) &&
         !/^\/(blog|uk|us|integrations)\//.test(location.pathname)) return '';
     const incoming = new URLSearchParams(location.search);
     const allowed = new URLSearchParams();
-    for (const name of ['utm_source', 'utm_medium', 'utm_campaign']) {
+    for (const name of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']) {
       const value = incoming.get(name);
       if (value && /^[a-zA-Z0-9._-]{1,80}$/.test(value)) allowed.set(name, value);
     }

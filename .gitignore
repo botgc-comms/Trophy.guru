@@ -15,3 +15,6 @@ data-backups/
 outputs/aeo*
 
 node_modules/
+
+# Local exposure audit, isolated databases and browser artifacts.
+outputs/exposure*/

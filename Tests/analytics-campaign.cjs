@@ -30,6 +30,26 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert(!JSON.stringify(sent).includes('token') && !JSON.stringify(sent).includes('example.com'));
     const view2 = sent.find(e => e[1] === 'page_view')[2];
     assert.equal(view2.page_location, 'https://trophy.guru/about');
-    console.log('PASS GA4 consent, ChatGPT attribution, safe campaign fields, public signup intent and private-page exclusion');
+    await page.goto('https://trophy.guru/demo?utm_source=linkedin&utm_medium=organic_social&utm_campaign=club_history_launch&utm_content=founder_demo&email=person@example.com');
+    const demoEvents = await page.evaluate(() => window.dataLayer.map(e => Array.from(e)));
+    const demoPage = demoEvents.find(e => e[1] === 'page_view')[2];
+    assert.equal(demoPage.page_path, '/demo');
+    assert.equal(demoPage.page_location, 'https://trophy.guru/demo?utm_source=linkedin&utm_medium=organic_social&utm_campaign=club_history_launch&utm_content=founder_demo');
+    assert(!JSON.stringify(demoEvents).includes('person@example.com'));
+    await page.evaluate(() => {
+      document.addEventListener('click', e => e.preventDefault());
+      for (const href of ['/honours.html?demo=1#trophy', '/#pricing']) {
+        const a = document.createElement('a'); a.href = href; document.body.append(a); a.click();
+      }
+    });
+    const clicks = await page.evaluate(() => window.dataLayer.map(e => Array.from(e)));
+    assert(clicks.some(e => e[1] === 'demo_open' && e[2].view === 'trophy'));
+    assert(clicks.some(e => e[1] === 'pricing_click'));
+    await page.evaluate(() => window.trophyAnalytics.openSettings());
+    await page.locator('[data-consent=denied]').click();
+    const before = await page.evaluate(() => window.dataLayer.length);
+    await page.evaluate(() => { window.trophyAnalytics.track('demo_open', { view: 'person' }); window.trophyAnalytics.track('pricing_click'); });
+    assert.equal(await page.evaluate(() => window.dataLayer.length), before);
+    console.log('PASS GA4 consent, safe campaign fields, public signup/demo/pricing intent, consent withdrawal and private-page exclusion');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

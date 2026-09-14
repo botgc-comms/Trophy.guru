@@ -13,7 +13,7 @@ public sealed class PublicProductTools
         workflow = ProductPages.All.Single(p => p.Path == "/how-it-works").Sections,
         faqs = ProductPages.Faqs,
         pages = ProductPages.All.Select(p => new { title = p.Heading, url = "https://trophy.guru" + p.Path }),
-        demoUrl = "https://trophy.guru/#member-experience",
+        demoUrl = "https://trophy.guru/demo",
         signupUrl = "https://trophy.guru/archive.html#signup"
     };
 
@@ -31,5 +31,5 @@ public sealed class PublicProductTools
 
     [McpServerTool(Name = "get_demo_links", ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Find the existing illustrative electronic honours board and account signup page to explore trophy digitisation. Returns links only; does not request a demo, contact anyone or create an account.")]
-    public static object Demo() => new { demoUrl = "https://trophy.guru/#member-experience", signupUrl = "https://trophy.guru/archive.html#signup", example = "Illustrative honours board, not a customer endorsement" };
+    public static object Demo() => new { demoUrl = "https://trophy.guru/demo", signupUrl = "https://trophy.guru/archive.html#signup", example = "Illustrative honours board, not a customer endorsement" };
 }

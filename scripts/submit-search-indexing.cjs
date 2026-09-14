@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const origin = 'https://trophy.guru';
-const key = process.env.INDEXNOW_KEY;
+// This ownership proof is intentionally public at /{key}.txt; it is not an account credential.
+const key = process.env.INDEXNOW_KEY || JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'appsettings.Production.json'), 'utf8')).INDEXNOW_KEY;
 assert(key && /^[a-zA-Z0-9-]{8,128}$/.test(key), 'Set INDEXNOW_KEY to the deployed ownership key.');
 async function main() {
   const keyResponse = await fetch(origin + '/' + key + '.txt', { signal: AbortSignal.timeout(30000) });
@@ -13,7 +14,7 @@ async function main() {
   assert.equal(sitemap.status, 200);
   const xml = await sitemap.text();
   const urlList = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
-  const publicPaths = ['/', '/uk/how-to-catalogue-trophy-winners/', '/us/how-to-catalog-trophy-winners/', '/integrations/intelligent-golf/', '/privacy.html', '/blog', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security'];
+  const publicPaths = ['/', '/uk/how-to-catalogue-trophy-winners/', '/us/how-to-catalog-trophy-winners/', '/integrations/intelligent-golf/', '/privacy.html', '/blog', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/demo', '/trophy-archive-project-plan'];
   assert(urlList.length >= publicPaths.length && urlList.length <= 10000);
   for (const path of publicPaths) assert(urlList.includes(origin + path));
   assert.equal(new Set(urlList).size, urlList.length);
