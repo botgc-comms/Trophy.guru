@@ -6,6 +6,8 @@ public sealed record AutoSeoArticle
 {
     public string Event { get; init; } = "";
     public long Id { get; init; }
+    public string? PublishingDocumentId { get; init; }
+    public string? PublishingFingerprint { get; init; }
     public string Title { get; init; } = "";
     public string Slug { get; init; } = "";
     [JsonPropertyName("published_url")] public string? PublishedUrl { get; init; }

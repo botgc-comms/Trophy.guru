@@ -337,6 +337,7 @@ public static class EntryPoint
                 context.Request.Path.StartsWithSegments("/api/public") ||
                 context.Request.Path == "/api/billing/webhook" ||
                 context.Request.Path == BlogEndpoints.WebhookPath ||
+                context.Request.Path == BlogPublishingEndpoints.WebhookPath ||
                 context.Request.Path == "/health")
             {
                 await next();
@@ -422,6 +423,7 @@ public static class EntryPoint
         MapAuthentication(app);
         app.MapBillingEndpoints();
         app.MapBlog();
+        app.MapBlogPublishing();
         app.MapAccountSecurity();
         MapClub(app);
         MapCatalogue(app);

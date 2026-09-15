@@ -61,7 +61,7 @@ Render supplies its RENDER_EXTERNAL_URL automatically for canonical links, Open 
 
 ## Blog and AutoSEO
 
-The public blog is at `/blog`. AutoSEO deliveries go to `POST /api/webhooks/autoseo`; configure `AUTOSEO_WEBHOOK_TOKEN` in the deployment environment. Articles and downloaded images use a separate `DATA_PATH/blog/` directory. See [AutoSEO setup and delivery behaviour](AUTOSEO-BLOG.md).
+The public blog is at `/blog`. AutoSEO deliveries go to `POST /api/webhooks/autoseo`; configure `AUTOSEO_WEBHOOK_TOKEN` in the deployment environment. Articles and downloaded images use a separate `DATA_PATH/blog/` directory. See [AutoSEO setup and delivery behaviour](AUTOSEO-BLOG.md). Writesonic deliveries use the same blog through `/api/webhooks/writesonic`; see [Writesonic/Zapier publishing setup](WRITESONIC-PUBLISHING.md).
 
 
 ## Release assets and SEO checks
