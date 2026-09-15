@@ -1,24 +1,17 @@
-Create a draft Zap named Writesonic to Trophy Guru blog.
+Fix this existing Zap. Do not add a Code step or ask me for document IDs or timestamps.
 
-Trigger: Writesonic, New Copy Published. Set the publishing destination name to Trophy Guru blog. Use my authorised Writesonic connection and load a real article sample.
+Keep step 1: Writesonic - New Copy Published.
+In step 2, Webhooks by Zapier - POST:
+- Keep URL https://trophy.guru/api/webhooks/writesonic
+- Keep Payload Type JSON.
+- Keep the existing Authorization and Content-Type headers unchanged.
+- Replace the Data mapping with exactly two fields:
+  mode: publish (literal text)
+  text: the dynamic text output from step 1 (the full article, not a typed placeholder).
+- Wrap Request In Array: No. Unflatten: No.
+- Remove documentId, updatedAt, title, contentHtml and other obsolete mappings if present.
 
-Action: Webhooks by Zapier, POST to https://trophy.guru/api/webhooks/writesonic. Payload type JSON, no array wrapping, unflatten off. Use normal Data key/value mapping, not hand-written raw JSON, so HTML and quotation marks are escaped properly.
-
-Headers: Content-Type application/json. Authorization must be Bearer followed by the private BLOG_PUBLISH_TOKEN configured on the existing Trophy Guru app. Ask me to supply that secret directly in the connection/header field; never put it in the URL or article data.
-
-Data fields:
-mode: validate (literal during setup)
-documentId: the stable Writesonic document identifier
-updatedAt: that document revision's timestamp in ISO 8601 with timezone
-title: the article title
-contentHtml: the article HTML body
-metaDescription: the article description if available
-slug: the intended URL slug if available
-heroImageUrl: a public HTTPS cover image URL if available
-heroImageAlt: cover image description if available
-
-These are the receiving endpoint's field names. Inspect the actual Writesonic sample to choose matching source fields; do not invent trigger fields. Do not use a changing export-event ID, title or current Zap run time as the document identity/revision. If stable identity and revision fields are unavailable, leave the Zap as a draft and identify the missing mapping.
-
-Run only validation while configuring. A valid result is HTTP 200, status validated, published false, and the proposed blog URL. Validation saves no article or image. Do not test with mode publish using a dummy record. Once the real article and mappings are confirmed and I activate the workflow, change mode to publish. This publishes into the existing Trophy Guru blog database and templates; create no separate hosting service, website, WordPress installation or database.
-
-The endpoint handles retries, duplicate deliveries, older revisions and stable URLs. HTTP 409 is a mapping/revision/slug conflict to resolve, not a reason to repeatedly retry. Configure failure notifications using Zapier's existing settings. Keep the draft disabled until the production connection and validation pass.
+The site now accepts the text field and derives the article title and URL. No additional fields or transformation steps are needed.
+Use an original real Writesonic article record containing its title and full body, not a manually modified sample.
+Testing step 2 in publish mode publishes that article. If only placeholder records are available, save the mapping without sending a placeholder to the site.
+Publish/enable the configured Zap when Zapier permits it. Report its actual state and any error accurately.

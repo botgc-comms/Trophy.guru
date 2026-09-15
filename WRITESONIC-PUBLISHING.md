@@ -1,71 +1,54 @@
 # Writesonic → Zapier → Trophy Guru
 
-This uses the existing Trophy Guru application, persistent blog database and blog templates. No separate hosting service, database or WordPress site is required. The AutoSEO receiver remains compatible.
+Uses the existing Trophy Guru application, persistent blog database and site templates.
 
-## Current delivery route
+## Two-field Zap configuration
 
-Writesonic's documented trigger is **New Copy Published**. In its editor, Share → Export → Zapier → Send selects a publishing destination. This explicit send starts automatic delivery; generating a draft alone does not publish it.
+Trigger: **Writesonic → New Copy Published**.
+Action: **Webhooks by Zapier → POST**.
 
+- URL: https://trophy.guru/api/webhooks/writesonic
+- Payload type: JSON
+- Data: `mode` = literal `publish`; `text` = the dynamic **text** output from step 1.
+- Wrap request in array: No. Unflatten: No.
+- Headers: Content-Type = application/json; Authorization = Bearer followed by the existing BLOG_PUBLISH_TOKEN.
+- No document ID, timestamp, Code step or additional service is required for text exports.
+
+The copy/paste instruction for Zapier Copilot is in [docs/ZAPIER-PUBLISH-PROMPT.txt](docs/ZAPIER-PUBLISH-PROMPT.txt).
+
+Use a real article intended for publication, including its title and body. A publish-mode action test publishes it immediately. Short dummy samples are rejected. Use `mode=validate` to check a real article without saving it, or `{"mode":"test"}` to check authentication alone.
+
+Writesonic's documented export route is **Share → Export → Zapier → Send**. Sending the article starts automatic delivery through the enabled Zap; generating a draft alone does not publish it.
 Official instructions: https://docs.writesonic.com/docs/integrate-with-zapier
-Zapier HTTP action: https://help.zapier.com/hc/en-us/articles/8496326446989-Send-webhooks-in-Zap-workflows
+Zapier action documentation: https://help.zapier.com/hc/en-us/articles/8496326446989-Send-webhooks-in-Zap-workflows
 
-## Production configuration
+## Text handling
 
-Set `BLOG_PUBLISH_TOKEN` on the **existing** Render service to a newly generated secret of at least 32 characters. Store the same value in the Zap's Authorization header, prefixed with `Bearer `. Keep it out of source control, public URLs and article fields. Without the setting the receiver returns 503; wrong credentials return 401. There is no change to existing AutoSEO credentials.
+HTML, Markdown and plain text are accepted in `text`. The title comes from the main heading, document title or a short first paragraph/line. Include the title as the first line of plain-text exports. The receiver generates the slug and description, removes unsafe HTML and document styling, and renders the article through the existing blog template. Body text must contain at least 80 visible characters after cleaning to reject short test samples; this is not an editorial quality check.
 
-The endpoint is `POST https://trophy.guru/api/webhooks/writesonic`.
-Use `Content-Type: application/json`. Maximum request size: 2 MiB.
+Identical text deliveries are deduplicated using a content hash. A changed export with the same title/slug returns 409 instead of replacing the existing article. For deliberate revisions, use the advanced contract below. Text-only exports do not carry a stable provider document identity.
 
-## Zap configuration
+Posts appear at /blog/{slug}, with the existing canonical URL, BlogPosting metadata and sitemap. Inline images are omitted unless a cover URL is supplied through the optional fields below.
 
-Name: **Writesonic → Trophy Guru blog**
+## Optional advanced contract
 
-1. Trigger app: Writesonic. Event: **New Copy Published**.
-2. Connect the Writesonic account using its Zapier integration key.
-3. Publishing destination: **Trophy Guru blog**.
-4. Load an actual sent article as the trigger sample. Do not mistake a test sample, export-event ID or title for a stable document ID.
-5. Action app: **Webhooks by Zapier**. Event: **POST**. URL: the endpoint above.
-6. Payload type: **JSON**. Use the Data key/value fields below so Zapier escapes article HTML safely. Do not hand-interpolate HTML into raw JSON. Wrap request in array: No. Unflatten: No.
-7. Header: `Authorization` = `Bearer <BLOG_PUBLISH_TOKEN>`. Content-Type: application/json.
-8. Begin with `mode=validate`. A successful test must return `status=validated` and `published=false`. It saves neither articles nor images.
-9. After checking the mapped fields, change mode to `publish`. This action immediately publishes; testing that mode publishes too. Use a real article intended for release, not Zapier's dummy sample.
-10. Confirm the returned URL and the page in /blog and /sitemap.xml, then enable the Zap. Configure failure notifications/replay in Zapier; a failed or 429 delivery can be retried.
+Existing integrations can still send `documentId`, `updatedAt` (source ISO timestamp with timezone), `title` and `contentHtml`, with `mode=publish` or `validate`.
+A stable document ID and source timestamp support revisions; do not substitute Zap execution time.
+Optional fields for either contract: `slug`, `metaDescription` (up to 320 characters), `heroImageUrl` (public HTTPS) and `heroImageAlt`.
+An explicit `title` can override the extracted title in a text export.
+When a document ID is explicitly supplied with text, a source `updatedAt` is required.
 
-These are **our endpoint field names**, not claims about the names returned by Writesonic. Map them to the actual trigger sample:
+IDs use a separate negative integer range from AutoSEO. The full source identity is retained and checked before writing. Retries do not duplicate posts; older explicit revisions are ignored. Later explicit revisions preserve the original URL and publication date. A different document cannot overwrite another post's slug.
 
-| Data key | Value |
-|---|---|
-| mode | validate during setup; publish when activated |
-| documentId | Stable Writesonic document identifier; required |
-| updatedAt | Source document revision timestamp with timezone, e.g. 2026-09-15T12:00:00Z; required |
-| title | Article title; required, up to 500 characters |
-| contentHtml | Article HTML body; required |
-| slug | Optional permanent URL slug; otherwise generated from title |
-| metaDescription | Optional description, maximum 320 characters; derived from visible text if absent |
-| heroImageUrl | Optional public HTTPS cover image URL |
-| heroImageAlt | Optional description of the cover image |
+## Hosting and verification
 
-Do not map the current Zap execution time into updatedAt: delayed/retried deliveries must retain their source revision timestamp. If the trigger does not include a stable document ID and revision time, field mapping is **not ready**; obtain them from its document data or explicitly supply a revision in a normalization step after inspecting the sample. Do not silently substitute an event ID or generate an identity from the title.
+Set BLOG_PUBLISH_TOKEN (at least 32 characters) on the existing app and use the same key in Zapier. Never include it in public URLs or source control. Missing configuration returns 503; incorrect authentication returns 401. Maximum JSON body size is 2 MiB.
 
-## Connection test
+Validation saves no article or image. Cover images use the existing protected downloader and local storage. Image download failure returns 500 without replacing a previous post. Include the existing blog directory in backups.
 
-An authenticated POST body `{"mode":"test"}` returns `{"status":"connected","published":false}` without saving anything. This verifies authentication and routing, not content mapping.
-
-`scripts/test-blog-publishing.ps1` performs this check. It reads the secret from the process environment and never prints it. Its optional ArticlePath runs validation only.
-
-## Existing blog behavior
-
-Published content uses /blog/{slug}, the site's existing layout, canonical URLs, BlogPosting metadata and sitemap. Document navigation, styles, scripts and duplicate article headings are removed. The article's cover image uses the existing protected download and local image storage. Other inline images are omitted with a warning; this first version does not import galleries or generated full-page designs.
-
-Stable provider IDs map to a separate negative integer range in the existing blog table, leaving positive AutoSEO IDs intact. The full document ID is retained and checked for hash collision before writing. Same document and same revision are acknowledged without a duplicate. Older revisions are ignored. Different content with the same revision returns 409. A later revision preserves the original public URL and publication date. A new document requesting another article's slug also returns 409 instead of replacing it.
-
-Validation does not download the image. An image failure during publication returns 500 and leaves the previous article intact. No account, trophy or billing store is changed. Include the existing persistent blog directory in the normal backups.
-
-## Implementation checks
-
+Checks:
 - `dotnet test Tests/Trophy.Catalogue.Tests.csproj`
-- `node Tests/blog-publishing-smoke.cjs` after a Debug build; starts a loopback-only app with an isolated temporary data directory.
+- `node Tests/blog-publishing-smoke.cjs` after a Debug build. This publishes fixtures only to an isolated local app.
+- `scripts/test-blog-publishing.ps1` checks the live connection using the key from the environment.
 
-## Activation status
-
-The repository supplies the receiver, tests and exact Zap recipe. This document is not an imported or activated Zap. Production still requires deployment, the secret setting, an authenticated Zapier/Writesonic connection and a real delivery test.
+Repository tests and live receiver checks do not prove a hosted Zap is enabled. Confirm the actual Zap state and one real Writesonic delivery before calling the whole integration complete.

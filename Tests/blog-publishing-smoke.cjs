@@ -58,6 +58,17 @@ async function main() {
     assert((await (await fetch(base + '/sitemap.xml')).text()).includes(published.body.url));
     assert.equal((await send({ ...payload, mode: 'publish' })).body.status, 'unchanged');
     assert.equal((await send({ ...payload, mode: 'publish', title: 'Conflicting revision' })).status, 409);
+    const textPayload = { mode: 'publish', text: '# Text export fixture\n\nPhotograph the club trophies and review each engraved winner against the original record. Keep the source images available for future checks by club members.' };
+    const textPublished = await send(textPayload);
+    assert.equal(textPublished.status, 200);
+    assert.equal(textPublished.body.status, 'published');
+    assert.equal((await send(textPayload)).body.status, 'unchanged');
+    const textPage = await fetch(base + '/blog/text-export-fixture');
+    assert.equal(textPage.status, 200);
+    const textHtml = await textPage.text();
+    assert(textHtml.includes('Photograph the club trophies'));
+    assert(textHtml.includes('BlogPosting'));
+    assert((await (await fetch(base + '/sitemap.xml')).text()).includes(textPublished.body.url));
     assert.equal((await fetch(base + '/api/trophies')).status, 401);
     assert.equal((await fetch(base + '/api/webhooks/writesonic/other', { method: 'POST' })).status, 403);
     console.log('PASS real HTTP authentication, validation, publication, existing blog template, sitemap, retries, revision conflicts and private-route isolation.');

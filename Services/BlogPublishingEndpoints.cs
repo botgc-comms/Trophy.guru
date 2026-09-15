@@ -35,13 +35,16 @@ public static class BlogPublishingEndpoints
             if (request is null) return Results.BadRequest(new { error = "invalid_request" });
             if (request.Mode == "test") return Results.Ok(new { status = "connected", published = false });
             if (request.Mode is not ("validate" or "publish")) return Results.BadRequest(new { error = "invalid_mode" });
+            var textOnly = !string.IsNullOrWhiteSpace(request.Text) && string.IsNullOrWhiteSpace(request.ContentHtml);
+            var automaticIdentity = textOnly && string.IsNullOrWhiteSpace(request.DocumentId);
+            if (textOnly) request = BlogPublishingText.Normalize(request);
             if (string.IsNullOrWhiteSpace(request.DocumentId) || request.DocumentId.Length > 200 ||
                 request.DocumentId != request.DocumentId.Trim() || request.DocumentId.Any(char.IsControl) ||
                 request.UpdatedAt == default || request.UpdatedAt > DateTimeOffset.UtcNow.AddMinutes(5) ||
                 string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 500 ||
                 string.IsNullOrWhiteSpace(request.ContentHtml) || request.MetaDescription?.Length > 320 ||
                 request.HeroImageAlt?.Length > 1000)
-                return Results.BadRequest(new { error = "invalid_article", message = "Provide documentId, source updatedAt, title and contentHtml; description is at most 320 characters." });
+                return Results.BadRequest(new { error = "invalid_article", message = "Send text containing the article and its heading, or provide documentId, source updatedAt, title and contentHtml. Description is at most 320 characters." });
 
             var id = ArticleId(request.DocumentId);
             var slug = request.Slug;
@@ -78,6 +81,8 @@ public static class BlogPublishingEndpoints
             var cleaned = BlogEndpoints.SanitizeHtml(article, null, null);
             using var cleanDocument = new HtmlParser().ParseDocument(cleaned);
             var plain = Regex.Replace(cleanDocument.Body!.TextContent, @"\s+", " ").Trim();
+            if (textOnly && plain.Length < 80)
+                return Results.BadRequest(new { error = "article_text_too_short", message = "Send a real article from Writesonic, including its title and body. Use mode=test for a connection check without publishing sample text." });
             if (plain.Length == 0) return Results.BadRequest(new { error = "empty_article_after_cleaning" });
             if (article.MetaDescription.Length == 0) article = article with { MetaDescription = plain.Length > 160 ? plain[..157] + "..." : plain };
             var warnings = new List<string>();
@@ -99,6 +104,8 @@ public static class BlogPublishingEndpoints
                 if (existing is not null)
                 {
                     var url = origin + "/blog/" + Uri.EscapeDataString(existing.Article.Slug);
+                    if (automaticIdentity && fingerprint == existing.Article.PublishingFingerprint)
+                        return Results.Ok(new { status = "unchanged", published = request.Mode == "publish", url });
                     if (request.UpdatedAt < existing.Article.UpdatedAt)
                         return Results.Ok(new { status = "ignored_older_revision", published = request.Mode == "publish", url });
                     if (request.UpdatedAt == existing.Article.UpdatedAt)

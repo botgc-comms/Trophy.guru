@@ -148,6 +148,47 @@ public sealed class BlogPublishingTests : IDisposable
         context.Request.Path += "/other";
         Assert.False(RequestSecurity.IsSameOriginMutation(context.Request, config));
     }
+
+    [Theory]
+    [InlineData("# Golf club records\n\nPhotograph each trophy in clear light. Record its name and check the engraved winners against the original photograph before sharing the archive.")]
+    [InlineData("<html><head><title>Golf club records</title></head><body><h1>Golf club records</h1><p>Photograph each trophy in clear light. Record its name and check the engraved winners against the original photograph before sharing the archive.</p></body></html>")]
+    [InlineData("Golf club records\nPhotograph each trophy in clear light. Record its name and check the engraved winners against the original photograph before sharing the archive.")]
+    public async Task TextExportsPublishUsingExistingTemplateAndRetriesDoNotDuplicate(string text)
+    {
+        var payload = new BlogPublishRequest { Mode = "validate", Text = text };
+        Assert.Equal(200, (await Deliver(payload)).Status);
+        Assert.Empty(store.List());
+        payload = payload with { Mode = "publish" };
+        var published = await Deliver(payload);
+        Assert.Equal(200, published.Status);
+        Assert.Contains("published", published.Body);
+        var first = Assert.Single(store.List());
+        Assert.Equal("Golf club records", first.Article.Title);
+        Assert.Equal("golf-club-records", first.Article.Slug);
+        Assert.Contains("Photograph each trophy", first.Html);
+        Assert.DoesNotContain("<h1", first.Html);
+        Assert.Contains("unchanged", (await Deliver(payload)).Body);
+        Assert.Equal(first.Article.PublishedAt, Assert.Single(store.List()).Article.PublishedAt);
+        Assert.Equal(409, (await Deliver(payload with { Text = text.Replace("clear light", "daylight") })).Status);
+        Assert.Single(store.List());
+    }
+
+    [Fact]
+    public async Task TextExportsRejectShortSamplesAndRemoveUnsafeMarkup()
+    {
+        Assert.Equal(400, (await Deliver(new() { Mode = "publish", Text = "Sample text" })).Status);
+        Assert.Empty(store.List());
+        var text = "# A real archive\n\n<script>alert('unsafe')</script>\n\n"
+            + "Photograph the original records and check each winner. Keep a copy of the source photograph so future club members can verify the information.\n\n"
+            + "## Review\n\nCheck the **names** and years.";
+        Assert.Equal(200, (await Deliver(new() { Mode = "publish", Text = text })).Status);
+        var saved = Assert.Single(store.List());
+        Assert.DoesNotContain("script", saved.Html);
+        Assert.DoesNotContain("unsafe", saved.Html);
+        Assert.Contains("<h2>Review</h2>", saved.Html);
+        Assert.Contains("<strong>names</strong>", saved.Html);
+    }
+
     public void Dispose() { services.Dispose(); Directory.Delete(directory, recursive: true); }
     private sealed class ImageHandler(bool fail = false) : HttpMessageHandler
     {

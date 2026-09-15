@@ -8,6 +8,7 @@ public sealed record BlogPublishRequest
     public DateTimeOffset UpdatedAt { get; init; }
     public string Title { get; init; } = "";
     public string? Slug { get; init; }
+    public string? Text { get; init; }
     public string ContentHtml { get; init; } = "";
     public string? MetaDescription { get; init; }
     public string? HeroImageUrl { get; init; }
