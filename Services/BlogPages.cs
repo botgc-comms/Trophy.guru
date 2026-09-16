@@ -19,7 +19,6 @@ public static class BlogPages
     {
         var cards = string.Join("", posts.Take(12).Select(post => $"""
             <article class="blog-card"><a href="{E(PathFor(post))}">
-            {Image(post.HeroPath, post.Article.HeroImageAlt, "card-image")}
             <div class="card-copy"><p class="eyebrow">{E(Date(post.Article.PublishedAt))}</p>
             <h2>{E(post.Article.Title)}</h2><p>{E(post.Article.MetaDescription)}</p><span class="read-link">Read article <span aria-hidden="true">&rarr;</span></span></div></a></article>
             """));
