@@ -174,6 +174,7 @@ public sealed class PublicationTests
         builder.Services.AddSingleton(fixture.Accounts);
         builder.Services.AddSingleton(fixture.Catalogue);
         await using var app = builder.Build();
+        app.Use(async (context, next) => { context.Response.Headers["X-Frame-Options"] = "DENY"; await next(); });
         HonoursEndpoints.Map(app, Path.Combine(fixture.Root, "wwwroot"));
         await app.StartAsync();
         using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
@@ -190,6 +191,7 @@ public sealed class PublicationTests
             Assert.True(response.Headers.CacheControl!.NoStore);
         }
         var embed = await client.GetAsync("/embed/legacy");
+        Assert.False(embed.Headers.Contains("X-Frame-Options"));
         var csp = embed.Headers.GetValues("Content-Security-Policy").Single();
         Assert.Contains("frame-ancestors 'self' https://www.fictional-club.example;", csp);
         Assert.DoesNotContain("analytics.js", await embed.Content.ReadAsStringAsync());

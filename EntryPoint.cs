@@ -162,6 +162,7 @@ public static class EntryPoint
             var isHonoursDemo = context.Request.Path.Equals("/honours.html", StringComparison.OrdinalIgnoreCase) &&
                 context.Request.Query["demo"] == "1";
             var frameAncestors = isHonoursDemo ? "'self'" : "'none'";
+            context.Response.Headers["X-Frame-Options"] = isHonoursDemo ? "SAMEORIGIN" : "DENY";
             var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24));
             context.Items["csp-nonce"] = nonce;
             var privatePage = context.Request.Path.StartsWithSegments("/admin") || context.Request.Path.Equals("/archive.html", StringComparison.OrdinalIgnoreCase) ||
@@ -307,8 +308,8 @@ public static class EntryPoint
             OnPrepareResponse = context =>
             {
                 var extension = Path.GetExtension(context.File.Name);
-                context.Context.Response.Headers.CacheControl = extension is ".html" or ".js" or ".css"
-                    ? "no-cache"
+                context.Context.Response.Headers.CacheControl = extension == ".html" ? "no-cache"
+                    : extension is ".js" or ".css" ? "public,max-age=3600,must-revalidate"
                     : "public,max-age=604800";
             }
         });

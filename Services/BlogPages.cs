@@ -26,7 +26,7 @@ public static class BlogPages
         var pagination = "<nav class=\"pagination\" aria-label=\"Blog pages\">" +
             (page > 1 ? $"<a href=\"/blog?page={page - 1}\">&larr; Newer articles</a>" : "") +
             (posts.Count > 12 ? $"<a href=\"/blog?page={page + 1}\">Older articles &rarr;</a>" : "") + "</nav>";
-        return Layout(page > 1 ? $"The Trophy Guru blog — Page {page}" : "The Trophy Guru blog", "Ideas and practical guides for preserving trophies, sporting memories and club history.",
+        return Layout(page > 1 ? $"The Trophy Guru blog — Page {page}" : "Trophy Archives and Honours Board Guides", "Ideas and practical guides for preserving trophies, sporting memories and club history.",
             origin + "/blog" + (page > 1 ? "?page=" + page : ""), "en", "", $"""
             <section class="blog-intro"><p class="eyebrow">The Trophy Guru journal</p><h1>Every trophy has a story.</h1>
             <p>Ideas, stories and practical guides to help you preserve the names, memories and achievements that make your club.</p></section>
@@ -111,7 +111,7 @@ public static class BlogPages
         title = title.Trim();
         if (title.Length <= limit) return title + suffix;
         var subtitle = title.IndexOf(':');
-        if (subtitle is >= 20 and <= limit) return title[..subtitle].TrimEnd() + suffix;
+        if (subtitle is >= 36 and <= limit) return title[..subtitle].TrimEnd() + suffix;
         var shortened = title[..(limit - 1)];
         var boundary = shortened.LastIndexOf(' ');
         if (boundary >= 30) shortened = shortened[..boundary];

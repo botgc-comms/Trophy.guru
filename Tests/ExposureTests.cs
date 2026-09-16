@@ -23,29 +23,31 @@ public sealed class ExposureTests
         Assert.Equal("The visible, current answer.", graph.RootElement.GetProperty("mainEntity")[0].GetProperty("acceptedAnswer").GetProperty("text").GetString());
     }
 
-    [Fact]
-    public void EditorialRevisionIsBackedUpIdempotentAndDoesNotReplaceNewerCmsContent()
+    public static IEnumerable<object[]> EditorialRevisions() => BlogEditorialRevisions.Load().Select(r => new object[] { r });
+
+    [Theory]
+    [MemberData(nameof(EditorialRevisions))]
+    public void EditorialRevisionIsBackedUpIdempotentAndDoesNotReplaceNewerCmsContent(BlogEditorialRevisions.Revision revision)
     {
         var path = Path.Combine(Path.GetTempPath(), "trophy-editorial-" + Guid.NewGuid().ToString("N"));
         try
         {
             var store = new BlogStore(path);
-            var revisions = BlogEditorialRevisions.Load();
-            Assert.Equal(7, revisions.Count);
-            var revision = revisions[0];
             var original = new BlogPost(new() { Id = 101, Slug = revision.Slug, Title = "Original", UpdatedAt = revision.SupersedesUpdatedAt, PublishedAt = revision.SupersedesUpdatedAt.AddHours(-1) }, "<p>Original public body.</p>", null, null);
             store.Upsert(original);
             Assert.Equal(1, BlogEditorialRevisions.Apply(store));
             var updated = store.Find(101)!;
             Assert.Equal(revision.Html, updated.Html);
             Assert.Equal(revision.Title, updated.Article.Title);
+            Assert.Equal(revision.RevisedAt ?? BlogEditorialRevisions.PublishedAt, updated.Article.UpdatedAt);
+            Assert.True(updated.Article.UpdatedAt > original.Article.UpdatedAt);
             Assert.Equal(original.Article.PublishedAt, updated.Article.PublishedAt);
             Assert.Equal(original.Article.Slug, updated.Article.Slug);
             Assert.Empty(updated.Article.FaqSchema!);
             Assert.Equal(0, BlogEditorialRevisions.Apply(store));
             var backup = Assert.Single(Directory.GetFiles(Path.Combine(path, "editorial-backups")));
             Assert.Equal(original.Html, JsonSerializer.Deserialize<BlogPost>(File.ReadAllText(backup), BlogStore.Json)!.Html);
-            var later = original with { Article = original.Article with { Title = "Later CMS version", UpdatedAt = BlogEditorialRevisions.PublishedAt.AddDays(1) }, Html = "<p>New editorial decision.</p>" };
+            var later = original with { Article = original.Article with { Title = "Later CMS version", UpdatedAt = (revision.RevisedAt ?? BlogEditorialRevisions.PublishedAt).AddDays(1) }, Html = "<p>New editorial decision.</p>" };
             store.Upsert(later);
             Assert.Equal(0, BlogEditorialRevisions.Apply(store));
             Assert.Equal(later.Html, store.Find(101)!.Html);

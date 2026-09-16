@@ -7,7 +7,7 @@ namespace Trophy.Catalogue.Services;
 // stores are never opened. A later CMS revision wins; original public JSON is backed up.
 public static class BlogEditorialRevisions
 {
-    public sealed record Revision(string Slug, string Title, string Description, string Html, DateTimeOffset SupersedesUpdatedAt);
+    public sealed record Revision(string Slug, string Title, string Description, string Html, DateTimeOffset SupersedesUpdatedAt, DateTimeOffset? RevisedAt = null);
     public static readonly DateTimeOffset PublishedAt = DateTimeOffset.Parse("2026-09-14T08:20:00Z");
 
     public static IReadOnlyList<Revision> Load()
@@ -35,7 +35,7 @@ public static class BlogEditorialRevisions
             if (!File.Exists(backup)) File.WriteAllText(backup, JsonSerializer.Serialize(post, BlogStore.Json));
             var article = post.Article with {
                 Title = revision.Title, MetaDescription = revision.Description, ContentHtml = revision.Html,
-                ContentMarkdown = null, UpdatedAt = PublishedAt, FaqSchema = [], Keywords = [], MetaKeywords = null,
+                ContentMarkdown = null, UpdatedAt = revision.RevisedAt ?? PublishedAt, FaqSchema = [], Keywords = [], MetaKeywords = null,
                 HeroImageUrl = null, HeroImageAlt = null, InfographicImageUrl = null
             };
             store.Upsert(new BlogPost(article, revision.Html, null, null));
