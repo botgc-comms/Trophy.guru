@@ -78,6 +78,10 @@ public static class EntryPoint
         builder.Services.AddSingleton<StripeBillingService>();
         builder.Services.AddHttpClient(nameof(StripeBillingService));
         builder.Services.AddSingleton<BlogStore>();
+        builder.Services.AddHttpClient(LinkArtemisSync.ClientName, client => client.Timeout = TimeSpan.FromSeconds(30))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddSingleton<LinkArtemisSync>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<LinkArtemisSync>());
         builder.Services.AddHttpClient<BlogImages>(client => client.Timeout = TimeSpan.FromSeconds(30))
             .ConfigurePrimaryHttpMessageHandler(BlogImages.CreateHandler);
         builder.Services.AddSingleton<CatalogueStore>();
@@ -460,9 +464,10 @@ public static class EntryPoint
 
     private static void MapHealth(WebApplication app)
     {
-        app.MapGet("/health", (OpenAiEngravingReader reader, OpenAiTrophyIllustrator illustrator, IConfiguration config) => Results.Ok(new
+        app.MapGet("/health", (OpenAiEngravingReader reader, OpenAiTrophyIllustrator illustrator, IConfiguration config, LinkArtemisSync latitude) => Results.Ok(new
         {
             status = "healthy",
+            latitude = latitude.Status,
             aiConfigured = reader.IsAvailable,
             illustrationConfigured = illustrator.IsAvailable,
             indexNowEnabled = IndexNowPublisher.Enabled(config),
