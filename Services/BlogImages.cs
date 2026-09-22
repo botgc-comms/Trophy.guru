@@ -97,6 +97,57 @@ public sealed class BlogImages(HttpClient client)
         throw new HttpRequestException("Unsupported image format; use PNG, JPEG, WebP or GIF.");
     }
 
+    // Read intrinsic dimensions without decoding or executing the downloaded media.
+    public static (int Width, int Height)? Dimensions(byte[] bytes)
+    {
+        var data = bytes.AsSpan();
+        int width = 0, height = 0;
+        if (data.Length >= 24 && data[..8].SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}))
+        {
+            width = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(data.Slice(16,4));
+            height = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(data.Slice(20,4));
+        }
+        else if (data.Length >= 10 && (data[..6].SequenceEqual("GIF89a"u8) || data[..6].SequenceEqual("GIF87a"u8)))
+        {
+            width = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(6,2));
+            height = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(8,2));
+        }
+        else if (data.Length >= 12 && data[..4].SequenceEqual("RIFF"u8) && data.Slice(8,4).SequenceEqual("WEBP"u8))
+        {
+            if (data.Length >= 30 && data.Slice(12,4).SequenceEqual("VP8X"u8))
+            { width = 1 + data[24] + (data[25] << 8) + (data[26] << 16); height = 1 + data[27] + (data[28] << 8) + (data[29] << 16); }
+            else if (data.Length >= 25 && data.Slice(12,4).SequenceEqual("VP8L"u8) && data[20] == 0x2f)
+            { width = 1 + data[21] + ((data[22] & 0x3f) << 8); height = 1 + (data[22] >> 6) + (data[23] << 2) + ((data[24] & 0x0f) << 10); }
+            else if (data.Length >= 30 && data.Slice(12,4).SequenceEqual("VP8 "u8) && data.Slice(23,3).SequenceEqual(new byte[] {0x9d,0x01,0x2a}))
+            { width = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(26,2)) & 0x3fff; height = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(28,2)) & 0x3fff; }
+        }
+        else if (data.Length >= 4 && data[0] == 0xff && data[1] == 0xd8)
+        {
+            var i = 2;
+            while (i < data.Length)
+            {
+                if (data[i++] != 0xff) continue;
+                while (i < data.Length && data[i] == 0xff) i++;
+                if (i >= data.Length) break;
+                var marker = data[i++];
+                if (marker is 0xda or 0xd9) break;
+                if (marker is 0x01 or >= 0xd0 and <= 0xd8) continue;
+                if (i + 2 > data.Length) break;
+                var length = System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(data.Slice(i,2));
+                if (length < 2 || i + length > data.Length) break;
+                if (marker is >= 0xc0 and <= 0xc3 or >= 0xc5 and <= 0xc7 or >= 0xc9 and <= 0xcb or >= 0xcd and <= 0xcf)
+                {
+                    if (length < 8) break;
+                    height = System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(data.Slice(i+3,2));
+                    width = System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(data.Slice(i+5,2));
+                    break;
+                }
+                i += length;
+            }
+        }
+        return width > 0 && height > 0 ? (width,height) : null;
+    }
+
     public static async Task<byte[]> ReadBoundedAsync(Stream stream, int limit, CancellationToken cancellationToken)
     {
         using var output = new MemoryStream();

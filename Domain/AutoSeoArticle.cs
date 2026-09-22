@@ -16,6 +16,8 @@ public sealed record AutoSeoArticle
     [JsonPropertyName("content_markdown")] public string? ContentMarkdown { get; init; }
     public string? HeroImageUrl { get; init; }
     public string? HeroImageAlt { get; init; }
+    public int? HeroImageWidth { get; init; }
+    public int? HeroImageHeight { get; init; }
     public string? InfographicImageUrl { get; init; }
     public string[]? Keywords { get; init; }
     public string? MetaKeywords { get; init; }

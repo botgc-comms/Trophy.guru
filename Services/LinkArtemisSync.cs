@@ -14,7 +14,7 @@ namespace Trophy.Catalogue.Services;
 // Latitude's documented API exposes completed articles, not delivery webhooks or revision dates.
 // Import each source ID once. Never use receipt time to overwrite a later editorial correction.
 public sealed class LinkArtemisSync(IConfiguration config, IHttpClientFactory clients, BlogStore store,
-    ILogger<LinkArtemisSync> logger) : BackgroundService
+    ILogger<LinkArtemisSync> logger, BlogImages images) : BackgroundService
 {
     public const string ClientName = "LinkArtemis";
     public const string ApiRoot = "https://app.linkartemis.com/api/v1/articles";
@@ -25,9 +25,10 @@ public sealed class LinkArtemisSync(IConfiguration config, IHttpClientFactory cl
         [property: JsonPropertyName("content_html")] string? ContentHtml,
         [property: JsonPropertyName("content_markdown")] string? ContentMarkdown,
         [property: JsonPropertyName("language_code")] string? LanguageCode,
-        [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt);
+        [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
+        [property: JsonPropertyName("hero_image_url")] string? HeroImageUrl = null);
     public sealed record SyncStatus(bool Configured, bool Enabled, string State,
-        DateTimeOffset? LastCheckedAt = null, int Imported = 0, int Skipped = 0);
+        DateTimeOffset? LastCheckedAt = null, int Imported = 0, int Skipped = 0, int ImagesUpdated = 0);
     public sealed class ApiException(int status, TimeSpan retryAfter) : Exception("Latitude API HTTP " + status)
     {
         public int Status { get; } = status;
@@ -73,7 +74,7 @@ public sealed class LinkArtemisSync(IConfiguration config, IHttpClientFactory cl
         await syncLock.WaitAsync(cancellationToken);
         try
         {
-            var imported = 0; var skipped = 0; var fetched = 0;
+            var imported = 0; var skipped = 0; var fetched = 0; var imagesUpdated = 0;
             using var client = clients.CreateClient(ClientName);
             // Optional allowlist for workspaces later shared with another website; empty means all.
             var selected = (config["LINKARTEMIS_ARTICLE_IDS"] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -91,6 +92,10 @@ public sealed class LinkArtemisSync(IConfiguration config, IHttpClientFactory cl
                     if (existing is not null)
                     {
                         if (existing.Article.PublishingDocumentId != "linkartemis:" + id) skipped++;
+                        else if (existing.HeroPath is null && !string.IsNullOrWhiteSpace(summary.HeroImageUrl))
+                        {
+                            if (await RestoreCoverAsync(summary, cancellationToken)) imagesUpdated++; else skipped++;
+                        }
                         continue;
                     }
                     Article detail;
@@ -99,18 +104,18 @@ public sealed class LinkArtemisSync(IConfiguration config, IHttpClientFactory cl
                     fetched++;
                     if (!Guid.TryParse(detail.Id, out var detailId) || detailId != sourceId) { skipped++; continue; }
                     if (await ImportAsync(detail, cancellationToken)) imported++; else skipped++;
-                    if (fetched >= 25) { Complete("batch_limit", imported, skipped); return; }
+                    if (fetched >= 25) { Complete("batch_limit", imported, skipped, imagesUpdated); return; }
                 }
-                if (summaries.Length < 100) { Complete(skipped > 0 ? "completed_with_skips" : "ok", imported, skipped); return; }
+                if (summaries.Length < 100) { Complete(skipped > 0 ? "completed_with_skips" : "ok", imported, skipped, imagesUpdated); return; }
             }
-            Complete("scan_limit", imported, skipped);
+            Complete("scan_limit", imported, skipped, imagesUpdated);
         }
         finally { syncLock.Release(); }
     }
-    private void Complete(string state, int imported, int skipped)
+    private void Complete(string state, int imported, int skipped, int imagesUpdated)
     {
-        Volatile.Write(ref status, new(Configured, Enabled, state, DateTimeOffset.UtcNow, imported, skipped));
-        logger.LogInformation("Latitude sync {State}: {Imported} articles published, {Skipped} rejected. Existing articles preserved.", state, imported, skipped);
+        Volatile.Write(ref status, new(Configured, Enabled, state, DateTimeOffset.UtcNow, imported, skipped, imagesUpdated));
+        logger.LogInformation("Latitude sync {State}: {Imported} articles published, {Skipped} rejected, {ImagesUpdated} covers restored. Existing article text preserved.", state, imported, skipped, imagesUpdated);
     }
     private async Task<T> ReadAsync<T>(HttpClient client, string url, CancellationToken cancellationToken)
     {
@@ -169,9 +174,50 @@ public sealed class LinkArtemisSync(IConfiguration config, IHttpClientFactory cl
         {
             // Recheck under the same lock as incoming webhooks. Slug collisions never overwrite a different post.
             if (store.Find(article.Id) is not null || store.Find(slug) is not null) return false;
-            store.Upsert(new(article, clean, null, null));
+            var cover = await DownloadCoverAsync(source.HeroImageUrl, cancellationToken);
+            article = WithCover(article, source.HeroImageUrl, cover);
+            store.Upsert(new(article, clean, cover, null));
             return true;
         }
         finally { store.DeliveryLock.Release(); }
     }
+    // Repair only the missing cover; use the latest stored body and metadata, not a provider revision.
+    public async Task<bool> RestoreCoverAsync(Article source, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(source.Id, out var id) || string.IsNullOrWhiteSpace(source.HeroImageUrl)) return false;
+        await store.DeliveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            var post = store.Find(ArticleId(source.Id));
+            if (post is null || post.HeroPath is not null || post.Article.PublishingDocumentId != "linkartemis:" + id.ToString("D")) return false;
+            var cover = await DownloadCoverAsync(source.HeroImageUrl, cancellationToken);
+            if (cover is null) return false;
+            var now = DateTimeOffset.UtcNow;
+            var article = WithCover(post.Article, source.HeroImageUrl, cover) with {
+                UpdatedAt = now > post.Article.UpdatedAt ? now : post.Article.UpdatedAt.AddTicks(1)
+            };
+            store.Upsert(post with { Article = article, HeroPath = cover });
+            return true;
+        }
+        finally { store.DeliveryLock.Release(); }
+    }
+    private async Task<string?> DownloadCoverAsync(string? url, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        try { return await images.DownloadAsync(url, store.ImageDirectory, cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception error) when (error is HttpRequestException or UriFormatException or OperationCanceledException or InvalidDataException)
+        {
+            logger.LogWarning("Latitude cover download failed ({ErrorType}); the article stays readable and the cover will be retried.", error.GetType().Name);
+            return null;
+        }
+    }
+    private AutoSeoArticle WithCover(AutoSeoArticle article, string? sourceUrl, string? cover)
+    {
+        if (cover is null) return article;
+        var size = BlogImages.Dimensions(File.ReadAllBytes(Path.Combine(store.ImageDirectory, Path.GetFileName(cover))));
+        // Latitude provides no image description. An empty alt avoids inventing details about stock art.
+        return article with { HeroImageUrl = sourceUrl, HeroImageAlt = "", HeroImageWidth = size?.Width, HeroImageHeight = size?.Height };
+    }
+
 }

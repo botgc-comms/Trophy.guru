@@ -12,8 +12,8 @@ public static class BlogPages
     private static string E(string? value) => WebUtility.HtmlEncode(value ?? "");
     private static string PathFor(BlogPost post) => "/blog/" + Uri.EscapeDataString(post.Article.Slug);
     private static string Date(DateTimeOffset date) => date.ToString("d MMMM yyyy", CultureInfo.InvariantCulture);
-    private static string Image(string? path, string? alt, string css = "") => path is null ? "" :
-        $"<img class=\"{css}\" src=\"{E(path)}\" alt=\"{E(alt)}\" loading=\"lazy\">";
+    private static string Image(string? path, string? alt, string css = "", int? width = null, int? height = null) => path is null ? "" :
+        $"<img class=\"{css}\" src=\"{E(path)}\" alt=\"{E(alt)}\" loading=\"lazy\"{(width > 0 && height > 0 ? $" width=\"{width}\" height=\"{height}\"" : "")}>";
 
     public static string Index(IReadOnlyList<BlogPost> posts, string origin, int page)
     {
@@ -86,7 +86,7 @@ public static class BlogPages
                 faqs = "<section class=\"blog-faq\"><h2>Frequently asked questions</h2>" + string.Join("", missingFaqs.Select(f => $"<h3>{E(f.Faq.Question)}</h3><p>{E(f.Faq.Answer)}</p>")) + "</section>";
         }
         // Images already embedded in the supplied body are not repeated.
-        var hero = post.HeroPath is not null && post.Html.Contains(post.HeroPath, StringComparison.Ordinal) ? "" : Image(post.HeroPath, a.HeroImageAlt, "article-hero");
+        var hero = post.HeroPath is not null && post.Html.Contains(post.HeroPath, StringComparison.Ordinal) ? "" : Image(post.HeroPath, a.HeroImageAlt, "article-hero", a.HeroImageWidth, a.HeroImageHeight);
         var infographic = post.InfographicPath is not null && (post.InfographicPath == post.HeroPath || post.Html.Contains(post.InfographicPath, StringComparison.Ordinal)) ? "" : Image(post.InfographicPath, "Infographic: " + a.Title, "article-infographic");
         return Layout(a.Title, a.MetaDescription, url, a.LanguageCode, metadata, $"""
             <article class="blog-article"><header class="article-heading"><a href="/blog" class="back-link">&larr; All articles</a>
