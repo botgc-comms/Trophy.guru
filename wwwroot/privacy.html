@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/fonts.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/analytics.css?v=20260906-1">
-  <script src="/analytics.js?v=20260906-1" defer></script>
+  <script src="/analytics.js?v=20260928-1" defer></script>
   <link rel="canonical" href="{{PUBLIC_SITE_URL}}/privacy.html">
   <meta property="og:type" content="website"><meta property="og:site_name" content="Trophy Guru"><meta property="og:url" content="{{PUBLIC_SITE_URL}}/privacy.html">
   <meta property="og:title" content="Privacy, Cookies and Your Analytics Choices | Trophy Guru"><meta property="og:description" content="How optional public-page analytics works and how to change your choice.">
@@ -27,7 +27,7 @@
   <main class="privacy-main">
     <p>Privacy and cookies</p>
     <h1>Your archive stays out of our analytics.</h1>
-    <p>Google Analytics is optional on Trophy.guru. It is loaded only after you accept analytics, and rejecting it does not affect the service.</p>
+    <p>Human visitor analytics is optional on Trophy.guru. Google Analytics and Writesonic receive visitor analytics only after you accept, and rejecting it does not affect the service.</p>
 
     <section>
       <h2>What analytics measures</h2>
@@ -56,6 +56,11 @@
     <section>
       <h2>Google Analytics</h2>
       <p>Google provides the analytics service and may process analytics data on our behalf. Advertising storage, advertising user data, ad personalisation and Google Signals are disabled in the Trophy.guru implementation. Read <a href="https://policies.google.com/privacy">Google's privacy policy</a> for more information about Google's processing.</p>
+    </section>
+    <section>
+      <h2>Writesonic and AI crawler traffic</h2>
+      <p>We use Writesonic to understand how AI and search crawlers access our public information. For requests identifying themselves as supported crawlers, we send the public page address, request method, response status, user-agent, IP address and available country information. We remove query strings and reduce referring addresses to their website origin. Crawler identification is based on the request's user-agent and is not proof that an AI service recommends us.</p>
+      <p>After you accept analytics, we also send a public page visit to Writesonic with your IP address, browser user-agent, available country information and the referring website origin. We do not set a Writesonic tracking cookie. Account, archive, honours board, upload and administrative routes are excluded. Visit reports are queued briefly in memory and sent from our server. Read <a href="https://writesonic.com/privacy-policy">Writesonic's privacy policy</a> for information about its processing.</p>
     </section>
   </main>
   {{SITE_FOOTER}}

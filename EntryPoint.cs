@@ -78,6 +78,10 @@ public static class EntryPoint
         builder.Services.AddSingleton<StripeBillingService>();
         builder.Services.AddHttpClient(nameof(StripeBillingService));
         builder.Services.AddSingleton<BlogStore>();
+        builder.Services.AddHttpClient(WritesonicAnalytics.ClientName, client => client.Timeout = TimeSpan.FromSeconds(10))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddSingleton<WritesonicAnalytics>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<WritesonicAnalytics>());
         builder.Services.AddHttpClient(LinkArtemisSync.ClientName, client => client.Timeout = TimeSpan.FromSeconds(30))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddSingleton<LinkArtemisSync>();
@@ -135,6 +139,8 @@ public static class EntryPoint
         }
 
         app.UseResponseCompression();
+        var trafficAnalytics = app.Services.GetRequiredService<WritesonicAnalytics>();
+        app.Use((context, next) => trafficAnalytics.ObserveCrawlerAsync(context, next));
         // Render terminates HTTPS before Kestrel. Emit HSTS on every production
         // response (including www redirects) when the configured public origin is HTTPS.
         // Do not includeSubDomains: unrelated subdomains may have different TLS policies.
@@ -423,6 +429,9 @@ public static class EntryPoint
             app.MapGet("/" + indexNowKey + ".txt", () => Results.Text(indexNowKey, "text/plain"));
         app.MapMcp("/mcp").RequireRateLimiting("public-discovery");
         app.MapGet("/api/public/product", () => PublicProductTools.Knowledge());
+        app.MapPost(WritesonicAnalytics.VisitPath, (HttpContext context, WritesonicAnalytics.VisitInput input,
+            WritesonicAnalytics analytics) => analytics.ReceiveVisit(context, input))
+            .WithMetadata(new RequestBodyLimit(4096)).RequireRateLimiting("public-discovery");
         MapHealth(app);
         HonoursEndpoints.Map(app, webRootPath);
         MapAuthentication(app);
@@ -464,10 +473,11 @@ public static class EntryPoint
 
     private static void MapHealth(WebApplication app)
     {
-        app.MapGet("/health", (OpenAiEngravingReader reader, OpenAiTrophyIllustrator illustrator, IConfiguration config, LinkArtemisSync latitude) => Results.Ok(new
+        app.MapGet("/health", (OpenAiEngravingReader reader, OpenAiTrophyIllustrator illustrator, IConfiguration config, LinkArtemisSync latitude, WritesonicAnalytics analytics) => Results.Ok(new
         {
             status = "healthy",
             latitude = latitude.Status,
+            writesonicAnalytics = analytics.Status,
             aiConfigured = reader.IsAvailable,
             illustrationConfigured = illustrator.IsAvailable,
             indexNowEnabled = IndexNowPublisher.Enabled(config),

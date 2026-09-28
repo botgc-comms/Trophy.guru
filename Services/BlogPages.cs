@@ -124,7 +124,7 @@ public static class BlogPages
         <title>{E(SearchTitle(title))}</title><meta name="description" content="{E(description)}"><link rel="canonical" href="{E(url)}">
         <meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="Trophy Guru">{(metadata.Contains("property=\"og:image\"") ? "" : $"<meta property=\"og:image\" content=\"{E(new Uri(new Uri(url), "/marketing/trophy-guru-social.png").AbsoluteUri)}\">")}
         <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(description)}"><meta name="twitter:image" content="{E(new Uri(new Uri(url), "/marketing/trophy-guru-social.png").AbsoluteUri)}">
-        <link rel="stylesheet" href="/analytics.css"><script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
+        <link rel="stylesheet" href="/analytics.css"><script src="/analytics.js?v=20260928-1" defer></script><script src="/webmcp.js" defer></script>
         <meta name="theme-color" content="#061711"><meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(description)}"><meta property="og:url" content="{E(url)}">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/blog.css">{metadata}<link rel="stylesheet" href="/branding.css"></head>
         <body><a class="skip-link" href="#main">Skip to content</a><header class="blog-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.webp" width="240" height="64" alt="Trophy Guru"></a>

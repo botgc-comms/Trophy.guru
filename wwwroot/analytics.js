@@ -7,7 +7,8 @@
       new URLSearchParams(location.search).get('demo') === '1') return;
 
   const measurementId = 'G-8GMHWE0WLH';
-  const consentKey = 'trophyGuru.analyticsConsent.v1';
+  // Ask again when adding Writesonic as an analytics provider.
+  const consentKey = 'trophyGuru.analyticsConsent.v2';
   const productionHost = location.protocol === 'https:' &&
     (location.hostname === 'trophy.guru' || location.hostname.endsWith('.trophy.guru'));
   const eventSchemas = {
@@ -87,7 +88,7 @@
       <div class="analytics-consent__copy">
         <p class="analytics-consent__eyebrow">Your privacy choice</p>
         <h2 id="analytics-consent-title">Help us improve Trophy.guru?</h2>
-        <p>With your permission, Google Analytics tells us which pages and features are useful. We do not send member names, club records, uploaded images, email addresses or account details.</p>
+        <p>With your permission, Google Analytics and Writesonic help us understand visits to our public pages and referrals from AI services. We do not send member names, club records, uploaded images, email addresses or account details.</p>
         <a href="/privacy.html">Read how analytics and cookies are used</a>
       </div>
       <div class="analytics-consent__actions">
@@ -217,6 +218,22 @@
       page_referrer: safeReferrer(),
       page_title: page.title,
     });
+    sendPublicVisit();
+  }
+
+  function sendPublicVisit() {
+    if (!productionHost || readConsent() !== 'granted') return;
+    const path = location.pathname;
+    const publicPaths = ['/', '/index.html', '/privacy.html', '/demo', '/trophy-archive-project-plan', '/electronic-honours-boards', '/for-golf-clubs', '/digitise-trophy-records', '/how-it-works', '/faq', '/about', '/privacy-and-security', '/blog', '/integrations/intelligent-golf/', '/uk/how-to-catalogue-trophy-winners/', '/us/how-to-catalog-trophy-winners/'];
+    if (!publicPaths.includes(path) && !/^\/blog\/[a-z0-9-]{1,200}$/.test(path)) return;
+    let referrer = '';
+    try { if (document.referrer) referrer = new URL(document.referrer).origin + '/'; } catch { }
+    // Never send page queries, fragments, referrer paths or private routes.
+    fetch('/api/public/analytics/visit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      referrerPolicy: 'same-origin', credentials: 'omit', keepalive: true,
+      body: JSON.stringify({ path, referrer, consent: true }),
+    }).catch(() => {});
   }
 
   function track(eventName, parameters = {}) {

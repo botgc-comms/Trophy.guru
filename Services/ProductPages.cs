@@ -96,7 +96,7 @@ public static class ProductPages
         <meta property="og:image" content="{{origin}}/marketing/trophy-guru-social.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Trophy Guru online honours board with fictional example records">
         <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{{E(page.Title)}}"><meta name="twitter:description" content="{{E(page.Description)}}"><meta name="twitter:image" content="{{origin}}/marketing/trophy-guru-social.png">
         <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/marketing.css"><link rel="stylesheet" href="/product-pages.css"><link rel="stylesheet" href="/analytics.css">
-        <script src="/analytics.js" defer></script><script src="/webmcp.js" defer></script>
+        <script src="/analytics.js?v=20260928-1" defer></script><script src="/webmcp.js" defer></script>
         <script type="application/ld+json">{{breadcrumbs}}</script>{{faq}}<link rel="stylesheet" href="/branding.css"></head>
         <body class="guide-body product-page"><a class="product-skip" href="#main">Skip to content</a>
         <header class="product-header"><a href="/" aria-label="Trophy Guru home"><img src="/images/brand/trophy-guru-logo-transparent.webp" width="240" height="64" alt="Trophy Guru"></a>
