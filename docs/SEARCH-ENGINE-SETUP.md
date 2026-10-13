@@ -32,7 +32,21 @@ Keep the existing GA4 property (`G-8GMHWE0WLH`); no new analytics platform is re
 
 In GA4 Traffic acquisition, filter Session source for `chatgpt.com` and inspect Session source/medium. Create an Exploration with Session source/medium, Landing page + query string and Event name. Compare ChatGPT with observed sources such as Bing, Copilot, Perplexity or Claude; add only sources that actually occur in your data. Use `demo_open` and `pricing_click` to understand public interest, and `signup_click` as a public signup-intent event and optionally mark it as a key event. It measures the click, not successful registration or a booked demo. Account/archive pages remain unmeasured; this change does not claim end-to-end private conversion attribution. Consent denial also means a visit is not measured.
 
-`llms.txt` is a compact supplementary public guide, not a ranking mechanism or a promise that a provider will ingest it. No llms-full.txt was added because the existing concise guides already supply the useful public material.
+`llms.txt` is a supplementary public guide, not a ranking mechanism or a promise that a provider will ingest it. It now includes the workflow and FAQs as well as source links. No separate llms-full.txt is needed for this small body of public product information.
+
+### Public product answers — 13 October 2026
+
+The deployed site already returned HTTP 200 for `/`, `/how-it-works`, `/robots.txt` and `/llms.txt` when fetched directly during this check. Its robots file already allowed OAI-SearchBot. The web retrieval tool in the same session returned internal errors for Trophy.guru URLs. This is a retrieval discrepancy, not evidence of a robots block, a confirmed hosting fault or the cause of a particular earlier ChatGPT response. Local requests with crawler user-agent strings do not prove access from the providers' real networks.
+
+The implementation now answers the question about decades of engraved sports trophies directly on `/digitise-trophy-records` and `/faq`. Shared copy explains AI-assisted reading, review, batches of photographs belonging to one trophy, CSV export to Excel, and retention of original photographs separately from resized uploads. The visible FAQ and its FAQPage JSON-LD use the same answers.
+
+`/llms.txt` renders that copy as Markdown. `/product-facts.json` exposes the same curated overview, workflow, FAQs and canonical source URLs as JSON. Both are generated from `Services/ProductPages.cs` and `Services/PublicProductTools.cs`; edit those sources rather than adding a second static file under `wwwroot`. Marketing HTML links both documents with `rel="describedby"`. These are supplementary resources, not a special AI registration protocol. The sitemap continues to list human-facing pages.
+
+The JSON resource is deliberately outside `/api/`: the existing `/api/public/product` endpoint is covered by API-wide robots exclusions and noindex headers. Keep those protections and the account/club boundaries in place. The new route reads only public copy; it does not query trophy, member or account stores. Public crawler analytics also recognise the new path.
+
+Validation: 307 .NET tests passed, the 19-check search discovery smoke passed, and the AEO browser suite passed desktop/mobile layout, WebMCP and MCP checks. `node Tests/product-answers-smoke.cjs` additionally checks live HTTP GET/HEAD, MIME types, crawler user agents, canonical-host redirects, HTML discovery links, JSON/Markdown/FAQ agreement and private API exclusions. Run against an isolated server with an HTTPS `PUBLIC_SITE_URL` (required by the blog/sitemap code), `QA_PUBLIC_ORIGIN` matching that value and `QA_BASE_URL` pointing to the local listener. Use temporary `DATA_PATH` and disable external integrations. These are local results; deployment and provider indexing are separate.
+
+After deployment, rerun the read-only smoke checks against `https://trophy.guru`, inspect Google/Bing indexing for `/digitise-trophy-records`, `/how-it-works` and `/faq`, and inspect verified crawler access/errors in hosting logs. The existing IndexNow publisher can notify participating engines of the changed HTML. Receipt is not indexing, and no file or structured-data change guarantees a ChatGPT citation. Follow [OpenAI's crawler guidance](https://developers.openai.com/api/docs/bots) for search access and published crawler IP ranges.
 
 
 ## Google generative AI inclusion

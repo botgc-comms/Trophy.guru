@@ -6,15 +6,19 @@ namespace Trophy.Catalogue.Services;
 [McpServerToolType]
 public sealed class PublicProductTools
 {
-    // Fixed content and URLs. No input, account context, database or network calls.
-    public static object Knowledge() => new {
+    // Curated content and deployment-origin links. No account context, database or network calls.
+    public static object Knowledge(string origin = "https://trophy.guru") => new {
+        name = "Trophy Guru",
+        url = origin + "/",
         overview = ProductPages.Overview,
         company = "Marabou Stork Limited",
+        workflowUrl = origin + "/how-it-works",
         workflow = ProductPages.All.Single(p => p.Path == "/how-it-works").Sections,
+        faqUrl = origin + "/faq",
         faqs = ProductPages.Faqs,
-        pages = ProductPages.All.Select(p => new { title = p.Heading, url = "https://trophy.guru" + p.Path }),
-        demoUrl = "https://trophy.guru/demo",
-        signupUrl = "https://trophy.guru/archive.html#signup"
+        pages = ProductPages.All.Select(p => new { title = p.Heading, url = origin + p.Path }),
+        demoUrl = origin + "/demo",
+        signupUrl = origin + "/archive.html#signup"
     };
 
     [McpServerTool(Name = "get_trophy_guru_overview", ReadOnly = true, Destructive = false, OpenWorld = false)]

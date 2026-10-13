@@ -9,7 +9,21 @@ public static class ProductPages
     public record Section(string Heading, string Text);
     public record Page(string Path, string Title, string Heading, string Description, Section[] Sections);
     public const string Overview = "Trophy Guru helps clubs read names and years from photos of trophies, honours boards and old winner lists. AI suggests the readings. Your club checks them, fixes errors and builds a searchable archive. Export a CSV copy or share an online honours board.";
+    // Shared by the visible guide, FAQ, Markdown and public JSON to keep answers consistent.
+    public static readonly Section HistoricCollection = new(
+        "How does Trophy.guru digitise decades of old sports trophies with engraved names and dates?",
+        "Create a club archive, add a trophy and upload clear photographs of the trophy and every engraved plate. Trophy Guru uses AI to read the photos together and suggest winner names and years. Check the suggestions against the photos, correct errors and add missing winners from other records. Repeat for the rest of the collection, then export a CSV archive or share a searchable online honours board. Start with one trophy free, with no payment card required.");
+    public static readonly Section BatchUploads = new(
+        "Can I upload a batch of trophy photographs?",
+        "Yes. Select several photographs for the trophy you are working on. They are saved and read together in the background after you pause uploading. Keep each trophy's photos with its own record; the batch upload does not sort a mixed collection into separate trophies. For a large collection, start with one trophy, check the results and work through the rest in manageable groups.");
+    public static readonly Section CsvExport = new(
+        "Can I search the winners and export the archive to Excel?",
+        "The online honours board has views by year, trophy and person. Export the whole archive, completed trophies or an individual trophy as CSV, which can be opened in Excel. The export includes trophy details, years, winners and review states, with optional member-match information. It is a records export; photographs are not included in the CSV.");
+    public static readonly Section SourcePhotos = new(
+        "Are the photographs kept with the records?",
+        "Uploaded evidence photos stay in the private archive so you can check proposed readings against their sources. They are not included on the public honours board. Keep a separate copy of your original photographs: uploads may be resized for processing, and the CSV export does not contain image files. Export your records and retain your original photos as part of your own archive handover.");
     public static readonly Section[] Faqs = [
+        HistoricCollection,
         new("What is an electronic honours board?", "It is an online list of a club's past winners. Members can browse by year, trophy or person. The club checks each record before sharing it. The working archive stays private."),
         new("What is Trophy Guru?", Overview),
         new("Who is Trophy Guru intended for?", "It is for clubs that want to preserve their trophy history. Golf clubs can start with old cups, medals and engraved plates. Each trophy may hold many years of names and results."),
@@ -18,7 +32,10 @@ public static class ProductPages
         new("What happens to the historical information once digitised?", "Your club can check and edit the winners, share an online honours board and export a CSV copy. The source photos and member details stay in the private archive."),
         new("Is Trophy Guru only for golf clubs?", "No. It also supports other sports clubs, schools and historic collections. Choose your sport when you set up the club. The same steps apply: add trophies, check names and years, then share the results."),
         new("Will every engraving be read correctly?", "No. Glare, wear and unusual letters can lead to errors. Check each suggested reading against the photos and other club records. Keep a name marked as uncertain until you have enough evidence."),
-        new("Can we add missing winners or export our records?", "Yes. You can edit winners, add missing years and export records as CSV. Check gaps against other club sources. Leave a gap open if the name is not known.")
+        new("Can we add missing winners or export our records?", "Yes. You can edit winners, add missing years and export records as CSV. Check gaps against other club sources. Leave a gap open if the name is not known."),
+        BatchUploads,
+        CsvExport,
+        SourcePhotos
     ];
     public static readonly Page[] All = [
         new("/demo", "Digital Honours Board Demo for Golf Clubs | Trophy Guru", "Explore an electronic honours board", "Try Trophy Guru’s public digital honours board demo. Browse example winners by year, trophy and person, with no account or payment card needed.", [
@@ -41,10 +58,14 @@ public static class ProductPages
             new("Check historical names carefully", "Two similar names may belong to different people. Old engravings may use initials or short forms. Check member matches and edits against club records. A missing name does not prove that an event was never held."),
             new("Make the history available to members", "Share checked winners on an online honours board. Members can browse by year, trophy or person. Keep source photos private and export a CSV copy when needed. The Intelligent Golf page explains the optional service for club websites.")]),
         new("/digitise-trophy-records", "Trophy Engraving Transcription & Digital Records | Trophy Guru", "Digitise trophy engravings and historic winner records", "Turn photographs of engraved trophies and trophy plates into reviewed digital winner records, preserving names and years for an online honours board.", [
+            HistoricCollection,
             new("Gather the original evidence", "Take a photo of the whole trophy, then close views of each engraved area. Include the trophy name. Overlap photos where text curves around a cup or base. Keep the trophy and original club records as sources."),
             new("Make the lettering visible", "Glare and curved metal can hide letters. Try another angle and take more than one photo of a hard-to-read line. Photograph plates on their own where useful. Old boards and result sheets may help fill gaps."),
             new("Separate transcription from confirmation", "Trophy Guru suggests names and years from your photos. Check each reading against the image. Look at other club records if a name is unclear. You can edit a record or add a missing year when you find better evidence."),
-            new("Preserve and share the result", "Confirm the checked winners and export a CSV copy. Share an honours board when the club is ready. Work through a large collection one trophy at a time. The quality of the archive depends on the sources and the checks your club makes.")]),
+            new("Preserve and share the result", "Confirm the checked winners and export a CSV copy. Share an honours board when the club is ready. Work through a large collection one trophy at a time. The quality of the archive depends on the sources and the checks your club makes."),
+            BatchUploads,
+            CsvExport,
+            SourcePhotos]),
         new("/how-it-works", "How Trophy Guru Works: Photograph, Review and Share", "From trophy photographs to an honours board", "Photograph engraved trophies, review proposed names and years, correct the records and publish a digital honours board with Trophy Guru.", [
             new("1. Set up your club archive", "Create an account and add your club's name, sport, country and logo. Your private collection starts empty. Add the first trophy and its photos to begin."),
             new("2. Add photographs of the records", "Upload photos of the trophy, its plates or old winner lists. Several views help with unclear letters. Trophy Guru uses AI to suggest names and years from the images. Check those readings against the originals."),
@@ -109,5 +130,18 @@ public static class ProductPages
         """;
     }
 
-    public static string Llms(string origin) => "# Trophy Guru\n\n> " + Overview + "\n\nProduced by Marabou Stork Limited. Proposed readings require human review.\n\n## Product and company\n\n- [Trophy Guru](" + origin + "/)\n" + string.Join("\n", All.Select(p => $"- [{p.Heading}]({origin}{p.Path}): {p.Description}")) + $"\n\n## Further reading\n\n- [Blog]({origin}/blog)\n- [Privacy and cookies]({origin}/privacy.html)\n\n## Public agent access\n\nRead-only MCP endpoint: {origin}/mcp. Public product facts only; no customer records or transactions.\n";
+    public static string DiscoveryLinks(string origin) =>
+        $"<link rel=\"describedby\" type=\"text/plain\" href=\"{E(origin)}/llms.txt\" title=\"Trophy Guru product guide in Markdown\">" +
+        $"<link rel=\"describedby\" type=\"application/json\" href=\"{E(origin)}/product-facts.json\" title=\"Trophy Guru public product facts\">";
+
+    public static string Llms(string origin) => "# Trophy Guru\n\n> " + Overview +
+        "\n\nTrophy Guru (Trophy.guru) is produced by Marabou Stork Limited. Proposed readings require human review. This guide contains public product information, not customer records.\n\n" +
+        "## Digitising old sports trophies\n\n" + HistoricCollection.Text +
+        $"\n\nSource: [Digitise trophy records]({origin}/digitise-trophy-records).\n\n## How it works\n\n" +
+        string.Join("\n\n", All.Single(p => p.Path == "/how-it-works").Sections.Select(s => $"### {s.Heading}\n\n{s.Text}")) +
+        $"\n\nSource: [How Trophy Guru works]({origin}/how-it-works).\n\n## Questions and limitations\n\n" +
+        string.Join("\n\n", Faqs.Where(f => f != HistoricCollection).Select(f => $"### {f.Heading}\n\n{f.Text}")) +
+        $"\n\nSource: [Frequently asked questions]({origin}/faq).\n\n## Product and company\n\n- [Trophy Guru]({origin}/): Current product information and pricing.\n" +
+        string.Join("\n", All.Select(p => $"- [{p.Heading}]({origin}{p.Path}): {p.Description}")) +
+        $"\n\n## Further reading\n\n- [Blog]({origin}/blog)\n- [Privacy and cookies]({origin}/privacy.html)\n- [Public product facts as JSON]({origin}/product-facts.json): The same curated overview, workflow, FAQs and source links.\n\n## Public agent access\n\nRead-only MCP endpoint: {origin}/mcp. Public product facts only; no customer records or transactions.\n";
 }

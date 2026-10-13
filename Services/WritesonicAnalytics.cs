@@ -43,7 +43,7 @@ public sealed class WritesonicAnalytics(IConfiguration config, IHttpClientFactor
     {
         if (string.IsNullOrEmpty(path) || path.Length > 240 || !path.StartsWith('/') || path.Contains("//")) return false;
         var clean = path.TrimEnd('/');
-        if (clean is "" or "/index.html" or "/privacy.html" or "/blog" or "/robots.txt" or "/sitemap.xml" or "/llms.txt") return true;
+        if (clean is "" or "/index.html" or "/privacy.html" or "/blog" or "/robots.txt" or "/sitemap.xml" or "/llms.txt" or "/product-facts.json") return true;
         if (ProductPages.All.Any(page => page.Path.Equals(clean, StringComparison.OrdinalIgnoreCase))) return true;
         if (clean is "/integrations/intelligent-golf" or "/uk/how-to-catalogue-trophy-winners" or "/us/how-to-catalog-trophy-winners") return true;
         return Regex.IsMatch(clean, @"\A/blog/[a-z0-9-]{1,200}\z", RegexOptions.CultureInvariant);

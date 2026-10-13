@@ -207,7 +207,7 @@ public static class EntryPoint
             var marketingPath = marketingDocuments.Keys.FirstOrDefault(key => key.Equals(path, StringComparison.OrdinalIgnoreCase))
                 ?? (path.Equals("/blog", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/blog/", StringComparison.OrdinalIgnoreCase) ? path.TrimEnd('/').ToLowerInvariant() : null);
             var redirectPath = marketingRedirects.GetValueOrDefault(path);
-            var discoveryDocument = path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase) || path.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase) || path.Equals("/llms.txt", StringComparison.OrdinalIgnoreCase);
+            var discoveryDocument = path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase) || path.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase) || path.Equals("/llms.txt", StringComparison.OrdinalIgnoreCase) || path.Equals("/product-facts.json", StringComparison.OrdinalIgnoreCase);
             var canonicalHost = configuredPublicSiteUrl is null ? null : new Uri(configuredPublicSiteUrl).Authority;
             if ((marketingPath is not null || redirectPath is not null || discoveryDocument) &&
                 canonicalHost is not null && !string.Equals(context.Request.Host.Value, canonicalHost, StringComparison.OrdinalIgnoreCase))
@@ -235,6 +235,7 @@ public static class EntryPoint
                     .Replace("</head>", "<script type=\"application/ld+json\">" + ProductPages.Graph(publicSiteUrl) + "</script></head>", StringComparison.Ordinal)
                     .Replace("{{PUBLIC_SITE_URL}}", publicSiteUrl, StringComparison.Ordinal)
                     .Replace("</head>", SearchDiscovery.VerificationTags(builder.Configuration) + "</head>", StringComparison.Ordinal)
+                    .Replace("</head>", ProductPages.DiscoveryLinks(publicSiteUrl) + "</head>", StringComparison.Ordinal)
                     .Replace("<script type=\"application/ld+json\">", $"<script type=\"application/ld+json\" nonce=\"{context.Items["csp-nonce"]}\">", StringComparison.Ordinal);
                 var canonicalUrl = path == "/" ? $"{publicSiteUrl}/" : $"{publicSiteUrl}{path}";
                 context.Response.ContentType = "text/html; charset=utf-8";
@@ -250,8 +251,19 @@ public static class EntryPoint
             if (path.Equals("/llms.txt", StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.ContentType = "text/plain; charset=utf-8";
+                context.Response.Headers.CacheControl = "no-cache";
                 if (!HttpMethods.IsHead(context.Request.Method))
                     await context.Response.WriteAsync(ProductPages.Llms(publicSiteUrl), context.RequestAborted);
+                return;
+            }
+
+            // This contains only curated public copy. Keep private /api/ routes excluded.
+            if (path.Equals("/product-facts.json", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.ContentType = "application/json; charset=utf-8";
+                context.Response.Headers.CacheControl = "no-cache";
+                if (!HttpMethods.IsHead(context.Request.Method))
+                    await context.Response.WriteAsJsonAsync(PublicProductTools.Knowledge(publicSiteUrl), context.RequestAborted);
                 return;
             }
 
